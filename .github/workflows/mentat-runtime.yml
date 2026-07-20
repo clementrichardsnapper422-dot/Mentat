@@ -1,0 +1,27 @@
+name: Mentat Runtime
+
+on:
+  pull_request:
+    paths:
+      - "scripts/mentat/**"
+      - "docs/mentat/model-runtime.md"
+      - ".github/workflows/mentat-runtime.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/mentat/**"
+      - "docs/mentat/model-runtime.md"
+      - ".github/workflows/mentat-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-launcher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check launcher syntax
+        run: bash -n scripts/mentat/launch.sh
+      - name: Verify stable default model
+        run: grep -Fq 'kimi-k2.7-code:cloud' scripts/mentat/launch.sh
