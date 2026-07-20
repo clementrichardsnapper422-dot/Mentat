@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "notes": "Bootstrap quality values are conservative routing priors, not benchmark claims. Local benchmark records replace them after the configured sample threshold.",
+  "policy": {
+    "port": 18890,
+    "max_hourly_usd": 32,
+    "max_session_hours": 4,
+    "max_total_usd": 64,
+    "idle_shutdown_minutes": 30,
+    "approval_timeout_seconds": 300,
+    "endpoint_ready_timeout_seconds": 1800,
+    "minimum_reliability": 0.98,
+    "require_manual_approval": true
+  },
+  "models": [
+    {
+      "id": "kimi-k2.7-code",
+      "display_name": "Kimi K2.7 Code",
+      "model_id": "moonshotai/Kimi-K2.7-Code",
+      "provider": "vast",
+      "enabled": true,
+      "quality_tier": 5,
+      "bootstrap_quality": {
+        "simple": 0.92,
+        "general": 0.94,
+        "code": 0.97,
+        "large_code": 0.98,
+        "vision": 0.95,
+        "high_risk": 0.98
+      },
+      "capabilities": ["reasoning", "coding", "tools", "vision", "long_context"],
+      "task_classes": ["simple", "general", "code", "large_code", "vision", "high_risk"],
+      "context_tokens": 262144,
+      "num_gpus": 8,
+      "min_gpu_ram_mb": 140000,
+      "gpu_names": ["H200", "H200 NVL"],
+      "max_hourly_usd": 32,
+      "endpoint_config": "infrastructure/vast/kimi-k2.7-code/endpoint.json",
+      "state_name": "kimi-k2.7-code.json",
+      "fallback_chain": ["qwen3-coder-30b", "deepseek-coder-v2-lite"],
+      "default_minutes": {
+        "simple": 8,
+        "general": 15,
+        "code": 25,
+        "large_code": 60,
+        "vision": 20,
+        "high_risk": 45
+      },
+      "minimum_benchmark_samples": 3
+    },
+    {
+      "id": "qwen3-coder-30b",
+      "display_name": "Qwen3 Coder 30B A3B",
+      "model_id": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      "provider": "vast",
+      "enabled": true,
+      "quality_tier": 4,
+      "bootstrap_quality": {
+        "simple": 0.88,
+        "general": 0.86,
+        "code": 0.91,
+        "large_code": 0.89
+      },
+      "capabilities": ["reasoning", "coding", "tools", "long_context"],
+      "task_classes": ["simple", "general", "code", "large_code"],
+      "context_tokens": 262144,
+      "num_gpus": 1,
+      "min_gpu_ram_mb": 80000,
+      "gpu_names": ["H100 SXM", "H100 PCIe", "A100 SXM4", "A100 PCIe"],
+      "max_hourly_usd": 8,
+      "endpoint_config": "infrastructure/vast/qwen3-coder-30b/endpoint.json",
+      "state_name": "qwen3-coder-30b.json",
+      "fallback_chain": ["kimi-k2.7-code", "deepseek-coder-v2-lite"],
+      "default_minutes": {
+        "simple": 6,
+        "general": 12,
+        "code": 25,
+        "large_code": 55
+      },
+      "minimum_benchmark_samples": 3
+    },
+    {
+      "id": "deepseek-coder-v2-lite",
+      "display_name": "DeepSeek Coder V2 Lite",
+      "model_id": "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct",
+      "provider": "vast",
+      "enabled": true,
+      "quality_tier": 3,
+      "bootstrap_quality": {
+        "simple": 0.84,
+        "general": 0.84,
+        "code": 0.82
+      },
+      "capabilities": ["reasoning", "coding"],
+      "task_classes": ["simple", "general", "code"],
+      "context_tokens": 128000,
+      "num_gpus": 1,
+      "min_gpu_ram_mb": 48000,
+      "gpu_names": ["L40S", "RTX 6000 Ada", "A6000", "A40"],
+      "max_hourly_usd": 3,
+      "endpoint_config": "infrastructure/vast/deepseek-coder-v2-lite/endpoint.json",
+      "state_name": "deepseek-coder-v2-lite.json",
+      "fallback_chain": ["qwen3-coder-30b", "kimi-k2.7-code"],
+      "default_minutes": {
+        "simple": 5,
+        "general": 10,
+        "code": 24
+      },
+      "minimum_benchmark_samples": 3
+    }
+  ]
+}

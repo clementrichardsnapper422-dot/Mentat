@@ -1,0 +1,47 @@
+name: Mentat Broker
+
+on:
+  pull_request:
+    paths:
+      - "services/model-broker/**"
+      - "config/model-registry.json"
+      - "scripts/mentat/broker.py"
+      - "infrastructure/vast/**"
+      - ".github/workflows/mentat-broker.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/model-broker/**"
+      - "config/model-registry.json"
+      - "scripts/mentat/broker.py"
+      - "infrastructure/vast/**"
+      - ".github/workflows/mentat-broker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  broker-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install focused test tools
+        working-directory: services/model-broker
+        run: python -m pip install pytest ruff
+      - name: Lint broker
+        working-directory: services/model-broker
+        run: ruff check mentat_broker tests
+      - name: Compile broker
+        working-directory: services/model-broker
+        run: python -m compileall -q mentat_broker tests
+      - name: Test deterministic routing, storage, and registry
+        working-directory: services/model-broker
+        run: pytest -q
+      - name: Validate committed broker configuration
+        run: python scripts/mentat/broker.py --root . --data-dir "${{ runner.temp }}/broker" --check
