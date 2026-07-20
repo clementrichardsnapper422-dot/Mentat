@@ -28,6 +28,13 @@ def request_json(
     attempts: int = 5,
     allow_not_found: bool = False,
 ) -> dict[str, Any]:
+    # Creating an endpoint or workergroup is not safely retryable: the remote
+    # resource may exist even when the client loses the response. The caller
+    # recovers by rediscovering the exact endpoint name on the next run.
+    normalized = url.rstrip("/")
+    if method.upper() == "POST" and normalized.endswith(("/endptjobs", "/workergroups")):
+        attempts = 1
+
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
     headers = {
         "Authorization": f"Bearer {api_key}",
