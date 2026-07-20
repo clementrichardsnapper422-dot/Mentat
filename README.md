@@ -8,6 +8,7 @@ Mentat keeps the Gateway, tools, memory, repository access, approval gates, and 
 Your computer
   └─ Mentat / OpenClaw
       ├─ tools, memory, approvals, GitHub, terminal
+      ├─ Mentat.exe desktop window
       └─ HTTPS inference request
            └─ Vast.ai endpoint
                 └─ Kimi K2.7 Code
@@ -27,7 +28,7 @@ Requirements:
 - Node.js 24.15+ recommended, or 22.22.3+ / 25.9+
 - Python 3.11+
 
-### Windows — native PowerShell
+## Windows — native desktop application
 
 Open PowerShell:
 
@@ -37,12 +38,27 @@ cd Mentat
 .\install.cmd
 ```
 
-`install.cmd` runs the checked-in PowerShell installer with a process-only execution-policy bypass. It does not change the permanent Windows execution policy and does not use WSL, Git Bash, Cygwin, or another Unix layer.
+The Windows installer:
 
-Open a new PowerShell window, then run:
+1. installs Mentat's local runtime and command-line tools
+2. builds the local Control UI
+3. builds a native `Mentat.exe` desktop application
+4. installs it per-user
+5. creates Desktop and Start Menu shortcuts
+
+`install.cmd` uses a process-only execution-policy bypass. It does not alter the permanent Windows execution policy and does not use WSL, Git Bash, or Cygwin.
+
+Open a new PowerShell window and configure the model provider:
 
 ```powershell
 mentat setup
+```
+
+Then launch **Mentat** from the Desktop or Start Menu. The application starts the local Gateway when necessary and opens the Control UI in its own native window.
+
+Command-line chat remains available:
+
+```powershell
 mentat start
 mentat chat
 ```
@@ -52,12 +68,17 @@ Windows installer options:
 ```powershell
 .\install.cmd -SkipUI
 .\install.cmd -SkipDeps
+.\install.cmd -SkipDesktop
 .\install.cmd -NoPath
 ```
 
-See the [native Windows guide](docs/mentat/windows.md) for paths, DPAPI credential protection, and troubleshooting.
+`-SkipDesktop` keeps the native command-line installation but skips building and installing `Mentat.exe`.
 
-### macOS and Linux
+The locally built Windows installer is unsigned until a code-signing certificate is configured. Windows may display an unknown-publisher notice.
+
+See the [native Windows guide](docs/mentat/windows.md) for paths, DPAPI protection, desktop-app behavior, and troubleshooting.
+
+## macOS and Linux
 
 ```bash
 git clone https://github.com/clementrichardsnapper422-dot/Mentat.git
@@ -81,11 +102,9 @@ bash install.sh --skip-deps
 bash install.sh --no-path
 ```
 
-That is the normal installation path. You do not need to remember the underlying `pnpm`, OpenClaw, Python, Gateway, or provider-configuration commands.
-
 ## What the installers do
 
-Both installers:
+The installers:
 
 1. check Node.js, Python, Git, and the operating system
 2. install the pinned pnpm version into the user account when needed
@@ -94,6 +113,8 @@ Both installers:
 5. install one `mentat` command
 6. create per-user configuration and state directories
 7. run `mentat doctor`
+
+The Windows installer additionally builds and installs the Electron desktop application unless `-SkipDesktop` is supplied.
 
 They do not upload credentials or store secrets in GitHub.
 
@@ -106,12 +127,18 @@ macOS and Linux:
 ~/.config/mentat/
 ```
 
-Windows:
+Windows runtime:
 
 ```text
 %LOCALAPPDATA%\Mentat\bin
 %LOCALAPPDATA%\Mentat\config
 %LOCALAPPDATA%\Mentat\state
+```
+
+Windows desktop application:
+
+```text
+%LOCALAPPDATA%\Programs\Mentat\Mentat.exe
 ```
 
 The native Windows setup encrypts the Vast API key with Windows DPAPI. The saved value can only be decrypted by the same Windows user profile on that Windows installation.
@@ -154,17 +181,33 @@ mentat start
 
 This launches `kimi-k2.7-code:cloud` through Ollama Cloud. It is separate from the Vast inference route.
 
-## Everyday use
+## Desktop application behavior
+
+The Windows `Mentat.exe` application:
+
+- opens the local Control UI in a dedicated desktop window
+- starts the local Gateway when it is not already running
+- leaves an already-running Gateway alone
+- stops the Gateway on exit only when the desktop app started it
+- permits only the configured local Gateway origin inside the window
+- opens outside links in the default browser
+- disables Node.js and Electron APIs inside the web interface
+- allows only one Mentat desktop instance at a time
+- includes menu commands for reload, Gateway restart, logs, zoom, full screen, and developer tools
+
+The desktop app is a secure shell around the same local Mentat Gateway. It is not a hosted website and does not move your tools or data to Electron.
+
+## Everyday command-line use
 
 ```text
-mentat start                  start the local Gateway in the background
-mentat stop                   stop it
-mentat restart                restart it
-mentat status                 process and Gateway status
-mentat chat                   open the terminal UI
-mentat chat "Review my repo" send one message directly
-mentat logs                   follow Gateway logs
-mentat doctor                 diagnose setup problems
+mentat start                   start the local Gateway in the background
+mentat stop                    stop it
+mentat restart                 restart it
+mentat status                  process and Gateway status
+mentat chat                    open the terminal UI
+mentat chat "Review my repo"  send one message directly
+mentat logs                    follow Gateway logs
+mentat doctor                  diagnose setup problems
 ```
 
 Run in the foreground when debugging:
@@ -187,41 +230,17 @@ Credentials are redacted from `mentat config show`. The default Gateway port is 
 
 Mentat includes guarded commands for the Kimi endpoint. These are explicit operator actions; the language model does not receive unrestricted infrastructure control.
 
-Estimate a session before spending:
-
 ```text
 mentat vast estimate --hourly-price 28 --hours 2
-```
-
-Create the endpoint and workergroup:
-
-```text
 mentat vast create --accept-test-worker-cost
-```
-
-The acknowledgement is required because the initial profile may launch a complete 8×H200 worker cluster for benchmarking.
-
-Inspect and test:
-
-```text
 mentat vast status
 mentat vast test
-```
-
-Keep one worker warm or allow scale-to-zero:
-
-```text
 mentat vast warm
 mentat vast cool
-```
-
-Destroy the endpoint and workergroup:
-
-```text
 mentat vast destroy --confirm
 ```
 
-The committed profile allows only one worker cluster and caps marketplace offers at `$32/hour`.
+The acknowledgement is required because the initial profile may launch a complete 8×H200 worker cluster for benchmarking. The committed profile allows only one worker cluster and caps marketplace offers at `$32/hour`.
 
 ## Update Mentat
 
@@ -229,23 +248,23 @@ The committed profile allows only one worker cluster and caps marketplace offers
 mentat update
 ```
 
-This performs a fast-forward Git pull, installs dependencies, and rebuilds the Control UI. It refuses to update over uncommitted changes.
+This performs a fast-forward Git pull, installs dependencies, and rebuilds the Control UI. Run `install.cmd` again when desktop application code or packaging changes.
 
 ## Uninstall
 
-Keep the local configuration:
+Remove the command while preserving configuration:
 
 ```text
 mentat uninstall
 ```
 
-Remove the command, local configuration, and state:
+Remove command-line configuration and state:
 
 ```text
 mentat uninstall --purge
 ```
 
-The source checkout is deliberately not deleted automatically.
+The Windows desktop application is uninstalled separately from **Windows Settings → Apps → Installed apps → Mentat**. The source checkout is deliberately not deleted automatically.
 
 ## Troubleshooting
 
@@ -257,34 +276,29 @@ mentat status
 mentat logs
 ```
 
-Reinstall dependencies and the command wrapper:
+Reinstall on Windows:
 
 ```powershell
-# Windows
 .\install.cmd
 ```
 
+Reinstall on macOS or Linux:
+
 ```bash
-# macOS or Linux
 bash install.sh
 ```
 
-Reconfigure the inference provider:
+Detailed documentation:
 
-```text
-mentat setup
-```
-
-Detailed Mentat documentation:
-
-- [Native Windows installation](docs/mentat/windows.md)
+- [Native Windows installation and desktop app](docs/mentat/windows.md)
+- [Desktop packaging](apps/mentat-desktop/README.md)
 - [Architecture](docs/mentat/architecture.md)
 - [Model runtime](docs/mentat/model-runtime.md)
 - [Vast Kimi endpoint](infrastructure/vast/kimi-k2.7-code/README.md)
 
 ## Development from source
 
-The repository is a pnpm workspace. Plain `npm install` at the repository root is not supported.
+The main repository is a pnpm workspace. Plain `npm install` at the repository root is not supported.
 
 ```text
 corepack enable
@@ -293,14 +307,22 @@ pnpm openclaw setup
 pnpm gateway:watch
 ```
 
-Build the distributable runtime and Control UI:
+Build the runtime and Control UI:
 
 ```text
 pnpm build
 pnpm ui:build
 ```
 
-Focused checks include Bash syntax and smoke tests on Ubuntu plus native PowerShell parsing, command tests, DPAPI validation, and Python compilation on `windows-latest`.
+Build only the Windows desktop installer:
+
+```powershell
+cd apps\mentat-desktop
+npm install
+npm run dist
+```
+
+The generated installer is placed in `apps\mentat-desktop\dist`.
 
 ## Security
 
