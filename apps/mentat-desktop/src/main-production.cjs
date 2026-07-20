@@ -62,18 +62,24 @@ http.get = function authenticatedLocalGet(input, options, callback) {
 const originalLoadURL = electron.BrowserWindow.prototype.loadURL;
 electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(target, options) {
   const token = adminToken();
+  let actualOptions = options;
   if (token && isBrokerUrl(target)) {
     try {
       const candidate = new URL(target);
       if (candidate.pathname === '/ui/decisions') {
-        candidate.searchParams.set('token', token);
-        target = candidate.toString();
+        const existing = actualOptions && actualOptions.extraHeaders
+          ? String(actualOptions.extraHeaders).replace(/\r?\n$/, '') + '\r\n'
+          : '';
+        actualOptions = {
+          ...(actualOptions || {}),
+          extraHeaders: `${existing}Authorization: Bearer ${token}\r\n`,
+        };
       }
     } catch {
       // The original loadURL reports malformed URLs.
     }
   }
-  return originalLoadURL.call(this, target, options);
+  return originalLoadURL.call(this, target, actualOptions);
 };
 
 require('./main.cjs');
