@@ -233,7 +233,9 @@ switch ($provider) {
         }
     }
     'ollama-cloud' {
+        Configure-ProductionSandbox
         if ($ConfigOnly) { return }
+        Assert-SandboxRuntime
         $ollama = Get-Command 'ollama.exe' -ErrorAction SilentlyContinue
         if (-not $ollama) { $ollama = Get-Command 'ollama' -ErrorAction SilentlyContinue }
         if (-not $ollama) { throw 'Ollama is not installed or not on PATH.' }
