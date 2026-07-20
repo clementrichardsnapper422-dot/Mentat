@@ -65,7 +65,9 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
             self.registry.policy.max_concurrent_requests
         )
         if not check_mode:
+            self.sessions.stop_sweeper()
             self.sessions.reconcile_startup()
+            self.sessions.start_sweeper()
 
     def routing_prompt_from_messages(
         self, messages: list[dict[str, Any]]
