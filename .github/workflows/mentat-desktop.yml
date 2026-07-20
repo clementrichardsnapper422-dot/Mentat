@@ -1,0 +1,74 @@
+name: Mentat Desktop
+
+on:
+  pull_request:
+    paths:
+      - "apps/mentat-desktop/**"
+      - "install.ps1"
+      - "install.cmd"
+      - "README.md"
+      - "docs/mentat/windows.md"
+      - ".github/workflows/mentat-desktop.yml"
+      - ".github/workflows/mentat-runtime.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/mentat-desktop/**"
+      - "install.ps1"
+      - "install.cmd"
+      - "README.md"
+      - "docs/mentat/windows.md"
+      - ".github/workflows/mentat-desktop.yml"
+      - ".github/workflows/mentat-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: apps/mentat-desktop/package.json
+
+      - name: Install desktop packaging dependencies
+        working-directory: apps/mentat-desktop
+        shell: powershell
+        run: npm install --no-audit --no-fund
+
+      - name: Check desktop main process syntax
+        working-directory: apps/mentat-desktop
+        shell: powershell
+        run: npm run check
+
+      - name: Build Mentat NSIS installer
+        working-directory: apps/mentat-desktop
+        shell: powershell
+        run: npm run dist
+
+      - name: Verify packaged executable and installer
+        shell: powershell
+        run: |
+          if (-not (Test-Path 'apps/mentat-desktop/dist/win-unpacked/Mentat.exe')) {
+            throw 'Packaged Mentat.exe was not produced.'
+          }
+          $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Mentat NSIS installer was not produced.' }
+          Write-Host "Built $($installer.FullName)"
+
+      - name: Upload Mentat Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-windows-installer
+          path: |
+            apps/mentat-desktop/dist/Mentat-Setup-*.exe
+            apps/mentat-desktop/dist/latest.yml
+          if-no-files-found: error
+          retention-days: 14
