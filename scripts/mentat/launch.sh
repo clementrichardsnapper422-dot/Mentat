@@ -5,21 +5,15 @@ PROVIDER="${MENTAT_PROVIDER:-vast}"
 MODEL_ID="${MENTAT_MODEL_ID:-moonshotai/Kimi-K2.7-Code}"
 OLLAMA_MODEL="${MENTAT_OLLAMA_MODEL:-kimi-k2.7-code:cloud}"
 
-openclaw_cmd() {
-  if command -v openclaw >/dev/null 2>&1; then
-    openclaw "$@"
-    return
-  fi
-
-  if command -v pnpm >/dev/null 2>&1 && [[ -f package.json ]]; then
-    pnpm openclaw "$@"
-    return
-  fi
-
+if command -v openclaw >/dev/null 2>&1; then
+  OPENCLAW=(openclaw)
+elif command -v pnpm >/dev/null 2>&1 && [[ -f package.json ]]; then
+  OPENCLAW=(pnpm openclaw)
+else
   echo "OpenClaw is not installed and pnpm source execution is unavailable." >&2
   echo "Install dependencies in the Mentat repository or install OpenClaw globally." >&2
   exit 1
-}
+fi
 
 configure_vast() {
   if [[ -z "${MENTAT_VLLM_BASE_URL:-}" ]]; then
@@ -42,7 +36,7 @@ EOF
   echo "Model: ${MODEL_ID}"
   echo "Endpoint: ${MENTAT_VLLM_BASE_URL}"
 
-  openclaw_cmd onboard \
+  "${OPENCLAW[@]}" onboard \
     --non-interactive \
     --mode local \
     --auth-choice vllm \
@@ -50,14 +44,14 @@ EOF
     --custom-api-key "${VAST_API_KEY}" \
     --custom-model-id "${MODEL_ID}"
 
-  openclaw_cmd models set "vllm/${MODEL_ID}"
-  openclaw_cmd models status
+  "${OPENCLAW[@]}" models set "vllm/${MODEL_ID}"
+  "${OPENCLAW[@]}" models status
 
   if [[ "${MENTAT_CONFIG_ONLY:-0}" == "1" ]]; then
     return
   fi
 
-  exec openclaw gateway --port "${MENTAT_GATEWAY_PORT:-18789}" --verbose
+  exec "${OPENCLAW[@]}" gateway --port "${MENTAT_GATEWAY_PORT:-18789}" --verbose
 }
 
 launch_ollama_cloud() {
