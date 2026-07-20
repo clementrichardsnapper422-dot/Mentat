@@ -20,7 +20,7 @@ function Invoke-Pnpm([string[]]$ArgsList) {
     Push-Location $RootDir
     try {
         & $pnpm @ArgsList
-        if ($LASTEXITCODE -ne 0) { throw "pnpm command failed with exit code $LASTEXITCODE: $($ArgsList -join ' ')" }
+        if ($LASTEXITCODE -ne 0) { throw "pnpm command failed with exit code ${LASTEXITCODE}: $($ArgsList -join ' ')" }
     } finally { Pop-Location }
 }
 
