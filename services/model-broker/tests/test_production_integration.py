@@ -145,11 +145,14 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
         with response:
             result = json.loads(response.read().decode("utf-8"))
             assert response.headers["X-Mentat-Model"] == "kimi-k2.7-code"
-            assert response.headers["X-Mentat-Decision-Id"]
+            decision_id = response.headers["X-Mentat-Decision-Id"]
+            assert decision_id
         assert result["choices"][0]["message"]["content"] == "Mentat integration online"
         assert len(FakeOpenAIHandler.requests) == 1
         assert FakeOpenAIHandler.requests[0]["model"] == model.model_id
-        summary = application.store.benchmark_summary(model.id, "general")
+        decision = application.store.get_decision(decision_id)
+        assert decision is not None
+        summary = application.store.benchmark_summary(model.id, decision.task_class)
         assert summary["runtime_samples"] == 1
     finally:
         broker.shutdown()
