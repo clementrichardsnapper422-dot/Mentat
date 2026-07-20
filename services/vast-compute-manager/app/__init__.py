@@ -1,0 +1,1 @@
+"""Mentat Vast compute manager."""
