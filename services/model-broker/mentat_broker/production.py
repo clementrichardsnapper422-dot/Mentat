@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from . import server as broker_server
+from .endpoint_overrides import install_endpoint_override_hooks
 from .production_app import ProductionBrokerApplication
 from .production_http import (
     LoopbackThreadingHTTPServer,
@@ -15,6 +16,7 @@ from .production_store import ProductionBrokerStore
 def install_production_hooks() -> None:
     """Install the final production gates after safety and runtime hooks."""
 
+    install_endpoint_override_hooks()
     base_make_handler = broker_server.make_handler
     base_ui = broker_server._decision_ui
 
