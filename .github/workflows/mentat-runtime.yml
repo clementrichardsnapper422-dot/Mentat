@@ -3,6 +3,9 @@ name: Mentat Runtime
 on:
   pull_request:
     paths:
+      - "install.sh"
+      - "README.md"
+      - "config/mentat.env.example"
       - "scripts/mentat/**"
       - "infrastructure/vast/kimi-k2.7-code/**"
       - "docs/mentat/model-runtime.md"
@@ -11,6 +14,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "install.sh"
+      - "README.md"
+      - "config/mentat.env.example"
       - "scripts/mentat/**"
       - "infrastructure/vast/kimi-k2.7-code/**"
       - "docs/mentat/model-runtime.md"
@@ -25,8 +31,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check launcher syntax
-        run: bash -n scripts/mentat/launch.sh
+      - name: Check Mentat shell syntax
+        run: |
+          bash -n install.sh
+          bash -n scripts/mentat/install.sh
+          bash -n scripts/mentat/launch.sh
+          bash -n scripts/mentat/mentat.sh
+          bash -n scripts/mentat/doctor.sh
+      - name: Verify installer help
+        run: bash install.sh --help | grep -Fq 'Install Mentat'
+      - name: Verify unified command help
+        run: bash scripts/mentat/mentat.sh help | grep -Fq 'mentat vast'
+      - name: Verify local configuration path
+        run: |
+          output="$(MENTAT_CONFIG_DIR="$RUNNER_TEMP/mentat" bash scripts/mentat/mentat.sh config path)"
+          test "$output" = "$RUNNER_TEMP/mentat/env"
       - name: Compile Vast endpoint CLI
         run: python -m py_compile scripts/mentat/vast_endpoint.py
       - name: Validate Kimi endpoint policy
