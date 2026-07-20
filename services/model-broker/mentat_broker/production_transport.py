@@ -5,7 +5,6 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
 
 from .models import ModelSpec
 from .production_sessions import ProductionSessionManager as BaseProductionSessionManager
