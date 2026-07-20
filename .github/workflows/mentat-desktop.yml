@@ -61,6 +61,20 @@ jobs:
           if (-not $installer) { throw 'Mentat NSIS installer was not produced.' }
           Write-Host "Built $($installer.FullName)"
 
+      - name: Smoke-install generated Mentat setup
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Mentat installer failed with exit code $($process.ExitCode)."
+          }
+          $installedExe = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\Mentat.exe'
+          if (-not (Test-Path $installedExe)) {
+            throw "Installed Mentat.exe was not found at $installedExe"
+          }
+          Write-Host "Installed $installedExe"
+
       - name: Upload Mentat Windows installer
         uses: actions/upload-artifact@v4
         with:
