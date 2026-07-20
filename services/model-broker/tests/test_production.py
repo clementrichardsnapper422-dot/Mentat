@@ -53,8 +53,13 @@ def production_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("MENTAT_BROKER_ADMIN_TOKEN", "admin-token")
     monkeypatch.setenv("VAST_API_KEY", "test-vast-key")
     application = ProductionBrokerApplication(ROOT, REGISTRY, tmp_path / "data")
+    prices = {
+        "kimi-k2.7-code": 24,
+        "qwen3-coder-30b": 2,
+        "deepseek-coder-v2-lite": 1,
+    }
     application.offers_for = lambda model, refresh=False: [  # type: ignore[method-assign]
-        offer_for(model, {"kimi-k2.7-code": 24, "qwen3-coder-30b": 2, "deepseek-coder-v2-lite": 1}[model.id])
+        offer_for(model, prices[model.id])
     ]
     yield application
     application.close()
@@ -208,7 +213,9 @@ def test_loopback_http_boundary_requires_correct_tokens() -> None:
 
         return Base
 
-    ui = lambda: b"<html><script>const list = document.getElementById('list');</script></html>"
+    def ui() -> bytes:
+        return b"<html><script>const list = document.getElementById('list');</script></html>"
+
     handler = production_handler_factory(base_factory, ui, application)
     server = LoopbackThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
