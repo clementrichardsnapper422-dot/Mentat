@@ -159,6 +159,10 @@ def workergroup_payload(
 
 
 def command_create(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    if not args.accept_test_worker_cost:
+        raise RuntimeError(
+            "create requires --accept-test-worker-cost because Vast may launch a full 8-GPU benchmark worker"
+        )
     api_key = require_api_key()
     template_hash = args.template_hash or os.getenv("VAST_TEMPLATE_HASH")
     if not template_hash:
@@ -191,6 +195,7 @@ def command_create(args: argparse.Namespace, config: dict[str, Any]) -> None:
 
 
 def command_status(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    del args
     api_key = require_api_key()
     endpoints = request_json("GET", f"{API_BASE}/endptjobs/", api_key)
     workergroups = request_json("GET", f"{API_BASE}/workergroups/", api_key)
@@ -302,6 +307,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     create = subparsers.add_parser("create", help="create endpoint and workergroup")
     create.add_argument("--template-hash")
+    create.add_argument("--accept-test-worker-cost", action="store_true")
 
     subparsers.add_parser("status", help="show endpoint and workergroup state")
     subparsers.add_parser("warm", help="keep one Kimi worker cluster warm")
