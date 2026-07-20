@@ -4,23 +4,25 @@ on:
   pull_request:
     paths:
       - "install.sh"
+      - "install.ps1"
+      - "install.cmd"
       - "README.md"
       - "config/mentat.env.example"
       - "scripts/mentat/**"
       - "infrastructure/vast/kimi-k2.7-code/**"
-      - "docs/mentat/model-runtime.md"
-      - "docs/mentat/architecture.md"
+      - "docs/mentat/**"
       - ".github/workflows/mentat-runtime.yml"
   push:
     branches: [main]
     paths:
       - "install.sh"
+      - "install.ps1"
+      - "install.cmd"
       - "README.md"
       - "config/mentat.env.example"
       - "scripts/mentat/**"
       - "infrastructure/vast/kimi-k2.7-code/**"
-      - "docs/mentat/model-runtime.md"
-      - "docs/mentat/architecture.md"
+      - "docs/mentat/**"
       - ".github/workflows/mentat-runtime.yml"
 
 permissions:
@@ -71,3 +73,83 @@ jobs:
         run: grep -Fq 'MODEL_ID="${MENTAT_MODEL_ID:-moonshotai/Kimi-K2.7-Code}"' scripts/mentat/launch.sh
       - name: Verify Ollama Cloud remains fallback only
         run: grep -Fq 'ollama-cloud)' scripts/mentat/launch.sh
+
+  validate-windows-native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse native PowerShell scripts with Windows PowerShell
+        shell: powershell
+        run: |
+          $diagnostics = Join-Path $env:RUNNER_TEMP 'powershell-parse-errors.txt'
+          Remove-Item $diagnostics -Force -ErrorAction SilentlyContinue
+          $files = @(
+            'install.ps1',
+            'scripts/mentat/doctor.ps1',
+            'scripts/mentat/launch.ps1',
+            'scripts/mentat/mentat.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            foreach ($parseError in $errors) {
+              $message = '{0}:{1}:{2}: {3}' -f $file, $parseError.Extent.StartLineNumber, $parseError.Extent.StartColumnNumber, $parseError.Message
+              Add-Content -LiteralPath $diagnostics -Value $message
+              Write-Host "::error file=$file,line=$($parseError.Extent.StartLineNumber),col=$($parseError.Extent.StartColumnNumber)::$($parseError.Message)"
+            }
+          }
+          if (Test-Path $diagnostics) {
+            Get-Content $diagnostics
+            exit 1
+          }
+      - name: Upload PowerShell parser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: powershell-parse-errors
+          path: ${{ runner.temp }}/powershell-parse-errors.txt
+          if-no-files-found: ignore
+      - name: Verify CMD installer entry point
+        shell: cmd
+        run: install.cmd -Help | findstr /C:"Install Mentat natively on Windows"
+      - name: Verify native command help
+        shell: powershell
+        run: |
+          $env:MENTAT_HOME = $PWD.Path
+          $output = & .\scripts\mentat\mentat.ps1 help 6>&1 | Out-String
+          if ($output -notmatch 'mentat vast') { throw 'Native help is missing Vast commands.' }
+      - name: Verify Windows DPAPI protection
+        shell: powershell
+        run: |
+          $secure = ConvertTo-SecureString 'mentat-ci-secret' -AsPlainText -Force
+          $encrypted = ConvertFrom-SecureString $secure
+          $restored = ConvertTo-SecureString $encrypted
+          $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($restored)
+          try { $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
+          finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+          if ($plain -ne 'mentat-ci-secret') { throw 'DPAPI round-trip failed.' }
+      - name: Compile Vast endpoint CLI on Windows
+        shell: powershell
+        run: python -m py_compile scripts/mentat/vast_endpoint.py
+      - name: Verify native model and provider defaults
+        shell: powershell
+        run: |
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "moonshotai/Kimi-K2.7-Code" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "'vast'" | Out-Null
+      - name: Smoke test native installer without dependency rebuild
+        shell: cmd
+        run: install.cmd -SkipDeps -SkipUI -NoPath
+      - name: Verify installed Windows command wrappers
+        shell: powershell
+        run: |
+          $mentat = Join-Path $env:LOCALAPPDATA 'Mentat\bin\mentat.cmd'
+          if (-not (Test-Path $mentat)) { throw 'The native mentat.cmd wrapper was not installed.' }
+          $help = & $mentat help | Out-String
+          if ($help -notmatch 'native Windows control plane') { throw 'Installed command help failed.' }
+          $version = & $mentat version | Out-String
+          if ($version -notmatch '^Mentat ') { throw 'Installed command version failed.' }
