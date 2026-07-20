@@ -32,7 +32,8 @@ function getMentatPaths() {
 function readMentatConfig() {
   const { configPath } = getMentatPaths();
   try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const raw = fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '');
+    return JSON.parse(raw);
   } catch (error) {
     if (error && error.code === 'ENOENT') {
       return null;
@@ -140,7 +141,7 @@ function loadingPage(message) {
     "'": '&#39;',
   })[character]);
 
-  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html>
+  const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -189,7 +190,9 @@ function loadingPage(message) {
     <div class="pulse"></div>
   </main>
 </body>
-</html>`)} `;
+</html>`;
+
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
 function createMainWindow() {
@@ -232,11 +235,11 @@ async function openGatewayLogs() {
   }
   const error = await shell.openPath(target);
   if (error) {
-    await dialog.showErrorBox('Could not open logs', error);
+    dialog.showErrorBox('Could not open logs', error);
   }
 }
 
-async function stopGatewayStartedByDesktop() {
+function stopGatewayStartedByDesktop() {
   if (!gatewayStartedByDesktop || stoppingGateway) {
     return;
   }
@@ -434,6 +437,6 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on('before-quit', () => {
-    void stopGatewayStartedByDesktop();
+    stopGatewayStartedByDesktop();
   });
 }
