@@ -9,10 +9,12 @@ from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 from .models import Decision, ModelSpec, Offer
+from .production_sessions import ProductionSessionManager
+from .production_store import ProductionBrokerStore
 from .registry import ModelRegistry
 from .router import RoutingError, build_decision, classify_task
 from .runtime_policy import ContextAwareBrokerApplication
-from .sessions import SessionError
+from .sessions import ApprovalCoordinator, SessionError
 from .store import utc_now
 
 
@@ -55,11 +57,13 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
         if not self.client_token or not self.admin_token:
             raise RuntimeError("broker client and admin tokens are required")
         super().__init__(*args, **kwargs)
+        self._ensure_production_dependencies()
         if (
             not check_mode
             and any(model.provider == "vast" for model in self.registry.enabled())
             and not os.getenv("VAST_API_KEY")
         ):
+            self.store.close()
             raise RuntimeError("VAST_API_KEY must be available only to the broker process")
         self.request_slots = threading.BoundedSemaphore(
             self.registry.policy.max_concurrent_requests
@@ -68,6 +72,32 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
             self.sessions.stop_sweeper()
             self.sessions.reconcile_startup()
             self.sessions.start_sweeper()
+
+    def _ensure_production_dependencies(self) -> None:
+        """Remove startup-order dependence from the production application.
+
+        The command-line entry point installs compatibility hooks before creating
+        the application. Tests, embedders, and future entry points may construct
+        this class directly. In every case, production code must use the durable
+        store and fail-safe endpoint manager rather than whichever globals were
+        active when the base class was initialized.
+        """
+
+        if isinstance(self.store, ProductionBrokerStore) and isinstance(
+            self.sessions, ProductionSessionManager
+        ):
+            return
+        self.sessions.stop_sweeper()
+        self.store.close()
+        self.store = ProductionBrokerStore(self.data_dir / "broker.sqlite3")
+        self.coordinator = ApprovalCoordinator()
+        self.sessions = ProductionSessionManager(
+            root=self.root,
+            state_dir=self.data_dir / "endpoints",
+            registry=self.registry,
+            store=self.store,
+            coordinator=self.coordinator,
+        )
 
     def routing_prompt_from_messages(
         self, messages: list[dict[str, Any]]
