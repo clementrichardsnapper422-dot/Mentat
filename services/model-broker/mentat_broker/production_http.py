@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import re
 import urllib.parse
 from collections.abc import Callable
 from http import HTTPStatus
@@ -66,7 +67,35 @@ def secure_ui(base_ui: Callable[[], bytes], admin_token: str) -> bytes:
         "fetch('/v1/decisions?limit=30')",
         "fetch('/v1/decisions?limit=30',{headers:{'Authorization':'Bearer '+adminToken}})",
     )
-    return html.encode("utf-8")
+    html = html.replace(
+        "function render(decision) {",
+        "async function rateDecision(id, stars) {\n"
+        "  const notes = prompt('Optional note about answer quality:', '') || '';\n"
+        "  await action(id, 'rate', {quality_score: stars / 5, notes});\n"
+        "}\n"
+        "function render(decision) {",
+    )
+    original_actions = (
+        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
+        "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
+        "Reject</button></div>` : ''}"
+    )
+    rated_actions = (
+        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
+        "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
+        "Reject</button></div>` : decision.status === 'completed' ? "
+        "(decision.rating ? `<div class=\"actions\"><span class=\"badge\">Rated "
+        "${Math.round(Number(decision.rating.quality_score) * 5)}/5</span></div>` : "
+        "`<div class=\"actions\"><span class=\"label\">Rate quality</span>"
+        "${[1,2,3,4,5].map(star => `<button class=\"approve\" "
+        "onclick=\"rateDecision('${decision.id}',${star})\">${star}★</button>`).join('')}"
+        "</div>`) : ''}"
+    )
+    if original_actions not in html:
+        raise RuntimeError("decision UI template changed; secure production patch cannot be applied")
+    return html.replace(original_actions, rated_actions).encode("utf-8")
 
 
 def write_secure_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
@@ -77,6 +106,12 @@ def write_secure_json(handler: BaseHTTPRequestHandler, status: int, payload: Any
     handler.send_header("Cache-Control", "no-store")
     handler.end_headers()
     handler.wfile.write(body)
+
+
+def decision_payload(application: Any, decision: Any) -> dict[str, Any]:
+    value = decision.as_dict()
+    value["rating"] = application.store.get_rating(decision.id)
+    return value
 
 
 def production_handler_factory(
@@ -134,6 +169,7 @@ def production_handler_factory(
                 self._deny(HTTPStatus.BAD_REQUEST, "invalid host")
                 return
             parsed = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed.query)
             if parsed.path == "/health":
                 write_secure_json(
                     self,
@@ -162,8 +198,32 @@ def production_handler_factory(
                 if not self._bearer(application.client_token):
                     self._deny(HTTPStatus.UNAUTHORIZED, "client authorization required")
                     return
-            elif not self._admin_authorized():
+                super().do_GET()
+                return
+            if not self._admin_authorized():
                 self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
+                return
+            if parsed.path == "/v1/decisions":
+                status = query.get("status", [None])[0]
+                limit = max(1, min(100, int(query.get("limit", ["50"])[0])))
+                decisions = application.store.list_decisions(status=status, limit=limit)
+                write_secure_json(
+                    self,
+                    HTTPStatus.OK,
+                    {"decisions": [decision_payload(application, item) for item in decisions]},
+                )
+                return
+            if re.fullmatch(r"/v1/decisions/[^/]+", parsed.path):
+                decision_id = parsed.path.rsplit("/", 1)[-1]
+                decision = application.store.get_decision(decision_id)
+                if not decision:
+                    self._deny(HTTPStatus.NOT_FOUND, "decision not found")
+                else:
+                    write_secure_json(
+                        self,
+                        HTTPStatus.OK,
+                        decision_payload(application, decision),
+                    )
                 return
             super().do_GET()
 
@@ -186,6 +246,19 @@ def production_handler_factory(
                 return
             if not self._admin_authorized():
                 self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
+                return
+            rating_match = re.fullmatch(r"/v1/decisions/([^/]+)/rate", parsed.path)
+            if rating_match:
+                try:
+                    payload = production_read_json(self)
+                    result = application.store.rate_decision(
+                        rating_match.group(1),
+                        float(payload.get("quality_score")),
+                        str(payload.get("notes") or ""),
+                    )
+                    write_secure_json(self, HTTPStatus.CREATED, result)
+                except (TypeError, ValueError) as exc:
+                    self._deny(HTTPStatus.BAD_REQUEST, str(exc))
                 return
             super().do_POST()
 
