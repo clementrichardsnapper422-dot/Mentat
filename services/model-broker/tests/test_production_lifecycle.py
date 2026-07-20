@@ -77,6 +77,7 @@ def test_budget_expiry_is_saved_before_paid_lifecycle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry = ModelRegistry.load(REGISTRY)
+    assert registry.policy.maintain_warm_worker is False
     store = BrokerStore(tmp_path / "broker.sqlite3")
     decision = pending_decision(registry)
     store.save_decision(decision)
@@ -101,7 +102,7 @@ def test_budget_expiry_is_saved_before_paid_lifecycle(
     monkeypatch.setattr(manager, "_lifecycle", fake_lifecycle)
     approved = manager.approve(decision, accept_benchmark_cost=True)
     assert approved.status == "approved"
-    assert [command for command, _hours in observed] == ["create", "warm"]
+    assert [command for command, _hours in observed] == ["create"]
     assert all(0 < hours <= 0.51 for _command, hours in observed)
     store.close()
 
