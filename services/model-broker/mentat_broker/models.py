@@ -96,6 +96,7 @@ class BrokerPolicy:
     require_live_offer: bool = True
     require_measured_quality_for_non_primary: bool = True
     serverless_text_only: bool = True
+    maintain_warm_worker: bool = False
     max_concurrent_requests: int = 8
     max_request_body_bytes: int = 8 * 1024 * 1024
     shutdown_cooldown_timeout_seconds: int = 90
@@ -118,6 +119,7 @@ class BrokerPolicy:
                 data.get("require_measured_quality_for_non_primary", True)
             ),
             serverless_text_only=bool(data.get("serverless_text_only", True)),
+            maintain_warm_worker=bool(data.get("maintain_warm_worker", False)),
             max_concurrent_requests=int(data.get("max_concurrent_requests", 8)),
             max_request_body_bytes=int(data.get("max_request_body_bytes", 8 * 1024 * 1024)),
             shutdown_cooldown_timeout_seconds=int(
