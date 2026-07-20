@@ -1,0 +1,30 @@
+{
+  "endpoint_name": "mentat-deepseek-coder-v2-lite",
+  "model_id": "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct",
+  "openai_base_url": "https://openai.vast.ai/mentat-deepseek-coder-v2-lite/v1",
+  "endpoint": {
+    "min_load": 0,
+    "target_util": 0.9,
+    "cold_mult": 2.5,
+    "cold_workers": 0,
+    "max_workers": 1
+  },
+  "workergroup": {
+    "min_load": 0,
+    "target_util": 0.9,
+    "cold_mult": 2.5,
+    "cold_workers": 0,
+    "max_workers": 1,
+    "test_workers": 1,
+    "gpu_ram": 48,
+    "disk_gb": 80,
+    "search_params": "num_gpus=1 gpu_ram>=48000 verified=true rentable=true rented=false reliability>=0.98 dph_total<=3 disk_space>=80",
+    "vllm_args": "--trust-remote-code --served-model-name deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct --max-model-len 128000 --gpu-memory-utilization 0.90"
+  },
+  "policy": {
+    "max_hourly_usd": 3,
+    "idle_shutdown_minutes": 30,
+    "max_session_hours": 4,
+    "require_manual_warm": true
+  }
+}

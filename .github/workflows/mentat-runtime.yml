@@ -8,8 +8,10 @@ on:
       - "install.cmd"
       - "README.md"
       - "config/mentat.env.example"
+      - "config/model-registry.json"
       - "scripts/mentat/**"
-      - "infrastructure/vast/kimi-k2.7-code/**"
+      - "services/model-broker/**"
+      - "infrastructure/vast/**"
       - "docs/mentat/**"
       - ".github/workflows/mentat-runtime.yml"
   push:
@@ -20,8 +22,10 @@ on:
       - "install.cmd"
       - "README.md"
       - "config/mentat.env.example"
+      - "config/model-registry.json"
       - "scripts/mentat/**"
-      - "infrastructure/vast/kimi-k2.7-code/**"
+      - "services/model-broker/**"
+      - "infrastructure/vast/**"
       - "docs/mentat/**"
       - ".github/workflows/mentat-runtime.yml"
 
@@ -48,8 +52,12 @@ jobs:
         run: |
           output="$(MENTAT_CONFIG_DIR="$RUNNER_TEMP/mentat" bash scripts/mentat/mentat.sh config path)"
           test "$output" = "$RUNNER_TEMP/mentat/env"
-      - name: Compile Vast endpoint CLI
-        run: python -m py_compile scripts/mentat/vast_endpoint.py
+      - name: Compile endpoint and broker entry points
+        run: |
+          python -m py_compile scripts/mentat/vast_endpoint.py
+          python -m py_compile scripts/mentat/broker.py
+      - name: Validate model registry and broker configuration
+        run: python scripts/mentat/broker.py --root . --data-dir "$RUNNER_TEMP/broker" --check >broker.json
       - name: Validate Kimi endpoint policy
         run: |
           python scripts/mentat/vast_endpoint.py estimate \
@@ -67,10 +75,13 @@ jobs:
           python scripts/mentat/vast_endpoint.py print-env >mentat-env.sh
           grep -Fq 'MENTAT_PROVIDER=vast' mentat-env.sh
           grep -Fq 'mentat-kimi-k2-7-code/v1' mentat-env.sh
-      - name: Verify Vast is the default inference route
-        run: grep -Fq 'PROVIDER="${MENTAT_PROVIDER:-vast}"' scripts/mentat/launch.sh
-      - name: Verify stable self-hosted model
-        run: grep -Fq 'MODEL_ID="${MENTAT_MODEL_ID:-moonshotai/Kimi-K2.7-Code}"' scripts/mentat/launch.sh
+      - name: Verify broker is the OpenClaw inference route
+        run: |
+          grep -Fq 'PROVIDER="${MENTAT_PROVIDER:-vast}"' scripts/mentat/launch.sh
+          grep -Fq 'MODEL_REF="vllm/mentat-auto"' scripts/mentat/launch.sh
+          grep -Fq 'BROKER_BASE_URL="http://127.0.0.1:' scripts/mentat/launch.sh
+      - name: Verify stable self-hosted primary model remains registered
+        run: grep -Fq 'moonshotai/Kimi-K2.7-Code' config/model-registry.json
       - name: Verify Ollama Cloud remains fallback only
         run: grep -Fq 'ollama-cloud)' scripts/mentat/launch.sh
 
@@ -133,14 +144,18 @@ jobs:
           try { $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
           finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
           if ($plain -ne 'mentat-ci-secret') { throw 'DPAPI round-trip failed.' }
-      - name: Compile Vast endpoint CLI on Windows
-        shell: powershell
-        run: python -m py_compile scripts/mentat/vast_endpoint.py
-      - name: Verify native model and provider defaults
+      - name: Compile endpoint and broker tools on Windows
         shell: powershell
         run: |
-          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "moonshotai/Kimi-K2.7-Code" | Out-Null
-          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "'vast'" | Out-Null
+          python -m py_compile scripts/mentat/vast_endpoint.py
+          python -m py_compile scripts/mentat/broker.py
+          python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
+      - name: Verify native broker and provider defaults
+        shell: powershell
+        run: |
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "'mentat-auto'" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "MENTAT_PRIMARY_UPSTREAM_URL" | Out-Null
+          Select-String -Path config/model-registry.json -SimpleMatch "moonshotai/Kimi-K2.7-Code" | Out-Null
       - name: Smoke test native installer without dependency rebuild
         shell: cmd
         run: install.cmd -SkipDeps -SkipUI -SkipDesktop -NoPath
