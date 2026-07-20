@@ -21,6 +21,10 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
         super().__init__(*args, **kwargs)
         self._thread_state = threading.local()
 
+    def start_sweeper(self) -> None:
+        self._stop_event.clear()
+        super().start_sweeper()
+
     def set_current_decision(self, decision: Decision | None) -> None:
         self._thread_state.decision = decision
 
