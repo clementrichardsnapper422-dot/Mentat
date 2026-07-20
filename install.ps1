@@ -3,6 +3,7 @@
 param(
     [switch]$SkipDeps,
     [switch]$SkipUI,
+    [switch]$SkipDesktop,
     [switch]$NoPath,
     [Alias('h')][switch]$Help
 )
@@ -15,6 +16,8 @@ $BinDir = Join-Path $InstallRoot 'bin'
 $ConfigDir = Join-Path $InstallRoot 'config'
 $StateDir = Join-Path $InstallRoot 'state'
 $NpmPrefix = Join-Path $InstallRoot 'npm'
+$DesktopDir = Join-Path $RootDir 'apps\mentat-desktop'
+$DesktopDistDir = Join-Path $DesktopDir 'dist'
 
 function Show-Usage {
     @'
@@ -25,10 +28,11 @@ Usage:
   powershell -ExecutionPolicy Bypass -File .\install.ps1 [options]
 
 Options:
-  -SkipDeps   Do not run pnpm install
-  -SkipUI     Do not build the local Control UI
-  -NoPath     Do not add Mentat to the user PATH
-  -Help       Show this help
+  -SkipDeps      Do not run pnpm install
+  -SkipUI        Do not build the local Control UI
+  -SkipDesktop   Do not build or install Mentat.exe
+  -NoPath        Do not add Mentat to the user PATH
+  -Help          Show this help
 '@ | Write-Host
 }
 
@@ -109,6 +113,9 @@ if (-not $pythonCommand) {
     Fail 'Python 3.11 or newer is required. Install it from python.org and enable Add Python to PATH.'
 }
 
+$npm = Get-CommandPath @('npm.cmd', 'npm.exe', 'npm')
+if (-not $npm) { Fail 'npm is required and must be on PATH.' }
+
 New-Item -ItemType Directory -Force -Path $BinDir, $ConfigDir, $StateDir, $NpmPrefix | Out-Null
 Add-UserPath $NpmPrefix
 
@@ -126,7 +133,6 @@ if (-not $pnpm) {
     }
 }
 if (-not $pnpm) {
-    $npm = Get-CommandPath @('npm.cmd', 'npm.exe', 'npm')
     & $npm install --global --prefix $NpmPrefix "pnpm@$PnpmVersion"
     if ($LASTEXITCODE -ne 0) { Fail 'pnpm installation failed.' }
     $pnpm = Get-CommandPath @('pnpm.cmd', 'pnpm.exe', 'pnpm')
@@ -169,6 +175,37 @@ Set-Content -LiteralPath (Join-Path $BinDir 'mentat.cmd') -Value $cmdWrapper -En
 
 if (-not $NoPath) { Add-UserPath $BinDir }
 
+if (-not $SkipDesktop) {
+    if (-not (Test-Path (Join-Path $DesktopDir 'package.json'))) {
+        Fail "Desktop package was not found at $DesktopDir."
+    }
+
+    Write-Step 'Installing Mentat desktop packaging dependencies'
+    Push-Location $DesktopDir
+    try {
+        & $npm install --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { Fail 'Desktop npm install failed.' }
+
+        & $npm run check
+        if ($LASTEXITCODE -ne 0) { Fail 'Desktop syntax validation failed.' }
+
+        Write-Step 'Building Mentat.exe and its Windows installer'
+        & $npm run dist
+        if ($LASTEXITCODE -ne 0) { Fail 'Mentat desktop build failed.' }
+    } finally { Pop-Location }
+
+    $desktopInstaller = Get-ChildItem -Path $DesktopDistDir -Filter 'Mentat-Setup-*.exe' -File |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if (-not $desktopInstaller) { Fail 'The Mentat desktop installer was not produced.' }
+
+    Write-Step 'Installing the Mentat desktop application'
+    $installerProcess = Start-Process -FilePath $desktopInstaller.FullName -ArgumentList '/S' -Wait -PassThru
+    if ($installerProcess.ExitCode -ne 0) {
+        Fail "Mentat desktop installer failed with exit code $($installerProcess.ExitCode)."
+    }
+}
+
 Write-Step 'Checking the installation'
 & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RootDir 'scripts\mentat\doctor.ps1') -InstallCheck
 
@@ -179,8 +216,11 @@ Mentat is installed natively on Windows. 🧠
 Next:
   1. Open a new PowerShell window.
   2. Run: mentat setup
-  3. Run: mentat start
-  4. Run: mentat chat
+  3. Launch Mentat from the Desktop or Start Menu.
+
+Command-line alternatives:
+  mentat start
+  mentat chat
 
 Local encrypted settings are stored in:
   $ConfigDir
