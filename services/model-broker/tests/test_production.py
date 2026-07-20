@@ -236,7 +236,11 @@ def test_loopback_http_boundary_requires_correct_tokens() -> None:
         with pytest.raises(urllib.error.HTTPError) as ui_unauthorized:
             urllib.request.urlopen(base + "/ui/decisions", timeout=2)
         assert ui_unauthorized.value.code == 401
-        with urllib.request.urlopen(base + "/ui/decisions?token=admin", timeout=2) as response:
+        ui_request = urllib.request.Request(
+            base + "/ui/decisions",
+            headers={"Authorization": "Bearer admin"},
+        )
+        with urllib.request.urlopen(ui_request, timeout=2) as response:
             assert response.status == 200
     finally:
         server.shutdown()
