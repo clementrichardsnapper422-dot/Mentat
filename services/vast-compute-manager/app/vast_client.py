@@ -4,7 +4,6 @@ from typing import Any
 
 from vastai import VastAI
 
-
 APPROVED_PROFILES: dict[str, dict[str, Any]] = {
     "pytorch": {
         "image": "pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime",
