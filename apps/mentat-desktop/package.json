@@ -1,0 +1,56 @@
+{
+  "name": "mentat-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Windows desktop shell for the local Mentat Control UI",
+  "main": "src/main.cjs",
+  "author": "Mentat",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check src/main.cjs",
+    "start": "electron .",
+    "pack": "electron-builder --win dir --publish never",
+    "dist": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.mentat.desktop",
+    "productName": "Mentat",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.svg",
+      "executableName": "Mentat",
+      "artifactName": "Mentat-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mentat",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
