@@ -121,7 +121,7 @@ jobs:
         shell: powershell
         run: |
           $env:MENTAT_HOME = $PWD.Path
-          $output = & .\scripts\mentat\mentat.ps1 help | Out-String
+          $output = & .\scripts\mentat\mentat.ps1 help 6>&1 | Out-String
           if ($output -notmatch 'mentat vast') { throw 'Native help is missing Vast commands.' }
       - name: Verify Windows DPAPI protection
         shell: powershell
