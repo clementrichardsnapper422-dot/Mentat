@@ -7,6 +7,7 @@ $RootDir = if ($env:MENTAT_HOME) { $env:MENTAT_HOME } else { Split-Path -Parent 
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
 $BinDir = Join-Path $InstallRoot 'bin'
 $ConfigPath = Join-Path $InstallRoot 'config\config.json'
+$DesktopExe = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\Mentat.exe'
 $script:Failures = 0
 $script:Warnings = 0
 
@@ -59,7 +60,8 @@ function Resolve-Python {
 
 Write-Host 'Mentat Windows doctor' -ForegroundColor Cyan
 Write-Host "Source: $RootDir"
-Write-Host "Config: $ConfigPath`n"
+Write-Host "Config: $ConfigPath"
+Write-Host "Desktop: $DesktopExe`n"
 
 if ($env:OS -eq 'Windows_NT') { Report OK 'Native Windows detected.' } else { Report FAIL 'This doctor is for native Windows.' }
 if ($PSVersionTable.PSVersion.Major -ge 5) { Report OK "PowerShell $($PSVersionTable.PSVersion)" } else { Report FAIL 'PowerShell 5.1 or newer is required.' }
@@ -84,6 +86,7 @@ if ($python) { Report OK "Python 3.11+: $python" } else { Report FAIL 'Python 3.
 if (Test-Path (Join-Path $RootDir 'package.json')) { Report OK 'Mentat source checkout found.' } else { Report FAIL 'package.json was not found in the Mentat source directory.' }
 if (Test-Path (Join-Path $RootDir 'node_modules')) { Report OK 'Node dependencies are installed.' } else { Report WARN 'node_modules is missing; rerun .\install.cmd.' }
 if (Test-Path (Join-Path $BinDir 'mentat.cmd')) { Report OK "mentat command installed in $BinDir" } else { Report FAIL 'mentat.cmd is not installed.' }
+if (Test-Path $DesktopExe) { Report OK "Mentat desktop app installed: $DesktopExe" } else { Report WARN 'Mentat.exe is not installed; rerun .\install.cmd without -SkipDesktop.' }
 
 if (Test-Path $ConfigPath) {
     try {
