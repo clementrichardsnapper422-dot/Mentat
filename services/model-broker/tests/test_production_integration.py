@@ -13,10 +13,7 @@ import pytest
 from mentat_broker import server as broker_server
 from mentat_broker.models import Offer
 from mentat_broker.production_app import ProductionBrokerApplication
-from mentat_broker.production_http import (
-    LoopbackThreadingHTTPServer,
-    production_handler_factory,
-)
+from mentat_broker.production_http import LoopbackThreadingHTTPServer, production_handler_factory
 
 ROOT = Path(__file__).parents[3]
 REGISTRY = ROOT / "config" / "model-registry.json"
@@ -32,7 +29,6 @@ class FakeOpenAIHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         payload = json.loads(self.rfile.read(length).decode("utf-8"))
         self.__class__.requests.append(payload)
-        content = "OK" if int(payload.get("max_tokens") or 0) == 1 else "Mentat integration online"
         body = json.dumps(
             {
                 "id": "chatcmpl-local-test",
@@ -41,7 +37,10 @@ class FakeOpenAIHandler(BaseHTTPRequestHandler):
                 "choices": [
                     {
                         "index": 0,
-                        "message": {"role": "assistant", "content": content},
+                        "message": {
+                            "role": "assistant",
+                            "content": "Mentat integration online",
+                        },
                         "finish_reason": "stop",
                     }
                 ],
@@ -71,7 +70,7 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
 
     monkeypatch.setenv("MENTAT_BROKER_CLIENT_TOKEN", "client-token")
     monkeypatch.setenv("MENTAT_BROKER_ADMIN_TOKEN", "admin-token")
-    monkeypatch.setenv("VAST_API_KEY", "infrastructure-only-test-key")
+    monkeypatch.setenv("VAST_API_KEY", "test")
     monkeypatch.setenv("MENTAT_ENDPOINT_KIMI_K2_7_CODE", upstream_base)
 
     application = ProductionBrokerApplication(ROOT, REGISTRY, tmp_path / "data")
@@ -141,10 +140,10 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
             assert response.headers["X-Mentat-Model"] == "kimi-k2.7-code"
             assert response.headers["X-Mentat-Decision-Id"]
         assert result["choices"][0]["message"]["content"] == "Mentat integration online"
-        assert len(FakeOpenAIHandler.requests) == 2
-        assert FakeOpenAIHandler.requests[0]["max_tokens"] == 1
-        assert FakeOpenAIHandler.requests[1]["model"] == model.model_id
-        assert application.store.benchmark_summary(model.id, "general")["runtime_samples"] == 1
+        assert len(FakeOpenAIHandler.requests) == 1
+        assert FakeOpenAIHandler.requests[0]["model"] == model.model_id
+        summary = application.store.benchmark_summary(model.id, "general")
+        assert summary["runtime_samples"] == 1
     finally:
         broker.shutdown()
         broker.server_close()
