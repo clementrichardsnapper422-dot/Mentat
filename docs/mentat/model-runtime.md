@@ -74,19 +74,19 @@ pnpm gateway:watch
 Run:
 
 ```bash
-scripts/mentat/launch.sh
+bash scripts/mentat/launch.sh
 ```
 
 Set `MENTAT_HEADLESS=1` for non-interactive setup:
 
 ```bash
-MENTAT_HEADLESS=1 scripts/mentat/launch.sh
+MENTAT_HEADLESS=1 bash scripts/mentat/launch.sh
 ```
 
 The default can be overridden deliberately for testing:
 
 ```bash
-MENTAT_MODEL=another-model:cloud scripts/mentat/launch.sh
+MENTAT_MODEL=another-model:cloud bash scripts/mentat/launch.sh
 ```
 
 The production default must remain `kimi-k2.7-code:cloud` until the replacement passes Mentat's validation suite.
