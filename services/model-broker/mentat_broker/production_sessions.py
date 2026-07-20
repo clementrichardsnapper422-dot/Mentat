@@ -187,9 +187,7 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 approved_until=approved_until.isoformat(),
             )
             try:
-                if state_path.exists():
-                    self._lifecycle(model, "warm", config_path=approved_config)
-                else:
+                if not state_path.exists():
                     if not accept_benchmark_cost:
                         raise SessionError(
                             "Creating a new Vast endpoint requires explicit "
@@ -201,6 +199,7 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                         "--accept-test-worker-cost",
                         config_path=approved_config,
                     )
+                if self.registry.policy.maintain_warm_worker:
                     self._lifecycle(model, "warm", config_path=approved_config)
                 updated = self.store.update_decision_status(
                     decision.id,
@@ -212,7 +211,7 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 self.coordinator.notify()
                 return updated
             except Exception as exc:
-                if state_path.exists():
+                if state_path.exists() or self.endpoint_state_path(model).exists():
                     with suppress(Exception):
                         self._lifecycle(model, "cool", config_path=approved_config)
                 self.store.update_decision_status(decision.id, "failed", error=str(exc))
