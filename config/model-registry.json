@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "notes": "Bootstrap quality values are conservative routing priors, not benchmark claims. Local benchmark records replace them after the configured sample threshold.",
+  "version": 2,
+  "notes": "Production-safe bootstrap registry. Kimi remains primary until cheaper models have enough rated local evidence. Vast Serverless is treated as text-only.",
   "policy": {
     "port": 18890,
     "max_hourly_usd": 32,
@@ -10,7 +10,14 @@
     "approval_timeout_seconds": 300,
     "endpoint_ready_timeout_seconds": 1800,
     "minimum_reliability": 0.98,
-    "require_manual_approval": true
+    "require_manual_approval": true,
+    "primary_model_id": "kimi-k2.7-code",
+    "require_live_offer": true,
+    "require_measured_quality_for_non_primary": true,
+    "serverless_text_only": true,
+    "max_concurrent_requests": 8,
+    "max_request_body_bytes": 8388608,
+    "shutdown_cooldown_timeout_seconds": 90
   },
   "models": [
     {
@@ -25,14 +32,15 @@
         "general": 0.94,
         "code": 0.97,
         "large_code": 0.98,
-        "vision": 0.95,
         "high_risk": 0.98
       },
-      "capabilities": ["reasoning", "coding", "tools", "vision", "long_context"],
-      "task_classes": ["simple", "general", "code", "large_code", "vision", "high_risk"],
+      "capabilities": ["reasoning", "coding", "tools", "long_context"],
+      "task_classes": ["simple", "general", "code", "large_code", "high_risk"],
       "context_tokens": 262144,
       "num_gpus": 8,
       "min_gpu_ram_mb": 140000,
+      "min_disk_gb": 800,
+      "min_nvlink_bw": 1,
       "gpu_names": ["H200", "H200 NVL"],
       "max_hourly_usd": 32,
       "endpoint_config": "infrastructure/vast/kimi-k2.7-code/endpoint.json",
@@ -43,10 +51,9 @@
         "general": 15,
         "code": 25,
         "large_code": 60,
-        "vision": 20,
         "high_risk": 45
       },
-      "minimum_benchmark_samples": 3
+      "minimum_benchmark_samples": 5
     },
     {
       "id": "qwen3-coder-30b",
@@ -63,9 +70,10 @@
       },
       "capabilities": ["reasoning", "coding", "tools", "long_context"],
       "task_classes": ["simple", "general", "code", "large_code"],
-      "context_tokens": 262144,
+      "context_tokens": 65536,
       "num_gpus": 1,
       "min_gpu_ram_mb": 80000,
+      "min_disk_gb": 150,
       "gpu_names": ["H100 SXM", "H100 PCIe", "A100 SXM4", "A100 PCIe"],
       "max_hourly_usd": 8,
       "endpoint_config": "infrastructure/vast/qwen3-coder-30b/endpoint.json",
@@ -77,7 +85,7 @@
         "code": 25,
         "large_code": 55
       },
-      "minimum_benchmark_samples": 3
+      "minimum_benchmark_samples": 5
     },
     {
       "id": "deepseek-coder-v2-lite",
@@ -93,9 +101,10 @@
       },
       "capabilities": ["reasoning", "coding"],
       "task_classes": ["simple", "general", "code"],
-      "context_tokens": 128000,
+      "context_tokens": 65536,
       "num_gpus": 1,
       "min_gpu_ram_mb": 48000,
+      "min_disk_gb": 80,
       "gpu_names": ["L40S", "RTX 6000 Ada", "A6000", "A40"],
       "max_hourly_usd": 3,
       "endpoint_config": "infrastructure/vast/deepseek-coder-v2-lite/endpoint.json",
@@ -106,7 +115,7 @@
         "general": 10,
         "code": 24
       },
-      "minimum_benchmark_samples": 3
+      "minimum_benchmark_samples": 5
     }
   ]
 }
