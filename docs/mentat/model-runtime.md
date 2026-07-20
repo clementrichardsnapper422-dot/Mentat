@@ -1,110 +1,142 @@
 # Mentat model runtime
 
-## Current default
+## Production topology
 
-Mentat uses this model until a compatible Kimi K3 release is available and validated:
+Mentat runs the OpenClaw Gateway, tools, memory, repository access, and approval system on the operator's local PC. Model inference runs remotely on a Vast.ai vLLM endpoint.
+
+```text
+Local PC
+  Mentat/OpenClaw Gateway
+      -> HTTPS OpenAI-compatible request
+      -> Vast.ai endpoint
+      -> vLLM or SGLang workers
+      -> moonshotai/Kimi-K2.7-Code
+      -> streamed response tokens
+      -> local Mentat agent loop
+```
+
+The Vast API key authenticates requests and infrastructure operations. Vast does not sell a separate bundle of Kimi tokens. The rented or serverless GPUs generate the tokens by running the model.
+
+## Current model
+
+Until Kimi K3 is available and passes the Mentat validation suite, the intended self-hosted model is:
+
+```text
+moonshotai/Kimi-K2.7-Code
+```
+
+This is distinct from Ollama's hosted alias:
 
 ```text
 kimi-k2.7-code:cloud
 ```
 
-The standard launcher command is:
+The `:cloud` alias sends inference to Ollama Cloud. It does not use the Vast endpoint.
+
+## Hardware reality
+
+Kimi K2.7 Code is a very large mixture-of-experts model with about 1 trillion total parameters and 32 billion activated parameters. The official Moonshot deployment example uses one node with eight H200 GPUs and tensor parallelism 8. It also requires the Kimi tool-call and reasoning parsers.
+
+Official deployment guidance:
 
 ```bash
-ollama launch openclaw --model kimi-k2.7-code:cloud
+vllm serve "$MODEL_PATH" \
+  -tp 8 \
+  --mm-encoder-tp-mode data \
+  --trust-remote-code \
+  --tool-call-parser kimi_k2 \
+  --reasoning-parser kimi_k2
 ```
 
-Kimi K2.7 Code is hosted by Ollama Cloud. It is not downloaded as a 1.04-trillion-parameter local model and it does not require Mentat to rent a Vast.ai GPU.
+This should not be treated like a cheap single-RTX-4090 workload. Before making it Mentat's always-on endpoint, benchmark startup time, tokens per second, context limits, and hourly cost.
 
-## First-time setup
+## Configure the local Mentat checkout
 
-1. Install Ollama on the machine that will run the Mentat gateway.
-2. Sign in to Ollama so the local Ollama service can access cloud models:
-
-```bash
-ollama signin
-```
-
-3. Launch and configure OpenClaw with Mentat's current model:
+Create the Vast vLLM endpoint first, then set the runtime values locally. Never commit the actual key.
 
 ```bash
-ollama launch openclaw --model kimi-k2.7-code:cloud
-```
+export MENTAT_PROVIDER=vast
+export MENTAT_VLLM_BASE_URL="https://openai.vast.ai/<ENDPOINT_NAME>"
+export VAST_API_KEY="<YOUR_SCOPED_VAST_KEY>"
+export MENTAT_MODEL_ID="moonshotai/Kimi-K2.7-Code"
 
-For non-interactive setup:
-
-```bash
-ollama launch openclaw --model kimi-k2.7-code:cloud --yes
-```
-
-The launcher configures the Ollama provider, selects the model, enables the bundled Ollama web-search integration, starts the gateway, and opens the OpenClaw interface.
-
-## Developing the Mentat source checkout
-
-The Ollama launcher configures the user's OpenClaw state under the normal OpenClaw data directory. After that initial configuration, stop the packaged gateway and run the gateway from this repository so code changes come from the Mentat fork:
-
-```bash
-openclaw gateway stop
-corepack enable
-pnpm install
-pnpm openclaw setup
-pnpm gateway:watch
-```
-
-Verify the model selected by the source checkout:
-
-```bash
-pnpm openclaw models status
-```
-
-If it is not selected, set the full provider-qualified model reference:
-
-```bash
-pnpm openclaw models set ollama/kimi-k2.7-code:cloud
-```
-
-Then start or restart the source gateway:
-
-```bash
-pnpm gateway:watch
-```
-
-## Repository helper
-
-Run:
-
-```bash
 bash scripts/mentat/launch.sh
 ```
 
-Set `MENTAT_HEADLESS=1` for non-interactive setup:
+The launcher:
+
+1. keeps the Gateway and agent runtime on the local PC
+2. configures OpenClaw's bundled `vllm` provider
+3. points that provider at the Vast OpenAI-compatible base URL
+4. stores the model route as `vllm/moonshotai/Kimi-K2.7-Code`
+5. verifies model status
+6. starts the local Gateway
+
+For configuration without starting the Gateway:
 
 ```bash
-MENTAT_HEADLESS=1 bash scripts/mentat/launch.sh
+MENTAT_CONFIG_ONLY=1 bash scripts/mentat/launch.sh
 ```
 
-The default can be overridden deliberately for testing:
+## Ollama Cloud fallback
+
+Ollama Cloud remains useful while the Vast Kimi endpoint is being built or when the cluster cost is not justified.
 
 ```bash
-MENTAT_MODEL=another-model:cloud bash scripts/mentat/launch.sh
+ollama signin
+MENTAT_PROVIDER=ollama-cloud bash scripts/mentat/launch.sh
 ```
 
-The production default must remain `kimi-k2.7-code:cloud` until the replacement passes Mentat's validation suite.
+That fallback launches:
+
+```bash
+ollama launch openclaw --model kimi-k2.7-code:cloud
+```
+
+It should not be confused with the Vast production route.
+
+## Verify connectivity
+
+After configuration:
+
+```bash
+openclaw models list --provider vllm
+openclaw models status
+```
+
+For a source checkout without a global OpenClaw installation:
+
+```bash
+corepack enable
+pnpm install
+pnpm openclaw models list --provider vllm
+pnpm openclaw models status
+pnpm gateway:watch
+```
 
 ## Secrets
 
-Never commit Ollama credentials or `OLLAMA_API_KEY` to GitHub. Interactive `ollama signin` is preferred for a developer machine. A direct Ollama Cloud API key may be supplied through the runtime environment or a secret manager for headless deployments.
+Never commit:
+
+- `VAST_API_KEY`
+- Hugging Face download tokens
+- endpoint-specific credentials
+- Ollama credentials or `OLLAMA_API_KEY`
+- `MENTAT_COMPUTE_TOKEN`
+
+Use the narrowest Vast key that supports the chosen inference path. The compute-provisioning service and model-inference client should use separate scoped credentials when Vast permissions allow that separation.
 
 ## Kimi K3 upgrade gate
 
-Do not change the default based only on an announcement or catalog entry. The Kimi K3 migration should require:
+Do not change the default based only on a release announcement. The migration requires:
 
-- an exact Ollama model identifier that can be resolved by OpenClaw
-- successful basic chat and streaming tests
-- successful tool-calling tests
+- an exact model repository or provider identifier
+- a verified deployment recipe
+- successful chat and streaming tests
+- successful tool-calling and preserved-thinking tests
 - successful repository read, edit, test, and review workflows
-- acceptable latency and usage cost
+- acceptable latency and total serving cost
 - no regression in permission-gate behavior
 - an explicit versioned pull request changing the default
 
-Until those checks pass, Kimi K2.7 Code remains the stable Mentat model.
+Until those checks pass, Kimi K2.7 Code remains the target model and Ollama Cloud remains the fallback route.
