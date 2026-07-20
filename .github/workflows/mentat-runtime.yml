@@ -141,3 +141,15 @@ jobs:
         run: |
           Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "moonshotai/Kimi-K2.7-Code" | Out-Null
           Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "'vast'" | Out-Null
+      - name: Smoke test native installer without dependency rebuild
+        shell: cmd
+        run: install.cmd -SkipDeps -SkipUI -NoPath
+      - name: Verify installed Windows command wrappers
+        shell: powershell
+        run: |
+          $mentat = Join-Path $env:LOCALAPPDATA 'Mentat\bin\mentat.cmd'
+          if (-not (Test-Path $mentat)) { throw 'The native mentat.cmd wrapper was not installed.' }
+          $help = & $mentat help | Out-String
+          if ($help -notmatch 'native Windows control plane') { throw 'Installed command help failed.' }
+          $version = & $mentat version | Out-String
+          if ($version -notmatch '^Mentat ') { throw 'Installed command version failed.' }
