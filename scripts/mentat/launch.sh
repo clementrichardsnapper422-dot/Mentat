@@ -20,9 +20,9 @@ configure_vast() {
     cat >&2 <<'EOF'
 MENTAT_VLLM_BASE_URL is required for Vast inference.
 
-For a Vast Serverless OpenAI-compatible endpoint, use the endpoint URL supplied by Vast.
+Use the OpenAI-compatible /v1 base URL for your endpoint.
 Example:
-  export MENTAT_VLLM_BASE_URL="https://openai.vast.ai/<ENDPOINT_NAME>"
+  export MENTAT_VLLM_BASE_URL="https://openai.vast.ai/<ENDPOINT_NAME>/v1"
 EOF
     exit 1
   fi
@@ -32,19 +32,64 @@ EOF
     exit 1
   fi
 
+  if ! command -v node >/dev/null 2>&1; then
+    echo "Node.js is required to generate the OpenClaw provider configuration." >&2
+    exit 1
+  fi
+
+  export VLLM_API_KEY="${VAST_API_KEY}"
+  export MENTAT_VLLM_BASE_URL MODEL_ID
+
+  provider_json="$({ node <<'NODE'
+const provider = {
+  baseUrl: process.env.MENTAT_VLLM_BASE_URL,
+  apiKey: "${VLLM_API_KEY}",
+  api: "openai-completions",
+  timeoutSeconds: 600,
+  models: [
+    {
+      id: process.env.MODEL_ID,
+      name: "Kimi K2.7 Code on Vast",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 256000,
+      maxTokens: 16384,
+    },
+  ],
+};
+process.stdout.write(JSON.stringify(provider));
+NODE
+  } )"
+
+  model_ref="vllm/${MODEL_ID}"
+  model_allowlist="$({ MODEL_REF="${model_ref}" node <<'NODE'
+process.stdout.write(JSON.stringify({ [process.env.MODEL_REF]: { alias: "Kimi Vast" } }));
+NODE
+  } )"
+  primary_model="$({ MODEL_REF="${model_ref}" node <<'NODE'
+process.stdout.write(JSON.stringify(process.env.MODEL_REF));
+NODE
+  } )"
+
   echo "Configuring local Mentat/OpenClaw to use Vast-hosted vLLM."
   echo "Model: ${MODEL_ID}"
   echo "Endpoint: ${MENTAT_VLLM_BASE_URL}"
 
-  "${OPENCLAW[@]}" onboard \
-    --non-interactive \
-    --mode local \
-    --auth-choice vllm \
-    --custom-base-url "${MENTAT_VLLM_BASE_URL}" \
-    --custom-api-key "${VAST_API_KEY}" \
-    --custom-model-id "${MODEL_ID}"
+  "${OPENCLAW[@]}" config set models.providers.vllm \
+    "${provider_json}" \
+    --strict-json \
+    --merge
 
-  "${OPENCLAW[@]}" models set "vllm/${MODEL_ID}"
+  "${OPENCLAW[@]}" config set agents.defaults.models \
+    "${model_allowlist}" \
+    --strict-json \
+    --merge
+
+  "${OPENCLAW[@]}" config set agents.defaults.model.primary \
+    "${primary_model}" \
+    --strict-json
+
+  "${OPENCLAW[@]}" config validate
   "${OPENCLAW[@]}" models status
 
   if [[ "${MENTAT_CONFIG_ONLY:-0}" == "1" ]]; then
