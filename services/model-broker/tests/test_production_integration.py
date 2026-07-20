@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
@@ -98,6 +99,7 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
         last_used_at=now.isoformat(),
         approved_until=(now + timedelta(minutes=30)).isoformat(),
     )
+    assert application.sessions.is_approved(model.id)
 
     handler = production_handler_factory(
         broker_server.make_handler,
@@ -135,7 +137,12 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
                 "Content-Type": "application/json",
             },
         )
-        with urllib.request.urlopen(request, timeout=10) as response:
+        try:
+            response = urllib.request.urlopen(request, timeout=10)
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="replace")
+            pytest.fail(f"broker returned HTTP {exc.code}: {error_body}")
+        with response:
             result = json.loads(response.read().decode("utf-8"))
             assert response.headers["X-Mentat-Model"] == "kimi-k2.7-code"
             assert response.headers["X-Mentat-Decision-Id"]
