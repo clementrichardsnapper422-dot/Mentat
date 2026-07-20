@@ -7,7 +7,6 @@ from mentat_broker.registry import ModelRegistry
 from mentat_broker.router import build_decision, classify_task
 from mentat_broker.store import BrokerStore
 
-
 REGISTRY_PATH = Path(__file__).parents[3] / "config" / "model-registry.json"
 
 
