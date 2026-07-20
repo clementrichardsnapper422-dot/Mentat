@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -103,13 +104,19 @@ class EndpointSessionManager:
             return None
         return str(config.get("openai_base_url") or "").rstrip("/") or None
 
-    def _lifecycle(self, model: ModelSpec, command: str, *extra: str) -> None:
+    def _lifecycle(
+        self,
+        model: ModelSpec,
+        command: str,
+        *extra: str,
+        config_path: Path | None = None,
+    ) -> None:
         script = self.root / "scripts" / "mentat" / "vast_endpoint.py"
         args = [
             sys.executable,
             str(script),
             "--config",
-            str(self.endpoint_config_path(model)),
+            str(config_path or self.endpoint_config_path(model)),
             "--state",
             str(self.endpoint_state_path(model)),
             command,
@@ -132,6 +139,39 @@ class EndpointSessionManager:
         if result.returncode != 0:
             details = (result.stderr or result.stdout or "").strip()
             raise SessionError(details or f"endpoint lifecycle command failed: {command}")
+
+    def _approved_config(self, model: ModelSpec, decision: Decision) -> Path:
+        """Pin endpoint search to the approved live price ceiling.
+
+        Vast Serverless chooses a compatible worker rather than renting the exact
+        offer returned by discovery. This temporary config ensures the worker
+        cannot exceed the price the user approved.
+        """
+        source = self.endpoint_config_path(model)
+        if not decision.offer:
+            return source
+        try:
+            config = json.loads(source.read_text(encoding="utf-8"))
+            workergroup = dict(config["workergroup"])
+            search_params = str(workergroup.get("search_params") or "")
+        except (FileNotFoundError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise SessionError(f"invalid endpoint profile for {model.id}: {exc}") from exc
+        approved_cap = min(
+            decision.offer.hourly_usd,
+            decision.max_hourly_usd,
+            model.max_hourly_usd,
+        )
+        replacement = f"dph_total<={approved_cap:.4f}"
+        if re.search(r"dph_total\s*<=\s*[^ ]+", search_params):
+            search_params = re.sub(r"dph_total\s*<=\s*[^ ]+", replacement, search_params)
+        else:
+            search_params = f"{search_params} {replacement}".strip()
+        workergroup["search_params"] = search_params
+        config["workergroup"] = workergroup
+        config.setdefault("policy", {})["max_hourly_usd"] = approved_cap
+        target = self.state_dir / f"approved-{model.id}-{decision.id}.json"
+        target.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        return target
 
     def approve(self, decision: Decision, *, accept_benchmark_cost: bool) -> Decision:
         model = self.registry.get(decision.selected_model)
@@ -160,6 +200,7 @@ class EndpointSessionManager:
             return updated
 
         state_path = self.endpoint_state_path(model)
+        approved_config = self._approved_config(model, decision)
         self.store.update_decision_status(decision.id, "warming", approved_at=utc_now())
         self.store.upsert_session(
             model.id,
@@ -174,14 +215,19 @@ class EndpointSessionManager:
         )
         try:
             if state_path.exists():
-                self._lifecycle(model, "warm")
+                self._lifecycle(model, "warm", config_path=approved_config)
             else:
                 if not accept_benchmark_cost:
                     raise SessionError(
                         "Creating a new Vast endpoint requires explicit benchmark-cost acknowledgement"
                     )
-                self._lifecycle(model, "create", "--accept-test-worker-cost")
-                self._lifecycle(model, "warm")
+                self._lifecycle(
+                    model,
+                    "create",
+                    "--accept-test-worker-cost",
+                    config_path=approved_config,
+                )
+                self._lifecycle(model, "warm", config_path=approved_config)
         except Exception as exc:
             self.store.update_decision_status(decision.id, "failed", error=str(exc))
             self.store.upsert_session(model.id, status="failed", error=str(exc))
