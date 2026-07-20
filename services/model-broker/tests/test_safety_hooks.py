@@ -122,3 +122,16 @@ def test_tool_requirement_uses_task_intent_not_tool_availability() -> None:
     assert SafeBrokerApplication.task_requires_tools("Summarize this pasted paragraph", True) is False
     assert SafeBrokerApplication.task_requires_tools("Edit the repository and run tests", True) is True
     assert SafeBrokerApplication.task_requires_tools("Edit the repository", False) is False
+
+
+def test_system_prompt_does_not_poison_task_classification() -> None:
+    application = object.__new__(SafeBrokerApplication)
+    prompt, has_images = application.routing_prompt_from_messages(
+        [
+            {"role": "system", "content": "Security credentials repository deploy tools"},
+            {"role": "user", "content": "Summarize this paragraph"},
+        ]
+    )
+    assert prompt == "Summarize this paragraph"
+    assert has_images is False
+    assert application.task_requires_tools(prompt, True) is False

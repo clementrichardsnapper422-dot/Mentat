@@ -185,11 +185,20 @@ class SafeBrokerApplication(_ORIGINAL_APPLICATION):
         normalized = re.sub(r"\s+", " ", prompt.lower()).strip()
         return any(term in normalized for term in TOOL_ACTION_TERMS)
 
+    def routing_prompt_from_messages(
+        self, messages: list[dict[str, Any]]
+    ) -> tuple[str, bool]:
+        user_messages = [
+            message for message in messages if str(message.get("role") or "") == "user"
+        ]
+        routing_messages = user_messages[-1:] if user_messages else messages[-1:]
+        return self._prompt_from_messages(routing_messages)
+
     def prepare_chat(self, payload: dict[str, Any]):
         messages = payload.get("messages")
         if not isinstance(messages, list):
             raise ValueError("messages must be an array")
-        prompt, has_images = self._prompt_from_messages(messages)
+        prompt, has_images = self.routing_prompt_from_messages(messages)
         explicit_tools = payload.get("mentat_requires_tools")
         requires_tools = (
             bool(explicit_tools)
