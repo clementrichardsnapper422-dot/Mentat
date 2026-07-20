@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import threading
 import time
 import urllib.error
 import urllib.request
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from .models import Decision, ModelSpec
@@ -107,6 +110,70 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 result.append(fallback)
         return result
 
+    def _status_output(self, model: ModelSpec, config_path: Path) -> dict[str, Any]:
+        script = self.root / "scripts" / "mentat" / "vast_endpoint.py"
+        args = [
+            sys.executable,
+            str(script),
+            "--config",
+            str(config_path),
+            "--state",
+            str(self.endpoint_state_path(model)),
+            "status",
+        ]
+        environment = os.environ.copy()
+        api_key = environment.get(model.api_key_env) or environment.get("VAST_API_KEY")
+        if not api_key:
+            raise SessionError("VAST_API_KEY is not available to the broker")
+        environment["VAST_API_KEY"] = api_key
+        result = subprocess.run(
+            args,
+            cwd=self.root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout or "").strip()
+            raise SessionError(details or "endpoint status reconciliation failed")
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise SessionError("endpoint status returned invalid JSON") from exc
+        if not isinstance(payload, dict):
+            raise SessionError("endpoint status returned an invalid response shape")
+        return payload
+
+    def _reconcile_saved_state(self, model: ModelSpec, config_path: Path) -> bool:
+        state_path = self.endpoint_state_path(model)
+        if not state_path.exists():
+            return False
+        override_name = "MENTAT_ENDPOINT_" + model.id.upper().replace("-", "_")
+        if os.getenv(override_name):
+            return True
+        status = self._status_output(model, config_path)
+        endpoint = status.get("endpoint")
+        workergroup = status.get("workergroup")
+        if not endpoint or not workergroup:
+            state_path.unlink(missing_ok=True)
+            return False
+        try:
+            local = json.loads(state_path.read_text(encoding="utf-8"))
+            local_endpoint = int(local["endpoint_id"])
+            local_workergroup = int(local["workergroup_id"])
+            remote_endpoint = int(endpoint["id"])
+            remote_workergroup = int(workergroup["id"])
+        except (FileNotFoundError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise SessionError(f"invalid endpoint reconciliation state: {exc}") from exc
+        if local_endpoint != remote_endpoint or local_workergroup != remote_workergroup:
+            raise SessionError(
+                "local endpoint state does not match the exact-name Vast resources; "
+                "manual reconciliation is required"
+            )
+        return True
+
     def approve(self, decision: Decision, *, accept_benchmark_cost: bool) -> Decision:
         with self._approval_lock:
             if decision.status != "pending":
@@ -168,7 +235,6 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                     raise SessionError("decision disappeared during approval")
                 return updated
 
-            state_path = self.endpoint_state_path(model)
             approved_config = self._approved_config(model, decision)
             self.store.update_decision_status(
                 decision.id,
@@ -186,8 +252,10 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 last_used_at=utc_now(),
                 approved_until=approved_until.isoformat(),
             )
+            state_exists = False
             try:
-                if not state_path.exists():
+                state_exists = self._reconcile_saved_state(model, approved_config)
+                if not state_exists:
                     if not accept_benchmark_cost:
                         raise SessionError(
                             "Creating a new Vast endpoint requires explicit "
@@ -199,6 +267,7 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                         "--accept-test-worker-cost",
                         config_path=approved_config,
                     )
+                    state_exists = True
                 if self.registry.policy.maintain_warm_worker:
                     self._lifecycle(model, "warm", config_path=approved_config)
                 updated = self.store.update_decision_status(
@@ -211,7 +280,7 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 self.coordinator.notify()
                 return updated
             except Exception as exc:
-                if state_path.exists() or self.endpoint_state_path(model).exists():
+                if state_exists or self.endpoint_state_path(model).exists():
                     with suppress(Exception):
                         self._lifecycle(model, "cool", config_path=approved_config)
                 self.store.update_decision_status(decision.id, "failed", error=str(exc))
