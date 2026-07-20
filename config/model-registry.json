@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "notes": "Production-safe bootstrap registry. Kimi remains primary until cheaper models have enough rated local evidence. Vast Serverless is treated as text-only.",
+  "notes": "Production-safe bootstrap registry. Kimi remains primary until cheaper models have enough rated local evidence. Vast Serverless is text-only and keeps zero minimum warm workers by default.",
   "policy": {
     "port": 18890,
     "max_hourly_usd": 32,
@@ -15,6 +15,7 @@
     "require_live_offer": true,
     "require_measured_quality_for_non_primary": true,
     "serverless_text_only": true,
+    "maintain_warm_worker": false,
     "max_concurrent_requests": 8,
     "max_request_body_bytes": 8388608,
     "shutdown_cooldown_timeout_seconds": 90
