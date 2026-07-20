@@ -40,7 +40,7 @@ EOF
   export VLLM_API_KEY="${VAST_API_KEY}"
   export MENTAT_VLLM_BASE_URL MODEL_ID
 
-  provider_json="$({ node <<'NODE'
+  provider_json="$(node <<'NODE'
 const provider = {
   baseUrl: process.env.MENTAT_VLLM_BASE_URL,
   apiKey: "${VLLM_API_KEY}",
@@ -59,17 +59,20 @@ const provider = {
 };
 process.stdout.write(JSON.stringify(provider));
 NODE
-  } )"
+)"
 
   model_ref="vllm/${MODEL_ID}"
-  model_allowlist="$({ MODEL_REF="${model_ref}" node <<'NODE'
+  export MODEL_REF="${model_ref}"
+
+  model_allowlist="$(node <<'NODE'
 process.stdout.write(JSON.stringify({ [process.env.MODEL_REF]: { alias: "Kimi Vast" } }));
 NODE
-  } )"
-  primary_model="$({ MODEL_REF="${model_ref}" node <<'NODE'
+)"
+
+  primary_model="$(node <<'NODE'
 process.stdout.write(JSON.stringify(process.env.MODEL_REF));
 NODE
-  } )"
+)"
 
   echo "Configuring local Mentat/OpenClaw to use Vast-hosted vLLM."
   echo "Model: ${MODEL_ID}"
