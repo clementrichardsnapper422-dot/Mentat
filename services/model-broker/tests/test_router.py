@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mentat_broker.models import Offer
@@ -9,12 +8,9 @@ from mentat_broker.router import build_decision, classify_task
 from mentat_broker.store import BrokerStore
 
 
-def registry(tmp_path: Path) -> ModelRegistry:
+def registry(_tmp_path: Path) -> ModelRegistry:
     source = Path(__file__).parents[3] / "config" / "model-registry.json"
-    data = json.loads(source.read_text(encoding="utf-8"))
-    target = tmp_path / "registry.json"
-    target.write_text(json.dumps(data), encoding="utf-8")
-    return ModelRegistry.load(target)
+    return ModelRegistry.load(source)
 
 
 def test_large_repository_refactor_routes_to_kimi(tmp_path: Path) -> None:
