@@ -5,12 +5,14 @@ on:
     paths:
       - "scripts/mentat/**"
       - "docs/mentat/model-runtime.md"
+      - "docs/mentat/architecture.md"
       - ".github/workflows/mentat-runtime.yml"
   push:
     branches: [main]
     paths:
       - "scripts/mentat/**"
       - "docs/mentat/model-runtime.md"
+      - "docs/mentat/architecture.md"
       - ".github/workflows/mentat-runtime.yml"
 
 permissions:
@@ -23,5 +25,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check launcher syntax
         run: bash -n scripts/mentat/launch.sh
-      - name: Verify stable default model
-        run: grep -Fq 'kimi-k2.7-code:cloud' scripts/mentat/launch.sh
+      - name: Verify Vast is the default inference route
+        run: grep -Fq 'PROVIDER="${MENTAT_PROVIDER:-vast}"' scripts/mentat/launch.sh
+      - name: Verify stable self-hosted model
+        run: grep -Fq 'MODEL_ID="${MENTAT_MODEL_ID:-moonshotai/Kimi-K2.7-Code}"' scripts/mentat/launch.sh
+      - name: Verify Ollama Cloud remains fallback only
+        run: grep -Fq 'ollama-cloud)' scripts/mentat/launch.sh
