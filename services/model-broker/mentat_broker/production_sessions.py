@@ -7,11 +7,13 @@ import time
 import urllib.error
 import urllib.request
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .models import Decision, ModelSpec
 from .runtime_policy import SerializedEndpointSessionManager
+from .sessions import SessionError
+from .store import utc_now
 
 
 class ProductionSessionManager(SerializedEndpointSessionManager):
@@ -106,15 +108,120 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
         return result
 
     def approve(self, decision: Decision, *, accept_benchmark_cost: bool) -> Decision:
-        temporary = self.state_dir / f"approved-{decision.selected_model}-{decision.id}.json"
-        try:
-            return super().approve(
-                decision,
-                accept_benchmark_cost=accept_benchmark_cost,
+        with self._approval_lock:
+            if decision.status != "pending":
+                return decision
+            model = self.registry.get(decision.selected_model)
+            maximum_active = max(
+                1,
+                int(os.getenv("MENTAT_MAX_ACTIVE_PAID_SESSIONS", "1")),
             )
-        finally:
-            with suppress(OSError):
-                temporary.unlink(missing_ok=True)
+            now = datetime.now(UTC)
+            active_paid = [
+                session
+                for session in self.store.list_sessions()
+                if session["model_id"] != model.id
+                and session["status"] in {"approved", "warming", "ready"}
+                and self._session_not_expired(session, now)
+                and self.registry.get(str(session["model_id"])).provider == "vast"
+            ]
+            if model.provider == "vast" and len(active_paid) >= maximum_active:
+                names = ", ".join(str(session["model_id"]) for session in active_paid)
+                raise SessionError(
+                    "The paid-session limit is already in use by "
+                    f"{names}. Cool or end that session before approving another model."
+                )
+
+            hourly_usd = (
+                decision.offer.hourly_usd
+                if decision.offer
+                else min(model.max_hourly_usd, decision.max_hourly_usd)
+            )
+            budget_hours = (
+                decision.max_total_usd / hourly_usd
+                if hourly_usd > 0
+                else self.registry.policy.max_session_hours
+            )
+            approved_hours = min(self.registry.policy.max_session_hours, budget_hours)
+            if approved_hours <= 0:
+                raise SessionError("the approved total budget does not permit a paid session")
+            approved_until = now + timedelta(hours=approved_hours)
+            endpoint_url = self.endpoint_url(model)
+
+            if model.provider == "external":
+                self.store.upsert_session(
+                    model.id,
+                    status="ready",
+                    endpoint_url=endpoint_url,
+                    decision_id=decision.id,
+                    started_at=utc_now(),
+                    last_used_at=utc_now(),
+                    approved_until=approved_until.isoformat(),
+                )
+                updated = self.store.update_decision_status(
+                    decision.id,
+                    "approved",
+                    approved_at=utc_now(),
+                )
+                self.coordinator.notify()
+                if not updated:
+                    raise SessionError("decision disappeared during approval")
+                return updated
+
+            state_path = self.endpoint_state_path(model)
+            approved_config = self._approved_config(model, decision)
+            self.store.update_decision_status(
+                decision.id,
+                "warming",
+                approved_at=utc_now(),
+            )
+            self.store.upsert_session(
+                model.id,
+                status="warming",
+                endpoint_url=endpoint_url,
+                hourly_usd=hourly_usd,
+                offer=decision.offer,
+                decision_id=decision.id,
+                started_at=utc_now(),
+                last_used_at=utc_now(),
+                approved_until=approved_until.isoformat(),
+            )
+            try:
+                if state_path.exists():
+                    self._lifecycle(model, "warm", config_path=approved_config)
+                else:
+                    if not accept_benchmark_cost:
+                        raise SessionError(
+                            "Creating a new Vast endpoint requires explicit "
+                            "benchmark-cost acknowledgement"
+                        )
+                    self._lifecycle(
+                        model,
+                        "create",
+                        "--accept-test-worker-cost",
+                        config_path=approved_config,
+                    )
+                    self._lifecycle(model, "warm", config_path=approved_config)
+                updated = self.store.update_decision_status(
+                    decision.id,
+                    "approved",
+                    approved_at=utc_now(),
+                )
+                if not updated:
+                    raise SessionError("decision disappeared during approval")
+                self.coordinator.notify()
+                return updated
+            except Exception as exc:
+                if state_path.exists():
+                    with suppress(Exception):
+                        self._lifecycle(model, "cool", config_path=approved_config)
+                self.store.update_decision_status(decision.id, "failed", error=str(exc))
+                self.store.upsert_session(model.id, status="failed", error=str(exc))
+                self.coordinator.notify()
+                raise
+            finally:
+                with suppress(OSError):
+                    approved_config.unlink(missing_ok=True)
 
     def reconcile_startup(self) -> None:
         """Cool saved Vast endpoints after an unclean broker exit.
