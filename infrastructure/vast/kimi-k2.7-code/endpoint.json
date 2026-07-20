@@ -1,0 +1,30 @@
+{
+  "endpoint_name": "mentat-kimi-k2-7-code",
+  "model_id": "moonshotai/Kimi-K2.7-Code",
+  "openai_base_url": "https://openai.vast.ai/mentat-kimi-k2-7-code/v1",
+  "endpoint": {
+    "min_load": 0,
+    "target_util": 0.9,
+    "cold_mult": 2.5,
+    "cold_workers": 0,
+    "max_workers": 1
+  },
+  "workergroup": {
+    "min_load": 0,
+    "target_util": 0.9,
+    "cold_mult": 2.5,
+    "cold_workers": 0,
+    "max_workers": 1,
+    "test_workers": 1,
+    "gpu_ram": 140,
+    "disk_gb": 800,
+    "search_params": "gpu_name=H200 num_gpus=8 verified=true rentable=true rented=false reliability>=0.98 dph_total<=32 disk_space>=800",
+    "vllm_args": "--tensor-parallel-size 8 --mm-encoder-tp-mode data --trust-remote-code --enable-auto-tool-choice --tool-call-parser kimi_k2 --reasoning-parser kimi_k2 --served-model-name moonshotai/Kimi-K2.7-Code --max-model-len 262144 --gpu-memory-utilization 0.90"
+  },
+  "policy": {
+    "max_hourly_usd": 32,
+    "idle_shutdown_minutes": 30,
+    "max_session_hours": 4,
+    "require_manual_warm": true
+  }
+}

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/mentat/**"
+      - "infrastructure/vast/kimi-k2.7-code/**"
       - "docs/mentat/model-runtime.md"
       - "docs/mentat/architecture.md"
       - ".github/workflows/mentat-runtime.yml"
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - "scripts/mentat/**"
+      - "infrastructure/vast/kimi-k2.7-code/**"
       - "docs/mentat/model-runtime.md"
       - "docs/mentat/architecture.md"
       - ".github/workflows/mentat-runtime.yml"
@@ -25,6 +27,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check launcher syntax
         run: bash -n scripts/mentat/launch.sh
+      - name: Compile Vast endpoint CLI
+        run: python -m py_compile scripts/mentat/vast_endpoint.py
+      - name: Validate Kimi endpoint policy
+        run: |
+          python scripts/mentat/vast_endpoint.py estimate \
+            --hourly-price 28 \
+            --hours 2
+      - name: Verify endpoint creation requires cost acknowledgement
+        run: |
+          if python scripts/mentat/vast_endpoint.py create 2>error.log; then
+            echo "create unexpectedly succeeded without cost acknowledgement" >&2
+            exit 1
+          fi
+          grep -Fq -- '--accept-test-worker-cost' error.log
+      - name: Verify Vast connection output
+        run: |
+          python scripts/mentat/vast_endpoint.py print-env >mentat-env.sh
+          grep -Fq 'MENTAT_PROVIDER=vast' mentat-env.sh
+          grep -Fq 'mentat-kimi-k2-7-code/v1' mentat-env.sh
       - name: Verify Vast is the default inference route
         run: grep -Fq 'PROVIDER="${MENTAT_PROVIDER:-vast}"' scripts/mentat/launch.sh
       - name: Verify stable self-hosted model
