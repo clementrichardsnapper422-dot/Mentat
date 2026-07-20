@@ -6,15 +6,19 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
 $BinDir = Join-Path $InstallRoot 'bin'
 $ConfigDir = Join-Path $InstallRoot 'config'
 $StateDir = Join-Path $InstallRoot 'state'
+$BrokerDir = Join-Path $InstallRoot 'broker'
 $ConfigPath = Join-Path $ConfigDir 'config.json'
 $PidPath = Join-Path $StateDir 'gateway.pid'
+$BrokerPidPath = Join-Path $BrokerDir 'broker.pid'
+$BrokerAdminTokenPath = Join-Path $StateDir 'broker-admin.token'
 $OutLog = Join-Path $StateDir 'gateway.out.log'
 $ErrorLog = Join-Path $StateDir 'gateway.error.log'
 $LaunchScript = Join-Path $RootDir 'scripts\mentat\launch.ps1'
 $DoctorScript = Join-Path $RootDir 'scripts\mentat\doctor.ps1'
 $VastScript = Join-Path $RootDir 'scripts\mentat\vast_endpoint.py'
+$BrokerShutdownScript = Join-Path $RootDir 'scripts\mentat\broker_shutdown.py'
 
-New-Item -ItemType Directory -Force -Path $ConfigDir, $StateDir | Out-Null
+New-Item -ItemType Directory -Force -Path $ConfigDir, $StateDir, $BrokerDir | Out-Null
 
 function Get-CommandPath([string[]]$Names) {
     foreach ($name in $Names) {
@@ -112,6 +116,7 @@ function New-BaseConfig($Existing) {
         encryptedVastApiKey = if ($Existing -and $Existing.encryptedVastApiKey) { [string]$Existing.encryptedVastApiKey } else { '' }
         vastTemplateHash = if ($Existing -and $Existing.vastTemplateHash) { [string]$Existing.vastTemplateHash } else { '' }
         gatewayPort = if ($Existing -and $Existing.gatewayPort) { [int]$Existing.gatewayPort } else { 18789 }
+        brokerPort = if ($Existing -and $Existing.brokerPort) { [int]$Existing.brokerPort } else { 18890 }
         maxHourlyUsd = if ($Existing -and $Existing.maxHourlyUsd) { [double]$Existing.maxHourlyUsd } else { 32 }
         maxSessionHours = if ($Existing -and $Existing.maxSessionHours) { [double]$Existing.maxSessionHours } else { 4 }
         ollamaModel = if ($Existing -and $Existing.ollamaModel) { [string]$Existing.ollamaModel } else { 'kimi-k2.7-code:cloud' }
@@ -122,11 +127,12 @@ function Setup-Vast {
     $existing = Read-Config
     $config = New-BaseConfig $existing
     $config.provider = 'vast'
-    $config.baseUrl = Read-Value 'Vast OpenAI-compatible /v1 endpoint' $config.baseUrl
-    if (-not $config.baseUrl) { throw 'A Vast endpoint URL is required.' }
+    $defaultBaseUrl = if ($config.baseUrl) { $config.baseUrl } else { 'https://openai.vast.ai/mentat-kimi-k2-7-code/v1' }
+    $config.baseUrl = Read-Value 'Kimi endpoint identity (created only after approval)' $defaultBaseUrl
+    if (-not $config.baseUrl) { throw 'A Kimi endpoint identity is required.' }
     $config.baseUrl = $config.baseUrl.TrimEnd('/')
     if (-not $config.baseUrl.EndsWith('/v1')) { $config.baseUrl = "$($config.baseUrl)/v1" }
-    $config.modelId = Read-Value 'Model ID' $config.modelId
+    $config.modelId = 'moonshotai/Kimi-K2.7-Code'
     $config.vastTemplateHash = Read-Value 'Vast Serverless template hash (optional until endpoint creation)' $config.vastTemplateHash
 
     $replaceKey = -not $config.encryptedVastApiKey
@@ -145,7 +151,7 @@ function Setup-Vast {
     $env:MENTAT_CONFIG_PATH = $ConfigPath
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $LaunchScript -ConfigOnly
     if ($LASTEXITCODE -ne 0) { throw 'OpenClaw provider configuration failed.' }
-    Write-Host 'Vast is configured as Mentat inference provider.' -ForegroundColor Green
+    Write-Host 'Mentat broker is configured. No paid endpoint was started.' -ForegroundColor Green
 }
 
 function Setup-Ollama {
@@ -160,7 +166,7 @@ function Command-Setup([string[]]$CommandArgs) {
     $provider = if ($CommandArgs.Count -gt 0) { $CommandArgs[0] } else { '' }
     if (-not $provider) {
         Write-Host 'Choose the inference provider:' -ForegroundColor Cyan
-        Write-Host '  1) Vast.ai (self-hosted Kimi endpoint)'
+        Write-Host '  1) Mentat broker with guarded Vast.ai compute'
         Write-Host '  2) Ollama Cloud (fallback)'
         $selection = Read-Host 'Selection [1]'
         if (-not $selection) { $selection = '1' }
@@ -179,6 +185,32 @@ function Test-GatewayProcess {
     $processId = (Get-Content -LiteralPath $PidPath -Raw).Trim()
     if (-not $processId) { return $false }
     return [bool](Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue)
+}
+
+function Test-BrokerProcess {
+    if (-not (Test-Path $BrokerPidPath)) { return $false }
+    $processId = (Get-Content -LiteralPath $BrokerPidPath -Raw).Trim()
+    if (-not $processId) { return $false }
+    return [bool](Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue)
+}
+
+function Stop-BrokerGracefully {
+    $config = Read-Config
+    if (-not $config -or $config.provider -ne 'vast') { return $true }
+    $brokerPort = if ($config.brokerPort) { [int]$config.brokerPort } else { 18890 }
+    try {
+        Invoke-Python @(
+            $BrokerShutdownScript,
+            '--port', [string]$brokerPort,
+            '--token-file', $BrokerAdminTokenPath,
+            '--pid-file', $BrokerPidPath,
+            '--timeout', '120'
+        ) | Out-Null
+        return $true
+    } catch {
+        Write-Warning "Graceful broker shutdown failed: $($_.Exception.Message)"
+        return $false
+    }
 }
 
 function Command-Start([string[]]$CommandArgs) {
@@ -215,6 +247,7 @@ function Command-Start([string[]]$CommandArgs) {
 }
 
 function Command-Stop {
+    $brokerStopped = Stop-BrokerGracefully
     Invoke-Pnpm @('openclaw', 'gateway', 'stop') -AllowFailure | Out-Null
     if (Test-Path $PidPath) {
         $processId = (Get-Content -LiteralPath $PidPath -Raw).Trim()
@@ -223,6 +256,9 @@ function Command-Stop {
         }
         Remove-Item $PidPath -Force -ErrorAction SilentlyContinue
     }
+    Remove-Item $BrokerAdminTokenPath -Force -ErrorAction SilentlyContinue
+    if ($brokerStopped) { Write-Host 'Mentat broker cooled and stopped cleanly.' -ForegroundColor Green }
+    else { Write-Warning 'The broker required forced process cleanup; verify Vast has zero warm workers.' }
     Write-Host 'Mentat stopped.'
 }
 
@@ -233,6 +269,12 @@ function Command-Status {
     } else {
         Write-Host 'Mentat process: not running through the Windows wrapper' -ForegroundColor Yellow
         Remove-Item $PidPath -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-BrokerProcess) {
+        Write-Host "Broker process: running (PID $((Get-Content $BrokerPidPath -Raw).Trim()))" -ForegroundColor Green
+    } else {
+        Write-Host 'Broker process: not running' -ForegroundColor Yellow
+        Remove-Item $BrokerPidPath -Force -ErrorAction SilentlyContinue
     }
     $providerName = if ($config) { $config.provider } else { 'not configured' }
     $gatewayPort = if ($config -and $config.gatewayPort) { $config.gatewayPort } else { 18789 }
@@ -265,7 +307,10 @@ function Command-Vast([string[]]$CommandArgs) {
     if (-not $config) { throw 'Mentat is not configured. Run: mentat setup vast' }
     $env:VAST_API_KEY = Unprotect-Secret ([string]$config.encryptedVastApiKey)
     $env:VAST_TEMPLATE_HASH = [string]$config.vastTemplateHash
-    Invoke-Python (@($VastScript) + $CommandArgs)
+    try { Invoke-Python (@($VastScript) + $CommandArgs) }
+    finally {
+        Remove-Item Env:VAST_API_KEY, Env:VAST_TEMPLATE_HASH -ErrorAction SilentlyContinue
+    }
 }
 
 function Command-Config([string[]]$CommandArgs) {
@@ -312,7 +357,7 @@ function Command-Uninstall([string[]]$CommandArgs) {
     Remove-Item (Join-Path $BinDir 'mentat.cmd'), (Join-Path $BinDir 'mentat.ps1') -Force -ErrorAction SilentlyContinue
     Remove-UserPath $BinDir
     if ($CommandArgs -contains '--purge') {
-        Remove-Item $ConfigDir, $StateDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item $ConfigDir, $StateDir, $BrokerDir -Recurse -Force -ErrorAction SilentlyContinue
         Write-Host 'Mentat command, encrypted configuration, and local state removed.'
     } else {
         Write-Host "Mentat command removed. Configuration was kept at $ConfigDir"
