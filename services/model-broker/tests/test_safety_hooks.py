@@ -9,6 +9,7 @@ import pytest
 from mentat_broker.models import Decision, Offer
 from mentat_broker.registry import ModelRegistry
 from mentat_broker.safety import (
+    SafeBrokerApplication,
     SafeEndpointSessionManager,
     safe_read_json,
     secure_decision_ui,
@@ -115,3 +116,9 @@ def test_second_paid_session_is_blocked(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="paid-session limit"):
         manager.approve(decision, accept_benchmark_cost=True)
+
+
+def test_tool_requirement_uses_task_intent_not_tool_availability() -> None:
+    assert SafeBrokerApplication.task_requires_tools("Summarize this pasted paragraph", True) is False
+    assert SafeBrokerApplication.task_requires_tools("Edit the repository and run tests", True) is True
+    assert SafeBrokerApplication.task_requires_tools("Edit the repository", False) is False

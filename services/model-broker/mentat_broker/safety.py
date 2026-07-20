@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import urllib.error
 import urllib.request
@@ -142,12 +143,93 @@ class SafeEndpointSessionManager(EndpointSessionManager):
                     self.store.upsert_session(model.id, status="failed", error=str(exc))
 
 
+TOOL_ACTION_TERMS = {
+    "browse",
+    "calendar",
+    "commit",
+    "create file",
+    "delete",
+    "deploy",
+    "edit",
+    "email",
+    "file",
+    "folder",
+    "github",
+    "install",
+    "merge",
+    "open the",
+    "pull request",
+    "rename",
+    "repo",
+    "repository",
+    "run",
+    "search",
+    "send",
+    "terminal",
+    "test",
+    "update",
+}
+
+
 class SafeBrokerApplication(_ORIGINAL_APPLICATION):
     def __init__(self, *args: Any, **kwargs: Any):
         global _CURRENT_APPROVAL_TOKEN
         self.approval_token = secrets.token_urlsafe(32)
         _CURRENT_APPROVAL_TOKEN = self.approval_token
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def task_requires_tools(prompt: str, tools_available: bool) -> bool:
+        if not tools_available:
+            return False
+        normalized = re.sub(r"\s+", " ", prompt.lower()).strip()
+        return any(term in normalized for term in TOOL_ACTION_TERMS)
+
+    def prepare_chat(self, payload: dict[str, Any]):
+        messages = payload.get("messages")
+        if not isinstance(messages, list):
+            raise ValueError("messages must be an array")
+        prompt, has_images = self._prompt_from_messages(messages)
+        explicit_tools = payload.get("mentat_requires_tools")
+        requires_tools = (
+            bool(explicit_tools)
+            if explicit_tools is not None
+            else self.task_requires_tools(prompt, bool(payload.get("tools")))
+        )
+        estimated_tokens = max(1, len(prompt) // 4)
+        decision = self.plan(
+            {
+                "prompt": prompt,
+                "has_images": has_images,
+                "requires_tools": requires_tools,
+                "estimated_input_tokens": estimated_tokens,
+                "risk_level": payload.get("mentat_risk_level", "normal"),
+                "max_hourly_usd": payload.get("mentat_max_hourly_usd"),
+                "max_total_usd": payload.get("mentat_max_total_usd"),
+            }
+        )
+        model = self.registry.get(decision.selected_model)
+        if decision.status == "pending":
+            resolved = self.coordinator.wait_for_terminal(
+                self.store,
+                decision.id,
+                self.registry.policy.approval_timeout_seconds,
+            )
+            if not resolved or resolved.status in {"pending", "warming"}:
+                self.store.update_decision_status(
+                    decision.id,
+                    "timed_out",
+                    error="approval timed out",
+                    completed_at=utc_now(),
+                )
+                raise SessionError(f"compute approval timed out for decision {decision.id}")
+            if resolved.status == "rejected":
+                raise PermissionError(f"compute decision {decision.id} was rejected")
+            if resolved.status == "failed":
+                raise SessionError(resolved.error or "endpoint approval failed")
+            decision = resolved
+        endpoint = self.sessions.wait_until_ready(model)
+        return decision, model, endpoint
 
     def plan(self, payload: dict[str, Any]) -> Decision:
         decision = super().plan(payload)
