@@ -38,7 +38,7 @@ class Settings:
     watchdog_interval_seconds: int
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         settings = cls(
             vast_api_key=os.getenv("VAST_API_KEY"),
             manager_token=os.getenv("MENTAT_COMPUTE_TOKEN"),
