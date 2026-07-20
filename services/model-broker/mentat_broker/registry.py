@@ -94,11 +94,14 @@ class ModelRegistry:
                 raise RegistryError(f"{model.id}: invalid or empty task_classes")
             if not model.capabilities or not model.capabilities.issubset(VALID_CAPABILITIES):
                 raise RegistryError(f"{model.id}: invalid or empty capabilities")
-            if self.policy.serverless_text_only and model.provider == "vast":
-                if "vision" in model.capabilities or "vision" in model.task_classes:
-                    raise RegistryError(
-                        f"{model.id}: Vast Serverless is configured text-only; vision must be disabled"
-                    )
+            if (
+                self.policy.serverless_text_only
+                and model.provider == "vast"
+                and ("vision" in model.capabilities or "vision" in model.task_classes)
+            ):
+                raise RegistryError(
+                    f"{model.id}: Vast Serverless is configured text-only; vision must be disabled"
+                )
             for task_class, score in model.bootstrap_quality.items():
                 if task_class not in VALID_TASK_CLASSES or not 0 <= score <= 1:
                     raise RegistryError(f"{model.id}: invalid bootstrap quality for {task_class}")
