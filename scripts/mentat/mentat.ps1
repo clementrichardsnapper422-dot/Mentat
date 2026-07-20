@@ -36,9 +36,13 @@ function Invoke-Pnpm([string[]]$ArgsList, [switch]$AllowFailure) {
     try {
         & $pnpm @ArgsList
         $code = $LASTEXITCODE
-        if ($code -ne 0 -and -not $AllowFailure) { throw "pnpm command failed with exit code $code: $($ArgsList -join ' ')" }
+        if ($code -ne 0 -and -not $AllowFailure) {
+            throw "pnpm command failed with exit code ${code}: $($ArgsList -join ' ')"
+        }
         return $code
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+    }
 }
 
 function Resolve-Python {
@@ -64,7 +68,9 @@ function Invoke-Python([string[]]$ArgsList) {
     try {
         & $executable @prefix @ArgsList
         if ($LASTEXITCODE -ne 0) { throw "Python command failed with exit code $LASTEXITCODE." }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+    }
 }
 
 function Read-Config {
@@ -98,64 +104,54 @@ function Read-Value([string]$Label, [string]$Current = '') {
     return Read-Host $Label
 }
 
+function New-BaseConfig($Existing) {
+    return [ordered]@{
+        provider = if ($Existing -and $Existing.provider) { [string]$Existing.provider } else { 'vast' }
+        baseUrl = if ($Existing -and $Existing.baseUrl) { [string]$Existing.baseUrl } else { '' }
+        modelId = if ($Existing -and $Existing.modelId) { [string]$Existing.modelId } else { 'moonshotai/Kimi-K2.7-Code' }
+        encryptedVastApiKey = if ($Existing -and $Existing.encryptedVastApiKey) { [string]$Existing.encryptedVastApiKey } else { '' }
+        vastTemplateHash = if ($Existing -and $Existing.vastTemplateHash) { [string]$Existing.vastTemplateHash } else { '' }
+        gatewayPort = if ($Existing -and $Existing.gatewayPort) { [int]$Existing.gatewayPort } else { 18789 }
+        maxHourlyUsd = if ($Existing -and $Existing.maxHourlyUsd) { [double]$Existing.maxHourlyUsd } else { 32 }
+        maxSessionHours = if ($Existing -and $Existing.maxSessionHours) { [double]$Existing.maxSessionHours } else { 4 }
+        ollamaModel = if ($Existing -and $Existing.ollamaModel) { [string]$Existing.ollamaModel } else { 'kimi-k2.7-code:cloud' }
+    }
+}
+
 function Setup-Vast {
     $existing = Read-Config
-    $baseUrl = if ($existing -and $existing.baseUrl) { [string]$existing.baseUrl } else { '' }
-    $modelId = if ($existing -and $existing.modelId) { [string]$existing.modelId } else { 'moonshotai/Kimi-K2.7-Code' }
-    $templateHash = if ($existing -and $existing.vastTemplateHash) { [string]$existing.vastTemplateHash } else { '' }
-    $encryptedKey = if ($existing -and $existing.encryptedVastApiKey) { [string]$existing.encryptedVastApiKey } else { '' }
+    $config = New-BaseConfig $existing
+    $config.provider = 'vast'
+    $config.baseUrl = Read-Value 'Vast OpenAI-compatible /v1 endpoint' $config.baseUrl
+    if (-not $config.baseUrl) { throw 'A Vast endpoint URL is required.' }
+    $config.baseUrl = $config.baseUrl.TrimEnd('/')
+    if (-not $config.baseUrl.EndsWith('/v1')) { $config.baseUrl = "$($config.baseUrl)/v1" }
+    $config.modelId = Read-Value 'Model ID' $config.modelId
+    $config.vastTemplateHash = Read-Value 'Vast Serverless template hash (optional until endpoint creation)' $config.vastTemplateHash
 
-    $baseUrl = Read-Value 'Vast OpenAI-compatible /v1 endpoint' $baseUrl
-    if (-not $baseUrl) { throw 'A Vast endpoint URL is required.' }
-    $baseUrl = $baseUrl.TrimEnd('/')
-    if (-not $baseUrl.EndsWith('/v1')) { $baseUrl = "$baseUrl/v1" }
-    $modelId = Read-Value 'Model ID' $modelId
-    $templateHash = Read-Value 'Vast Serverless template hash (optional until endpoint creation)' $templateHash
-
-    $replaceKey = -not $encryptedKey
-    if ($encryptedKey) {
+    $replaceKey = -not $config.encryptedVastApiKey
+    if ($config.encryptedVastApiKey) {
         $answer = Read-Host 'Replace the saved Vast API key? [y/N]'
         $replaceKey = $answer -match '^(y|yes)$'
     }
     if ($replaceKey) {
         $secureKey = Read-Host 'Vast API key (input hidden)' -AsSecureString
         if ($secureKey.Length -eq 0) { throw 'A Vast API key is required.' }
-        $encryptedKey = Protect-Secret $secureKey
+        $config.encryptedVastApiKey = Protect-Secret $secureKey
     }
 
-    $config = [ordered]@{
-        provider = 'vast'
-        baseUrl = $baseUrl
-        modelId = $modelId
-        encryptedVastApiKey = $encryptedKey
-        vastTemplateHash = $templateHash
-        gatewayPort = if ($existing -and $existing.gatewayPort) { [int]$existing.gatewayPort } else { 18789 }
-        maxHourlyUsd = if ($existing -and $existing.maxHourlyUsd) { [double]$existing.maxHourlyUsd } else { 32 }
-        maxSessionHours = if ($existing -and $existing.maxSessionHours) { [double]$existing.maxSessionHours } else { 4 }
-        ollamaModel = if ($existing -and $existing.ollamaModel) { [string]$existing.ollamaModel } else { 'kimi-k2.7-code:cloud' }
-    }
     Save-Config $config
     $env:MENTAT_HOME = $RootDir
     $env:MENTAT_CONFIG_PATH = $ConfigPath
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $LaunchScript -ConfigOnly
     if ($LASTEXITCODE -ne 0) { throw 'OpenClaw provider configuration failed.' }
-    Write-Host 'Vast is configured as Mentat’s inference provider.' -ForegroundColor Green
+    Write-Host 'Vast is configured as Mentat inference provider.' -ForegroundColor Green
 }
 
 function Setup-Ollama {
     if (-not (Get-CommandPath @('ollama.exe', 'ollama'))) { throw 'Ollama is not installed or not on PATH.' }
-    $existing = Read-Config
-    $config = [ordered]@{
-        provider = 'ollama-cloud'
-        baseUrl = if ($existing -and $existing.baseUrl) { [string]$existing.baseUrl } else { '' }
-        modelId = if ($existing -and $existing.modelId) { [string]$existing.modelId } else { 'moonshotai/Kimi-K2.7-Code' }
-        encryptedVastApiKey = if ($existing -and $existing.encryptedVastApiKey) { [string]$existing.encryptedVastApiKey } else { '' }
-        vastTemplateHash = if ($existing -and $existing.vastTemplateHash) { [string]$existing.vastTemplateHash } else { '' }
-        gatewayPort = if ($existing -and $existing.gatewayPort) { [int]$existing.gatewayPort } else { 18789 }
-        maxHourlyUsd = if ($existing -and $existing.maxHourlyUsd) { [double]$existing.maxHourlyUsd } else { 32 }
-        maxSessionHours = if ($existing -and $existing.maxSessionHours) { [double]$existing.maxSessionHours } else { 4 }
-        ollamaModel = if ($existing -and $existing.ollamaModel) { [string]$existing.ollamaModel } else { 'kimi-k2.7-code:cloud' }
-    }
+    $config = New-BaseConfig (Read-Config)
+    $config.provider = 'ollama-cloud'
     Save-Config $config
     Write-Host 'Ollama Cloud is selected. Run ollama signin if needed.' -ForegroundColor Green
 }
@@ -163,7 +159,7 @@ function Setup-Ollama {
 function Command-Setup([string[]]$CommandArgs) {
     $provider = if ($CommandArgs.Count -gt 0) { $CommandArgs[0] } else { '' }
     if (-not $provider) {
-        Write-Host 'Choose Mentat’s inference provider:' -ForegroundColor Cyan
+        Write-Host 'Choose the inference provider:' -ForegroundColor Cyan
         Write-Host '  1) Vast.ai (self-hosted Kimi endpoint)'
         Write-Host '  2) Ollama Cloud (fallback)'
         $selection = Read-Host 'Selection [1]'
@@ -188,16 +184,14 @@ function Test-GatewayProcess {
 function Command-Start([string[]]$CommandArgs) {
     $config = Read-Config
     if (-not $config) { Command-Setup @(); $config = Read-Config }
-    $foreground = $CommandArgs -contains '--foreground'
-    if ($config.provider -eq 'ollama-cloud') { $foreground = $true }
-
+    $foreground = ($CommandArgs -contains '--foreground') -or ($config.provider -eq 'ollama-cloud')
     $env:MENTAT_HOME = $RootDir
     $env:MENTAT_CONFIG_PATH = $ConfigPath
+
     if ($foreground) {
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $LaunchScript
         exit $LASTEXITCODE
     }
-
     if (Test-GatewayProcess) {
         Write-Host "Mentat is already running with PID $((Get-Content $PidPath -Raw).Trim())."
         return
@@ -213,12 +207,11 @@ function Command-Start([string[]]$CommandArgs) {
     if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
         Write-Host "Mentat started in the background (PID $($process.Id))." -ForegroundColor Green
         Write-Host "Logs: $OutLog"
-    } else {
-        Write-Error 'Mentat exited during startup.'
-        if (Test-Path $ErrorLog) { Get-Content $ErrorLog -Tail 40 }
-        Remove-Item $PidPath -Force -ErrorAction SilentlyContinue
-        exit 1
+        return
     }
+    if (Test-Path $ErrorLog) { Get-Content $ErrorLog -Tail 40 }
+    Remove-Item $PidPath -Force -ErrorAction SilentlyContinue
+    throw 'Mentat exited during startup.'
 }
 
 function Command-Stop {
@@ -241,15 +234,16 @@ function Command-Status {
         Write-Host 'Mentat process: not running through the Windows wrapper' -ForegroundColor Yellow
         Remove-Item $PidPath -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "Provider: $(if ($config) { $config.provider } else { 'not configured' })"
-    Write-Host "Gateway port: $(if ($config -and $config.gatewayPort) { $config.gatewayPort } else { 18789 })"
+    $providerName = if ($config) { $config.provider } else { 'not configured' }
+    $gatewayPort = if ($config -and $config.gatewayPort) { $config.gatewayPort } else { 18789 }
+    Write-Host "Provider: $providerName"
+    Write-Host "Gateway port: $gatewayPort"
     Invoke-Pnpm @('openclaw', 'gateway', 'status') -AllowFailure | Out-Null
 }
 
 function Command-Chat([string[]]$CommandArgs) {
     if ($CommandArgs.Count -gt 0) {
-        $message = $CommandArgs -join ' '
-        Invoke-Pnpm @('openclaw', 'agent', '--message', $message, '--thinking', 'high') | Out-Null
+        Invoke-Pnpm @('openclaw', 'agent', '--message', ($CommandArgs -join ' '), '--thinking', 'high') | Out-Null
     } else {
         Invoke-Pnpm @('tui') | Out-Null
     }
@@ -261,21 +255,16 @@ function Command-Logs([string[]]$CommandArgs) {
         Get-Content -LiteralPath $ErrorLog -Tail 40
     }
     if (-not (Test-Path $OutLog)) { New-Item -ItemType File -Path $OutLog -Force | Out-Null }
-    Write-Host '--- gateway output (Ctrl+C to stop following) ---' -ForegroundColor Cyan
+    Write-Host '--- gateway output ---' -ForegroundColor Cyan
     if ($CommandArgs -contains '--no-follow') { Get-Content -LiteralPath $OutLog -Tail 80 }
     else { Get-Content -LiteralPath $OutLog -Tail 80 -Wait }
 }
 
-function Set-VastEnvironment {
+function Command-Vast([string[]]$CommandArgs) {
     $config = Read-Config
     if (-not $config) { throw 'Mentat is not configured. Run: mentat setup vast' }
     $env:VAST_API_KEY = Unprotect-Secret ([string]$config.encryptedVastApiKey)
     $env:VAST_TEMPLATE_HASH = [string]$config.vastTemplateHash
-    $env:MENTAT_VAST_STATE_PATH = Join-Path $StateDir 'vast-endpoint.json'
-}
-
-function Command-Vast([string[]]$CommandArgs) {
-    Set-VastEnvironment
     Invoke-Python (@($VastScript) + $CommandArgs)
 }
 
@@ -332,9 +321,9 @@ function Command-Uninstall([string[]]$CommandArgs) {
 }
 
 function Command-Version {
-    $packageVersion = (& node.exe -p "require('$($RootDir.Replace("'", "\\'"))\\package.json').version" 2>$null)
+    $package = Get-Content -LiteralPath (Join-Path $RootDir 'package.json') -Raw | ConvertFrom-Json
     $commit = (& git.exe -C $RootDir rev-parse --short HEAD 2>$null)
-    Write-Host "Mentat $packageVersion ($commit)"
+    Write-Host "Mentat $($package.version) ($commit)"
 }
 
 function Show-Help {
