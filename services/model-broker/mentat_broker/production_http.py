@@ -198,7 +198,20 @@ def production_handler_factory(
                 if not self._bearer(application.client_token):
                     self._deny(HTTPStatus.UNAUTHORIZED, "client authorization required")
                     return
-                super().do_GET()
+                write_secure_json(
+                    self,
+                    HTTPStatus.OK,
+                    {
+                        "object": "list",
+                        "data": [
+                            {
+                                "id": "mentat-auto",
+                                "object": "model",
+                                "owned_by": "mentat",
+                            }
+                        ],
+                    },
+                )
                 return
             if not self._admin_authorized():
                 self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
