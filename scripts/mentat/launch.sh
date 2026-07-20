@@ -195,6 +195,9 @@ NODE
 }
 
 launch_ollama_cloud() {
+  configure_sandbox
+  "${OPENCLAW[@]}" config validate
+  assert_sandbox_runtime
   command -v ollama >/dev/null 2>&1 || {
     echo "Ollama is not installed or is not on PATH." >&2
     exit 1
