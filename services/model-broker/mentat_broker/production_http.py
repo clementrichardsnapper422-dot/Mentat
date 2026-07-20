@@ -3,9 +3,10 @@ from __future__ import annotations
 import hmac
 import json
 import urllib.parse
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable
+from typing import Any
 
 _CURRENT_MAX_BODY_BYTES = 8 * 1024 * 1024
 
@@ -120,7 +121,7 @@ def production_handler_factory(
             supplied = str(self.headers.get("Authorization") or "")
             prefix = "Bearer "
             return supplied.startswith(prefix) and hmac.compare_digest(
-                supplied[len(prefix):], expected
+                supplied[len(prefix) :], expected
             )
 
         def _admin_authorized(self, query: dict[str, list[str]] | None = None) -> bool:
