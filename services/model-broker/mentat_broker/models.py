@@ -36,8 +36,10 @@ class ModelSpec:
     state_name: str | None
     fallback_chain: list[str]
     default_minutes: dict[str, int]
-    minimum_benchmark_samples: int = 3
+    minimum_benchmark_samples: int = 5
     api_key_env: str = "VAST_API_KEY"
+    min_disk_gb: int = 0
+    min_nvlink_bw: float = 0.0
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ModelSpec:
@@ -49,7 +51,8 @@ class ModelSpec:
             enabled=bool(data.get("enabled", True)),
             quality_tier=int(data.get("quality_tier", 1)),
             bootstrap_quality={
-                str(key): float(value) for key, value in dict(data.get("bootstrap_quality", {})).items()
+                str(key): float(value)
+                for key, value in dict(data.get("bootstrap_quality", {})).items()
             },
             capabilities={str(item) for item in data.get("capabilities", [])},
             task_classes={str(item) for item in data.get("task_classes", [])},
@@ -62,10 +65,13 @@ class ModelSpec:
             state_name=(str(data["state_name"]) if data.get("state_name") else None),
             fallback_chain=[str(item) for item in data.get("fallback_chain", [])],
             default_minutes={
-                str(key): int(value) for key, value in dict(data.get("default_minutes", {})).items()
+                str(key): int(value)
+                for key, value in dict(data.get("default_minutes", {})).items()
             },
-            minimum_benchmark_samples=int(data.get("minimum_benchmark_samples", 3)),
+            minimum_benchmark_samples=int(data.get("minimum_benchmark_samples", 5)),
             api_key_env=str(data.get("api_key_env", "VAST_API_KEY")),
+            min_disk_gb=int(data.get("min_disk_gb", 0)),
+            min_nvlink_bw=float(data.get("min_nvlink_bw", 0)),
         )
 
     def as_public_dict(self) -> dict[str, Any]:
@@ -86,6 +92,14 @@ class BrokerPolicy:
     endpoint_ready_timeout_seconds: int = 1800
     minimum_reliability: float = 0.98
     require_manual_approval: bool = True
+    primary_model_id: str = "kimi-k2.7-code"
+    require_live_offer: bool = True
+    require_measured_quality_for_non_primary: bool = True
+    serverless_text_only: bool = True
+    maintain_warm_worker: bool = False
+    max_concurrent_requests: int = 8
+    max_request_body_bytes: int = 8 * 1024 * 1024
+    shutdown_cooldown_timeout_seconds: int = 90
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BrokerPolicy:
@@ -99,6 +113,18 @@ class BrokerPolicy:
             endpoint_ready_timeout_seconds=int(data.get("endpoint_ready_timeout_seconds", 1800)),
             minimum_reliability=float(data.get("minimum_reliability", 0.98)),
             require_manual_approval=bool(data.get("require_manual_approval", True)),
+            primary_model_id=str(data.get("primary_model_id", "kimi-k2.7-code")),
+            require_live_offer=bool(data.get("require_live_offer", True)),
+            require_measured_quality_for_non_primary=bool(
+                data.get("require_measured_quality_for_non_primary", True)
+            ),
+            serverless_text_only=bool(data.get("serverless_text_only", True)),
+            maintain_warm_worker=bool(data.get("maintain_warm_worker", False)),
+            max_concurrent_requests=int(data.get("max_concurrent_requests", 8)),
+            max_request_body_bytes=int(data.get("max_request_body_bytes", 8 * 1024 * 1024)),
+            shutdown_cooldown_timeout_seconds=int(
+                data.get("shutdown_cooldown_timeout_seconds", 90)
+            ),
         )
 
 
@@ -113,9 +139,14 @@ class Offer:
     verified: bool
     geolocation: str | None = None
     dlperf: float | None = None
+    bw_nvlink: float | None = None
+    disk_space_gb: float | None = None
 
     @classmethod
     def from_vast(cls, raw: dict[str, Any]) -> Offer:
+        verified = bool(raw.get("verified", False))
+        verified = verified or str(raw.get("verification") or "").lower() == "verified"
+        verified = verified or int(raw.get("vericode") or 0) == 1
         return cls(
             id=int(raw["id"]),
             gpu_name=str(raw.get("gpu_name") or "unknown"),
@@ -123,9 +154,15 @@ class Offer:
             gpu_ram_mb=int(raw.get("gpu_ram") or 0),
             hourly_usd=float(raw.get("dph_total") or 0),
             reliability=float(raw.get("reliability2") or raw.get("reliability") or 0),
-            verified=bool(raw.get("verified", False)),
+            verified=verified,
             geolocation=(str(raw["geolocation"]) if raw.get("geolocation") else None),
             dlperf=(float(raw["dlperf"]) if raw.get("dlperf") is not None else None),
+            bw_nvlink=(
+                float(raw["bw_nvlink"]) if raw.get("bw_nvlink") is not None else None
+            ),
+            disk_space_gb=(
+                float(raw["disk_space"]) if raw.get("disk_space") is not None else None
+            ),
         )
 
     def as_dict(self) -> dict[str, Any]:

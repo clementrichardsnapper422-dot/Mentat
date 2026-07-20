@@ -7,6 +7,7 @@ ENV_FILE="$CONFIG_DIR/env"
 PID_FILE="$CONFIG_DIR/gateway.pid"
 LOG_FILE="$CONFIG_DIR/gateway.log"
 BIN_PATH="${MENTAT_BIN_PATH:-$HOME/.local/bin/mentat}"
+BROKER_SHUTDOWN_SCRIPT="$ROOT_DIR/scripts/mentat/broker_shutdown.py"
 
 mkdir -p "$CONFIG_DIR"
 chmod 700 "$CONFIG_DIR" 2>/dev/null || true
@@ -20,6 +21,14 @@ load_env() {
   fi
 }
 
+broker_state_dir() {
+  printf '%s' "${MENTAT_STATE_DIR:-$CONFIG_DIR/state}"
+}
+
+broker_data_dir() {
+  printf '%s' "${MENTAT_BROKER_DATA_DIR:-$CONFIG_DIR/broker}"
+}
+
 find_pnpm() {
   if command -v pnpm >/dev/null 2>&1; then
     command -v pnpm
@@ -27,6 +36,17 @@ find_pnpm() {
     printf '%s\n' "$HOME/.local/bin/pnpm"
   else
     echo "pnpm is not installed. Run: bash install.sh" >&2
+    return 1
+  fi
+}
+
+find_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+  elif command -v python >/dev/null 2>&1; then
+    command -v python
+  else
+    echo "Python 3.11 or newer is required." >&2
     return 1
   fi
 }
@@ -54,6 +74,7 @@ save_config() {
   local model_id="${4:-moonshotai/Kimi-K2.7-Code}"
   local template_hash="${5:-}"
   local gateway_port="${MENTAT_GATEWAY_PORT:-18789}"
+  local broker_port="${MENTAT_BROKER_PORT:-18890}"
   local ollama_model="${MENTAT_OLLAMA_MODEL:-kimi-k2.7-code:cloud}"
 
   umask 077
@@ -67,8 +88,11 @@ save_config() {
     write_setting MENTAT_MODEL_ID "$model_id"
     write_setting VAST_TEMPLATE_HASH "$template_hash"
     write_setting MENTAT_GATEWAY_PORT "$gateway_port"
+    write_setting MENTAT_BROKER_PORT "$broker_port"
     write_setting MENTAT_MAX_HOURLY_USD "${MENTAT_MAX_HOURLY_USD:-32}"
     write_setting MENTAT_MAX_SESSION_HOURS "${MENTAT_MAX_SESSION_HOURS:-4}"
+    write_setting MENTAT_MAX_ACTIVE_PAID_SESSIONS "${MENTAT_MAX_ACTIVE_PAID_SESSIONS:-1}"
+    write_setting MENTAT_PRODUCTION_MODE "${MENTAT_PRODUCTION_MODE:-1}"
     write_setting MENTAT_OLLAMA_MODEL "$ollama_model"
   } > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
@@ -89,14 +113,13 @@ prompt_value() {
 
 setup_vast() {
   load_env
-  local base_url="${MENTAT_VLLM_BASE_URL:-}"
+  local base_url="${MENTAT_VLLM_BASE_URL:-https://openai.vast.ai/mentat-kimi-k2-7-code/v1}"
   local api_key="${VAST_API_KEY:-}"
-  local model_id="${MENTAT_MODEL_ID:-moonshotai/Kimi-K2.7-Code}"
+  local model_id="moonshotai/Kimi-K2.7-Code"
   local template_hash="${VAST_TEMPLATE_HASH:-}"
 
   if [[ -t 0 ]]; then
-    base_url="$(prompt_value 'Vast OpenAI-compatible /v1 endpoint' "$base_url")"
-    model_id="$(prompt_value 'Model ID' "$model_id")"
+    base_url="$(prompt_value 'Kimi endpoint identity (created only after approval)' "$base_url")"
     template_hash="$(prompt_value 'Vast Serverless template hash (optional until endpoint creation)' "$template_hash")"
     if [[ -z "$api_key" ]]; then
       read -r -s -p "Vast API key: " api_key
@@ -108,7 +131,7 @@ setup_vast() {
     fi
   fi
 
-  [[ -n "$base_url" ]] || { echo "A Vast endpoint URL is required." >&2; return 1; }
+  [[ -n "$base_url" ]] || { echo "A Kimi endpoint identity is required." >&2; return 1; }
   [[ -n "$api_key" ]] || { echo "A Vast API key is required." >&2; return 1; }
 
   base_url="${base_url%/}"
@@ -118,9 +141,9 @@ setup_vast() {
 
   save_config vast "$base_url" "$api_key" "$model_id" "$template_hash"
   load_env
-  echo "Configuring the local OpenClaw provider..."
+  echo "Configuring the local OpenClaw provider and production sandbox..."
   MENTAT_CONFIG_ONLY=1 bash "$ROOT_DIR/scripts/mentat/launch.sh"
-  echo "Vast is configured as Mentat's inference provider."
+  echo "Mentat broker is configured. No paid endpoint was started."
 }
 
 setup_ollama() {
@@ -139,7 +162,7 @@ command_setup() {
   local provider="${1:-${MENTAT_PROVIDER:-}}"
   if [[ -z "$provider" ]] && [[ -t 0 ]]; then
     echo "Choose Mentat's inference provider:"
-    echo "  1) Vast.ai (recommended for the self-hosted Kimi endpoint)"
+    echo "  1) Mentat broker with guarded Vast.ai compute"
     echo "  2) Ollama Cloud (fallback)"
     read -r -p "Selection [1]: " selection
     case "${selection:-1}" in
@@ -162,6 +185,30 @@ pid_is_running() {
   local pid
   pid="$(cat "$PID_FILE" 2>/dev/null || true)"
   [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+broker_pid_is_running() {
+  local pid_file
+  pid_file="$(broker_data_dir)/broker.pid"
+  [[ -f "$pid_file" ]] || return 1
+  local pid
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+stop_broker_gracefully() {
+  load_env
+  [[ "${MENTAT_PROVIDER:-vast}" == "vast" ]] || return 0
+  local python_bin state_dir data_dir
+  python_bin="$(find_python)"
+  state_dir="$(broker_state_dir)"
+  data_dir="$(broker_data_dir)"
+  mkdir -p "$state_dir" "$data_dir"
+  "$python_bin" "$BROKER_SHUTDOWN_SCRIPT" \
+    --port "${MENTAT_BROKER_PORT:-18890}" \
+    --token-file "$state_dir/broker-admin.token" \
+    --pid-file "$data_dir/broker.pid" \
+    --timeout 120
 }
 
 command_start() {
@@ -204,6 +251,12 @@ command_start() {
 }
 
 command_stop() {
+  load_env
+  local broker_stopped=1
+  if ! stop_broker_gracefully >/dev/null; then
+    broker_stopped=0
+    echo "Warning: graceful broker shutdown failed; forced cleanup will follow." >&2
+  fi
   run_openclaw gateway stop >/dev/null 2>&1 || true
   if pid_is_running; then
     local pid
@@ -215,7 +268,12 @@ command_stop() {
     done
     kill -9 "$pid" 2>/dev/null || true
   fi
-  rm -f "$PID_FILE"
+  rm -f "$PID_FILE" "$(broker_state_dir)/broker-admin.token"
+  if [[ "$broker_stopped" -eq 1 ]]; then
+    echo "Mentat broker cooled and stopped cleanly."
+  else
+    echo "Verify Vast has zero warm workers." >&2
+  fi
   echo "Mentat stopped."
 }
 
@@ -226,6 +284,12 @@ command_status() {
   else
     echo "Mentat process: not running through the local wrapper"
     rm -f "$PID_FILE" 2>/dev/null || true
+  fi
+  if broker_pid_is_running; then
+    echo "Broker process: running (PID $(cat "$(broker_data_dir)/broker.pid"))"
+  else
+    echo "Broker process: not running"
+    rm -f "$(broker_data_dir)/broker.pid" 2>/dev/null || true
   fi
   echo "Provider: ${MENTAT_PROVIDER:-not configured}"
   echo "Gateway port: ${MENTAT_GATEWAY_PORT:-18789}"
@@ -247,7 +311,7 @@ command_logs() {
 
 command_vast() {
   load_env
-  exec python3 "$ROOT_DIR/scripts/mentat/vast_endpoint.py" "$@"
+  exec "$(find_python)" "$ROOT_DIR/scripts/mentat/vast_endpoint.py" "$@"
 }
 
 command_config() {
@@ -258,26 +322,27 @@ command_config() {
       ;;
     show)
       if [[ ! -f "$ENV_FILE" ]]; then
-        echo "No local configuration yet. Run: mentat setup"
+        echo "No configuration exists. Run: mentat setup" >&2
         return 1
       fi
-      sed -E 's/^(VAST_API_KEY)=.*/\1=***redacted***/' "$ENV_FILE"
+      sed -E 's/^(VAST_API_KEY|.*TOKEN|.*SECRET)=.*/\1=*** redacted ***/' "$ENV_FILE"
       ;;
     edit)
-      touch "$ENV_FILE"
-      chmod 600 "$ENV_FILE"
-      if [[ -n "${EDITOR:-}" ]]; then
-        "$EDITOR" "$ENV_FILE"
-      elif command -v nano >/dev/null 2>&1; then
-        nano "$ENV_FILE"
-      elif command -v vi >/dev/null 2>&1; then
-        vi "$ENV_FILE"
-      else
-        echo "Edit this file: $ENV_FILE"
-      fi
+      "${EDITOR:-vi}" "$ENV_FILE"
       ;;
-    *) echo "Usage: mentat config [path|show|edit]" >&2; return 2 ;;
+    reset)
+      rm -f "$ENV_FILE"
+      echo "Mentat configuration removed. Run: mentat setup"
+      ;;
+    *)
+      echo "Usage: mentat config [path|show|edit|reset]" >&2
+      return 2
+      ;;
   esac
+}
+
+command_doctor() {
+  bash "$ROOT_DIR/scripts/mentat/doctor.sh" "$@"
 }
 
 command_update() {
@@ -292,46 +357,49 @@ command_update() {
 }
 
 command_uninstall() {
-  command_stop >/dev/null 2>&1 || true
+  local purge=0
+  [[ "${1:-}" == "--purge" ]] && purge=1
+  command_stop || true
   rm -f "$BIN_PATH"
-  if [[ "${1:-}" == "--purge" ]]; then
+  if [[ "$purge" -eq 1 ]]; then
     rm -rf "$CONFIG_DIR"
-    echo "Mentat command and local configuration removed."
+    echo "Mentat command, configuration, and local state removed."
   else
-    echo "Mentat command removed. Local configuration was kept at $CONFIG_DIR."
+    echo "Mentat command removed. Configuration was kept at $CONFIG_DIR"
   fi
   echo "The source checkout was not deleted: $ROOT_DIR"
 }
 
 command_version() {
-  local package_version commit
-  package_version="$(node -p "require('$ROOT_DIR/package.json').version" 2>/dev/null || echo unknown)"
+  local version commit
+  version="$(node -p "require('$ROOT_DIR/package.json').version")"
   commit="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  echo "Mentat $package_version ($commit)"
+  echo "Mentat $version ($commit)"
 }
 
 show_help() {
   cat <<'EOF'
-Mentat — local OpenClaw control plane with guarded Vast inference
+Mentat — local AI control plane with guarded Vast inference
 
 Usage:
   mentat <command> [options]
 
 First run:
-  mentat doctor                 Check the computer and checkout
+  mentat doctor
   mentat setup [vast|ollama-cloud]
-  mentat start                  Start in the background
-  mentat chat                   Open the terminal UI
+  mentat start
+  mentat chat
 
 Everyday commands:
-  mentat start [--foreground]   Start Mentat
-  mentat stop                   Stop Mentat
-  mentat status                 Show process and Gateway status
-  mentat chat [message]         Open TUI or send one message
-  mentat logs                   Follow the Gateway log
-  mentat config [path|show|edit]
-  mentat doctor                 Diagnose installation and configuration
-  mentat update                 Pull, install, and rebuild the UI
+  mentat start [--foreground]
+  mentat stop
+  mentat restart
+  mentat status
+  mentat chat [message]
+  mentat logs
+  mentat config [path|show|edit|reset]
+  mentat doctor
+  mentat update
 
 Vast endpoint commands:
   mentat vast estimate --hourly-price 28 --hours 2
@@ -357,16 +425,16 @@ case "$command" in
   start) command_start "$@" ;;
   foreground) command_start --foreground ;;
   stop) command_stop ;;
-  restart) command_stop; command_start "$@" ;;
+  restart) command_stop; command_start ;;
   status) command_status ;;
   chat) command_chat "$@" ;;
   logs) command_logs ;;
   vast) command_vast "$@" ;;
   config) command_config "$@" ;;
-  doctor) exec bash "$ROOT_DIR/scripts/mentat/doctor.sh" "$@" ;;
+  doctor) command_doctor "$@" ;;
   update) command_update ;;
   uninstall) command_uninstall "$@" ;;
-  version|--version|-v) command_version ;;
-  help|--help|-h) show_help ;;
+  version) command_version ;;
+  help|-h|--help) show_help ;;
   *) echo "Unknown command: $command" >&2; show_help >&2; exit 2 ;;
 esac

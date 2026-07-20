@@ -8,6 +8,7 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
 $BinDir = Join-Path $InstallRoot 'bin'
 $ConfigPath = Join-Path $InstallRoot 'config\config.json'
 $DesktopExe = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\Mentat.exe'
+$RegistryPath = Join-Path $RootDir 'config\model-registry.json'
 $script:Failures = 0
 $script:Warnings = 0
 
@@ -58,7 +59,7 @@ function Resolve-Python {
     return $null
 }
 
-Write-Host 'Mentat Windows doctor' -ForegroundColor Cyan
+Write-Host 'Mentat Windows production doctor' -ForegroundColor Cyan
 Write-Host "Source: $RootDir"
 Write-Host "Config: $ConfigPath"
 Write-Host "Desktop: $DesktopExe`n"
@@ -79,12 +80,19 @@ foreach ($item in @(
 if (Get-CommandPath @('node.exe', 'node')) {
     if (Test-NodeVersion) { Report OK "Supported Node.js $(& node --version)" } else { Report FAIL "Unsupported Node.js $(& node --version)." }
 }
-
 $python = Resolve-Python
 if ($python) { Report OK "Python 3.11+: $python" } else { Report FAIL 'Python 3.11 or newer was not found.' }
 
 if (Test-Path (Join-Path $RootDir 'package.json')) { Report OK 'Mentat source checkout found.' } else { Report FAIL 'package.json was not found in the Mentat source directory.' }
 if (Test-Path (Join-Path $RootDir 'node_modules')) { Report OK 'Node dependencies are installed.' } else { Report WARN 'node_modules is missing; rerun .\install.cmd.' }
+if (Test-Path $RegistryPath) {
+    try {
+        $registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
+        if ($registry.policy.require_manual_approval -and $registry.policy.require_live_offer) {
+            Report OK 'Production model registry requires live offers and manual approval.'
+        } else { Report FAIL 'Model registry production approval gates are disabled.' }
+    } catch { Report FAIL "Model registry is invalid JSON: $($_.Exception.Message)" }
+} else { Report FAIL 'config\model-registry.json is missing.' }
 if (Test-Path (Join-Path $BinDir 'mentat.cmd')) { Report OK "mentat command installed in $BinDir" } else { Report FAIL 'mentat.cmd is not installed.' }
 if (Test-Path $DesktopExe) { Report OK "Mentat desktop app installed: $DesktopExe" } else { Report WARN 'Mentat.exe is not installed; rerun .\install.cmd without -SkipDesktop.' }
 
@@ -93,8 +101,16 @@ if (Test-Path $ConfigPath) {
         $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
         Report OK "Provider configured: $($config.provider)"
         if ($config.provider -eq 'vast') {
-            if ($config.baseUrl) { Report OK "Vast endpoint: $($config.baseUrl)" } else { Report FAIL 'Vast base URL is missing.' }
+            if ($config.baseUrl) { Report OK "Kimi endpoint identity: $($config.baseUrl)" } else { Report FAIL 'Kimi endpoint identity is missing.' }
             if ($config.encryptedVastApiKey) { Report OK 'Vast API key is encrypted with Windows DPAPI.' } else { Report FAIL 'Encrypted Vast API key is missing.' }
+            $docker = Get-CommandPath @('docker.exe', 'docker')
+            if (-not $docker) {
+                Report FAIL 'Docker Desktop is required for production tool isolation.'
+            } else {
+                & $docker info *> $null
+                if ($LASTEXITCODE -eq 0) { Report OK 'Docker sandbox runtime is available.' }
+                else { Report FAIL 'Docker Desktop is installed but not running.' }
+            }
         } elseif ($config.provider -eq 'ollama-cloud') {
             if (Get-CommandPath @('ollama.exe', 'ollama')) { Report OK 'Ollama is installed.' } else { Report WARN 'Ollama is not installed or not on PATH.' }
         }

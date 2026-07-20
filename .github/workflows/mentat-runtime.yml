@@ -54,9 +54,16 @@ jobs:
           test "$output" = "$RUNNER_TEMP/mentat/env"
       - name: Compile endpoint and broker entry points
         run: |
-          python -m py_compile scripts/mentat/vast_endpoint.py
-          python -m py_compile scripts/mentat/broker.py
+          python -m py_compile \
+            scripts/mentat/broker.py \
+            scripts/mentat/vast_endpoint.py \
+            scripts/mentat/vast_endpoint_production.py \
+            scripts/mentat/vast_endpoint_hardening.py \
+            scripts/mentat/vast_http.py
       - name: Validate model registry and broker configuration
+        env:
+          MENTAT_BROKER_CLIENT_TOKEN: check-client
+          MENTAT_BROKER_ADMIN_TOKEN: check-admin
         run: python scripts/mentat/broker.py --root . --data-dir "$RUNNER_TEMP/broker" --check >broker.json
       - name: Validate Kimi endpoint policy
         run: |
@@ -75,13 +82,22 @@ jobs:
           python scripts/mentat/vast_endpoint.py print-env >mentat-env.sh
           grep -Fq 'MENTAT_PROVIDER=vast' mentat-env.sh
           grep -Fq 'mentat-kimi-k2-7-code/v1' mentat-env.sh
-      - name: Verify broker is the OpenClaw inference route
+      - name: Verify production inference and secret boundaries
         run: |
-          grep -Fq 'PROVIDER="${MENTAT_PROVIDER:-vast}"' scripts/mentat/launch.sh
           grep -Fq 'MODEL_REF="vllm/mentat-auto"' scripts/mentat/launch.sh
           grep -Fq 'BROKER_BASE_URL="http://127.0.0.1:' scripts/mentat/launch.sh
-      - name: Verify stable self-hosted primary model remains registered
-        run: grep -Fq 'moonshotai/Kimi-K2.7-Code' config/model-registry.json
+          grep -Fq 'input: ["text"]' scripts/mentat/launch.sh
+          grep -Fq '"mode":"all"' scripts/mentat/launch.sh
+          grep -Fq 'tools.elevated.enabled false' scripts/mentat/launch.sh
+          grep -Fq 'unset VAST_API_KEY VAST_TEMPLATE_HASH' scripts/mentat/launch.sh
+          gateway_line="$(grep -n 'gateway --port' scripts/mentat/launch.sh | tail -1 | cut -d: -f1)"
+          unset_line="$(grep -n 'unset VAST_API_KEY' scripts/mentat/launch.sh | tail -1 | cut -d: -f1)"
+          test "$unset_line" -lt "$gateway_line"
+      - name: Verify stable primary and text-only production registry
+        run: |
+          grep -Fq 'moonshotai/Kimi-K2.7-Code' config/model-registry.json
+          grep -Fq '"require_measured_quality_for_non_primary": true' config/model-registry.json
+          grep -Fq '"serverless_text_only": true' config/model-registry.json
       - name: Verify Ollama Cloud remains fallback only
         run: grep -Fq 'ollama-cloud)' scripts/mentat/launch.sh
 
@@ -147,15 +163,25 @@ jobs:
       - name: Compile endpoint and broker tools on Windows
         shell: powershell
         run: |
-          python -m py_compile scripts/mentat/vast_endpoint.py
-          python -m py_compile scripts/mentat/broker.py
+          python -m py_compile `
+            scripts/mentat/broker.py `
+            scripts/mentat/vast_endpoint.py `
+            scripts/mentat/vast_endpoint_production.py `
+            scripts/mentat/vast_endpoint_hardening.py `
+            scripts/mentat/vast_http.py
+          $env:MENTAT_BROKER_CLIENT_TOKEN = 'check-client'
+          $env:MENTAT_BROKER_ADMIN_TOKEN = 'check-admin'
           python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
-      - name: Verify native broker and provider defaults
+      - name: Verify native production security boundary
         shell: powershell
         run: |
           Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "'mentat-auto'" | Out-Null
-          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "MENTAT_PRIMARY_UPSTREAM_URL" | Out-Null
-          Select-String -Path config/model-registry.json -SimpleMatch "moonshotai/Kimi-K2.7-Code" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "input = @('text')" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "mode = 'all'" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch "tools.elevated.enabled" | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch 'Remove-Item Env:VAST_API_KEY' | Out-Null
+          Select-String -Path scripts/mentat/launch.ps1 -SimpleMatch 'Docker Desktop' | Out-Null
+          Select-String -Path config/model-registry.json -SimpleMatch 'moonshotai/Kimi-K2.7-Code' | Out-Null
       - name: Smoke test native installer without dependency rebuild
         shell: cmd
         run: install.cmd -SkipDeps -SkipUI -SkipDesktop -NoPath
