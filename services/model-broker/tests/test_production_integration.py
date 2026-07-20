@@ -111,6 +111,14 @@ def test_authenticated_no_spend_chat_proxy_end_to_end(
     broker_base = f"http://127.0.0.1:{broker.server_address[1]}"
 
     try:
+        models_request = urllib.request.Request(
+            broker_base + "/v1/models",
+            headers={"Authorization": "Bearer client-token"},
+        )
+        with urllib.request.urlopen(models_request, timeout=5) as response:
+            models = json.loads(response.read().decode("utf-8"))
+        assert [item["id"] for item in models["data"]] == ["mentat-auto"]
+
         body = json.dumps(
             {
                 "model": "mentat-auto",
