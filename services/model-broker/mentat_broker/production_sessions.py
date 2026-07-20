@@ -6,12 +6,12 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
 from .models import Decision, ModelSpec
 from .runtime_policy import SerializedEndpointSessionManager
-from .sessions import SessionError
 
 
 class ProductionSessionManager(SerializedEndpointSessionManager):
@@ -109,10 +109,8 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                 accept_benchmark_cost=accept_benchmark_cost,
             )
         finally:
-            try:
+            with suppress(OSError):
                 temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
 
     def reconcile_startup(self) -> None:
         """Cool saved Vast endpoints after an unclean broker exit.
@@ -169,9 +167,12 @@ class ProductionSessionManager(SerializedEndpointSessionManager):
                     and (now - last_used).total_seconds()
                     > self.registry.policy.endpoint_ready_timeout_seconds
                 )
-                if not expired and not warming_stale:
-                    if idle_minutes < self.registry.policy.idle_shutdown_minutes:
-                        continue
+                if (
+                    not expired
+                    and not warming_stale
+                    and idle_minutes < self.registry.policy.idle_shutdown_minutes
+                ):
+                    continue
                 try:
                     self._lifecycle(model, "cool")
                     self.store.upsert_session(model.id, status="cooled")
