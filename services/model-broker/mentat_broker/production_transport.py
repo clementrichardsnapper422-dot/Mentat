@@ -2,15 +2,24 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 from .models import ModelSpec
 from .production_sessions import ProductionSessionManager as BaseProductionSessionManager
 from .sessions import SessionError
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def endpoint_override_name(model_id: str) -> str:
+    suffix = re.sub(r"[^A-Z0-9]+", "_", model_id.upper()).strip("_")
+    if not suffix:
+        raise SessionError("model id cannot be converted to an endpoint environment name")
+    return f"MENTAT_ENDPOINT_{suffix}"
 
 
 def is_loopback_url(url: str) -> bool:
@@ -50,6 +59,19 @@ def open_upstream(
 
 class ProductionSessionManager(BaseProductionSessionManager):
     """Production lifecycle manager with proxy-safe readiness behavior."""
+
+    def endpoint_url(self, model: ModelSpec) -> str | None:
+        override = os.getenv(endpoint_override_name(model.id))
+        if override:
+            return override.rstrip("/")
+        return super().endpoint_url(model)
+
+    def _reconcile_saved_state(self, model: ModelSpec, config_path: Path) -> bool:
+        if os.getenv(endpoint_override_name(model.id)):
+            # Explicit local/operator endpoints are outside the Vast lifecycle
+            # reconciler and must never trigger a paid create operation.
+            return True
+        return super()._reconcile_saved_state(model, config_path)
 
     def wait_until_ready(self, model: ModelSpec, timeout_seconds: int | None = None) -> str:
         endpoint_url = self.endpoint_url(model)
