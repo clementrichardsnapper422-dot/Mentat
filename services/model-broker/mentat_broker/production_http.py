@@ -56,8 +56,7 @@ def secure_ui(base_ui: Callable[[], bytes], admin_token: str) -> bytes:
     html = html.replace(
         "const list = document.getElementById('list');",
         "const list = document.getElementById('list');\n"
-        f"const adminToken = {token_json};\n"
-        "history.replaceState(null, '', '/ui/decisions');",
+        f"const adminToken = {token_json};",
     )
     html = html.replace(
         "headers:{'Content-Type':'application/json'}",
@@ -124,11 +123,8 @@ def production_handler_factory(
                 supplied[len(prefix) :], expected
             )
 
-        def _admin_authorized(self, query: dict[str, list[str]] | None = None) -> bool:
-            if self._bearer(application.admin_token):
-                return True
-            supplied = (query or {}).get("token", [""])[0]
-            return bool(supplied) and hmac.compare_digest(supplied, application.admin_token)
+        def _admin_authorized(self) -> bool:
+            return self._bearer(application.admin_token)
 
         def _deny(self, status: HTTPStatus, message: str) -> None:
             write_secure_json(self, int(status), {"error": {"message": message}})
@@ -138,7 +134,6 @@ def production_handler_factory(
                 self._deny(HTTPStatus.BAD_REQUEST, "invalid host")
                 return
             parsed = urllib.parse.urlparse(self.path)
-            query = urllib.parse.parse_qs(parsed.query)
             if parsed.path == "/health":
                 write_secure_json(
                     self,
@@ -147,7 +142,7 @@ def production_handler_factory(
                 )
                 return
             if parsed.path == "/ui/decisions":
-                if not self._admin_authorized(query):
+                if not self._admin_authorized():
                     self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
                     return
                 body = secure_ui(base_ui, application.admin_token)
@@ -167,7 +162,7 @@ def production_handler_factory(
                 if not self._bearer(application.client_token):
                     self._deny(HTTPStatus.UNAUTHORIZED, "client authorization required")
                     return
-            elif not self._admin_authorized(query):
+            elif not self._admin_authorized():
                 self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
                 return
             super().do_GET()
