@@ -54,9 +54,11 @@ This should not be treated like a cheap single-RTX-4090 workload. Before making 
 
 Create the Vast vLLM endpoint first, then set the runtime values locally. Never commit the actual key.
 
+OpenClaw's vLLM adapter expects the base URL that contains the `/v1/chat/completions` route, so include `/v1` in `MENTAT_VLLM_BASE_URL`:
+
 ```bash
 export MENTAT_PROVIDER=vast
-export MENTAT_VLLM_BASE_URL="https://openai.vast.ai/<ENDPOINT_NAME>"
+export MENTAT_VLLM_BASE_URL="https://openai.vast.ai/<ENDPOINT_NAME>/v1"
 export VAST_API_KEY="<YOUR_SCOPED_VAST_KEY>"
 export MENTAT_MODEL_ID="moonshotai/Kimi-K2.7-Code"
 
@@ -66,17 +68,58 @@ bash scripts/mentat/launch.sh
 The launcher:
 
 1. keeps the Gateway and agent runtime on the local PC
-2. configures OpenClaw's bundled `vllm` provider
+2. creates an explicit OpenClaw `vllm` provider entry
 3. points that provider at the Vast OpenAI-compatible base URL
-4. stores the model route as `vllm/moonshotai/Kimi-K2.7-Code`
-5. verifies model status
-6. starts the local Gateway
+4. stores only an environment-variable reference to the API key
+5. registers `vllm/moonshotai/Kimi-K2.7-Code` without relying on `/models` discovery
+6. validates the OpenClaw configuration
+7. starts the local Gateway
 
 For configuration without starting the Gateway:
 
 ```bash
 MENTAT_CONFIG_ONLY=1 bash scripts/mentat/launch.sh
 ```
+
+## Verify the Vast endpoint directly
+
+Test the endpoint before asking OpenClaw to use it:
+
+```bash
+curl --fail-with-body \
+  "$MENTAT_VLLM_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $VAST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "moonshotai/Kimi-K2.7-Code",
+    "messages": [
+      {"role": "user", "content": "Reply with exactly: Mentat online"}
+    ],
+    "max_tokens": 32,
+    "temperature": 1.0
+  }'
+```
+
+Then verify OpenClaw's configured primary model:
+
+```bash
+openclaw config validate
+openclaw models status
+```
+
+For a source checkout without a global OpenClaw installation:
+
+```bash
+corepack enable
+pnpm install
+pnpm openclaw config validate
+pnpm openclaw models status
+pnpm gateway:watch
+```
+
+## Vast proxy limitation
+
+Vast's current OpenAI-compatible Serverless proxy supports text chat/completions and streaming. It does not currently pass vision, audio, image-generation, or embedding requests through that proxy. Mentat must treat this provider entry as text-only even though Kimi K2.7 Code itself supports vision when deployed through a compatible direct endpoint.
 
 ## Ollama Cloud fallback
 
@@ -94,25 +137,6 @@ ollama launch openclaw --model kimi-k2.7-code:cloud
 ```
 
 It should not be confused with the Vast production route.
-
-## Verify connectivity
-
-After configuration:
-
-```bash
-openclaw models list --provider vllm
-openclaw models status
-```
-
-For a source checkout without a global OpenClaw installation:
-
-```bash
-corepack enable
-pnpm install
-pnpm openclaw models list --provider vllm
-pnpm openclaw models status
-pnpm gateway:watch
-```
 
 ## Secrets
 
