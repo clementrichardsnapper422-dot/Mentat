@@ -5,12 +5,15 @@ import math
 import os
 import sys
 import threading
+import time
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
-from .models import Decision, ModelSpec, Offer
-from .production_sessions import ProductionSessionManager
+from .models import BenchmarkRecord, Decision, ModelSpec, Offer
 from .production_store import ProductionBrokerStore
+from .production_transport import ProductionSessionManager, open_upstream
 from .registry import ModelRegistry
 from .router import RoutingError, build_decision, classify_task
 from .runtime_policy import ContextAwareBrokerApplication
@@ -302,21 +305,93 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
     def _proxy_to_model(
         self,
         handler: BaseHTTPRequestHandler,
-        *args: Any,
-        **kwargs: Any,
+        payload: dict[str, Any],
+        model: ModelSpec,
+        base_url: str,
+        decision: Decision,
+        started: float,
     ) -> None:
-        original = handler.send_response
-
-        def tracked(code: int, message: str | None = None) -> None:
-            if 200 <= int(code) < 400:
-                handler._mentat_upstream_started = True  # type: ignore[attr-defined]
-            original(code, message)
-
-        handler.send_response = tracked  # type: ignore[method-assign]
+        upstream_payload = dict(payload)
+        for key in list(upstream_payload):
+            if key.startswith("mentat_"):
+                upstream_payload.pop(key, None)
+        upstream_payload["model"] = model.model_id
+        body = json.dumps(upstream_payload).encode("utf-8")
+        api_key = os.getenv(model.api_key_env) or os.getenv("VAST_API_KEY") or "EMPTY"
+        request = urllib.request.Request(
+            base_url.rstrip("/") + "/chat/completions",
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream, application/json",
+            },
+        )
         try:
-            super()._proxy_to_model(handler, *args, **kwargs)
-        finally:
-            handler.send_response = original  # type: ignore[method-assign]
+            response = open_upstream(
+                request,
+                timeout=self.registry.policy.endpoint_ready_timeout_seconds,
+            )
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500:
+                details = exc.read().decode("utf-8", errors="replace")
+                raise SessionError(
+                    f"upstream rejected the request with HTTP {exc.code}: {details}"
+                ) from exc
+            raise
+
+        captured = bytearray()
+        with response:
+            content_type = response.headers.get("Content-Type", "application/json")
+            handler._mentat_upstream_started = True  # type: ignore[attr-defined]
+            handler.send_response(response.status)
+            handler.send_header("Content-Type", content_type)
+            handler.send_header("Cache-Control", "no-cache")
+            handler.send_header("X-Mentat-Decision-Id", decision.id)
+            handler.send_header("X-Mentat-Model", model.id)
+            handler.send_header("Connection", "close")
+            handler.end_headers()
+
+            while True:
+                chunk = response.read(64 * 1024)
+                if not chunk:
+                    break
+                handler.wfile.write(chunk)
+                handler.wfile.flush()
+                if len(captured) < 2_000_000:
+                    captured.extend(chunk[: 2_000_000 - len(captured)])
+
+        latency_ms = (time.monotonic() - started) * 1000
+        self.sessions.touch(model.id)
+        self.store.update_decision_status(
+            decision.id,
+            "completed",
+            completed_at=utc_now(),
+        )
+        tokens_per_second = None
+        try:
+            if "application/json" in content_type:
+                parsed = json.loads(captured.decode("utf-8"))
+                usage = parsed.get("usage", {})
+                completion_tokens = float(usage.get("completion_tokens") or 0)
+                if completion_tokens and latency_ms > 0:
+                    tokens_per_second = completion_tokens / (latency_ms / 1000)
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+        self.store.add_benchmark(
+            BenchmarkRecord(
+                model_id=model.id,
+                task_class=decision.task_class,
+                success=True,
+                latency_ms=latency_ms,
+                tokens_per_second=tokens_per_second,
+                hourly_usd=decision.offer.hourly_usd if decision.offer else None,
+                total_cost_usd=decision.estimated_cost_usd,
+                quality_score=None,
+                notes=f"Automatic runtime measurement for decision {decision.id}",
+            )
+        )
 
     def _json_error(
         self,
