@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "Native Windows desktop shell for the local Mentat Control UI",
-  "main": "src/main.cjs",
+  "main": "src/main-production.cjs",
   "author": "Mentat",
   "license": "MIT",
   "scripts": {
-    "check": "node --check src/main.cjs",
+    "check": "node --check src/main.cjs && node --check src/main-production.cjs",
     "start": "electron .",
     "pack": "electron-builder --win dir --publish never",
     "dist": "electron-builder --win nsis --publish never"
