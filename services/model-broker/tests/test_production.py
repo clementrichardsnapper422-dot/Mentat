@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from mentat_broker import server as broker_server
 from mentat_broker.models import BenchmarkRecord, Decision, Offer
 from mentat_broker.production_app import ProductionBrokerApplication
 from mentat_broker.production_http import (
@@ -213,10 +214,11 @@ def test_loopback_http_boundary_requires_correct_tokens() -> None:
 
         return Base
 
-    def ui() -> bytes:
-        return b"<html><script>const list = document.getElementById('list');</script></html>"
-
-    handler = production_handler_factory(base_factory, ui, application)
+    handler = production_handler_factory(
+        base_factory,
+        broker_server._decision_ui,
+        application,
+    )
     server = LoopbackThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -241,7 +243,9 @@ def test_loopback_http_boundary_requires_correct_tokens() -> None:
             headers={"Authorization": "Bearer admin"},
         )
         with urllib.request.urlopen(ui_request, timeout=2) as response:
+            body = response.read().decode("utf-8")
             assert response.status == 200
+            assert "rateDecision" in body
     finally:
         server.shutdown()
         server.server_close()
