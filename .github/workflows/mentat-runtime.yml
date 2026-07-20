@@ -81,6 +81,8 @@ jobs:
       - name: Parse native PowerShell scripts with Windows PowerShell
         shell: powershell
         run: |
+          $diagnostics = Join-Path $env:RUNNER_TEMP 'powershell-parse-errors.txt'
+          Remove-Item $diagnostics -Force -ErrorAction SilentlyContinue
           $files = @(
             'install.ps1',
             'scripts/mentat/doctor.ps1',
@@ -95,11 +97,23 @@ jobs:
               [ref]$tokens,
               [ref]$errors
             )
-            if ($errors.Count -gt 0) {
-              $errors | Format-List | Out-String | Write-Error
-              exit 1
+            foreach ($parseError in $errors) {
+              $message = '{0}:{1}:{2}: {3}' -f $file, $parseError.Extent.StartLineNumber, $parseError.Extent.StartColumnNumber, $parseError.Message
+              Add-Content -LiteralPath $diagnostics -Value $message
+              Write-Host "::error file=$file,line=$($parseError.Extent.StartLineNumber),col=$($parseError.Extent.StartColumnNumber)::$($parseError.Message)"
             }
           }
+          if (Test-Path $diagnostics) {
+            Get-Content $diagnostics
+            exit 1
+          }
+      - name: Upload PowerShell parser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: powershell-parse-errors
+          path: ${{ runner.temp }}/powershell-parse-errors.txt
+          if-no-files-found: ignore
       - name: Verify CMD installer entry point
         shell: cmd
         run: install.cmd -Help | findstr /C:"Install Mentat natively on Windows"
