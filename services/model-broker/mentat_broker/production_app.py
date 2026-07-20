@@ -55,9 +55,12 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
         if not self.client_token or not self.admin_token:
             raise RuntimeError("broker client and admin tokens are required")
         super().__init__(*args, **kwargs)
-        if not check_mode and any(model.provider == "vast" for model in self.registry.enabled()):
-            if not os.getenv("VAST_API_KEY"):
-                raise RuntimeError("VAST_API_KEY must be available only to the broker process")
+        if (
+            not check_mode
+            and any(model.provider == "vast" for model in self.registry.enabled())
+            and not os.getenv("VAST_API_KEY")
+        ):
+            raise RuntimeError("VAST_API_KEY must be available only to the broker process")
         self.request_slots = threading.BoundedSemaphore(
             self.registry.policy.max_concurrent_requests
         )
@@ -264,12 +267,17 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
         finally:
             self.sessions.set_current_decision(None)
 
-    def _proxy_to_model(self, handler: BaseHTTPRequestHandler, *args: Any, **kwargs: Any) -> None:
+    def _proxy_to_model(
+        self,
+        handler: BaseHTTPRequestHandler,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         original = handler.send_response
 
         def tracked(code: int, message: str | None = None) -> None:
             if 200 <= int(code) < 400:
-                setattr(handler, "_mentat_upstream_started", True)
+                handler._mentat_upstream_started = True  # type: ignore[attr-defined]
             original(code, message)
 
         handler.send_response = tracked  # type: ignore[method-assign]
@@ -278,14 +286,20 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
         finally:
             handler.send_response = original  # type: ignore[method-assign]
 
-    def _json_error(self, handler: BaseHTTPRequestHandler, *args: Any, **kwargs: Any) -> None:
+    def _json_error(
+        self,
+        handler: BaseHTTPRequestHandler,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         if getattr(handler, "_mentat_upstream_started", False):
             handler.close_connection = True
             return
         super()._json_error(handler, *args, **kwargs)
 
     def close(self) -> None:
+        self.sessions.stop_sweeper()
         try:
             self.sessions.cool_all(self.registry.policy.shutdown_cooldown_timeout_seconds)
         finally:
-            super().close()
+            self.store.close()
