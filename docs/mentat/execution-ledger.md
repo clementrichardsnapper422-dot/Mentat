@@ -16,7 +16,9 @@ Mentat 1.0 is complete only when all release gates in `docs/mentat/production-co
 - Default branch: `main`
 - Current visibility at the start of this execution program: **public**
 - Current repository type: public fork larger than 1 GB
+- GitHub Issues: disabled; `docs/mentat/work-items.md` is the temporary authoritative backlog
 - Production contract: present
+- Mentat 1.0 scope: frozen on completion-program branch
 - Focused Windows and broker CI: present
 - Live Vast canary: not completed
 - Signed installer: not completed
@@ -58,8 +60,8 @@ These actions cannot be honestly completed by repository automation alone:
 ### A. Scope and product contract
 
 - [x] Canonical production contract exists.
-- [ ] Freeze Mentat 1.0 supported features.
-- [ ] Record explicitly deferred features.
+- [x] Freeze Mentat 1.0 supported features.
+- [x] Record explicitly deferred features.
 - [ ] Convert definition of done into executable acceptance tests where possible.
 
 ### B. Repository and supply chain
@@ -161,9 +163,42 @@ Code existing without an executed integration test is not sufficient evidence fo
 
 - Created branch `agent/complete-mentat-mission` from `main`.
 - Confirmed repository is still public and larger than 1 GB.
-- Created this permanent execution ledger.
-- Established that all repository/CI work will be performed on reviewable branches.
-- Established that real credentials, paid canaries, Windows-machine tests, repository migration, and code signing remain explicit owner-only gates.
+- Confirmed GitHub Issues are disabled; issue creation returned HTTP 410.
+- Added `docs/mentat/work-items.md` as the stable MNT backlog.
+- Added `docs/mentat/version-1-scope.md`; Mentat 1.0 required and deferred features are now frozen.
+- Created draft PR #11, **Start the Mentat 1.0 completion program**.
+- Added explicit test-only Vast endpoints:
+  - `MENTAT_VAST_API_BASE`
+  - `MENTAT_VAST_BUNDLES_URL`
+  Production defaults remain the real Vast domains.
+- Added `scripts/mentat/testing/fake_vast.py`, a reusable authenticated HTTP control-plane simulator with offers, endpoints, workergroups, lifecycle calls, state inspection, and zero-dollar billing fixtures.
+- Added cross-platform tests that exercise real HTTP offer discovery and the real `vast_endpoint.py` subprocess through create, status, warm, cool, billing, destroy, and local-state cleanup.
+- First broker CI run stopped on one Ruff import-order diagnostic; no behavioral test ran.
+- Fixed the deliberate test import ordering at commit `64b4b18223ab4b244a74eddd2445c170dce919f7`.
+- Second focused CI run was queued when this ledger entry was written.
+
+### Current handoff
+
+```text
+Date/time: 2026-07-22
+Branch/PR: agent/complete-mentat-mission / PR #11
+Last completed item: reusable no-spend Vast simulator and lifecycle integration tests implemented
+Current item: focused Windows/Linux CI validation of commit 64b4b18223ab4b244a74eddd2445c170dce919f7
+Files changed:
+- docs/mentat/execution-ledger.md
+- docs/mentat/work-items.md
+- docs/mentat/version-1-scope.md
+- scripts/mentat/vast_http.py
+- scripts/mentat/testing/fake_vast.py
+- services/model-broker/mentat_broker/vast.py
+- services/model-broker/tests/test_fake_vast_control_plane.py
+Tests run and results: first CI attempt failed Ruff I001 only; fix committed; second run queued
+Known failures: none known after lint fix; behavioral CI result pending
+Owner action required: migrate repository to standalone private repo before real credentials or paid tests
+External dependency: none for current fake-control-plane tests
+Exact next task: inspect the latest Mentat Broker and Mentat Runtime jobs; fix failures; then build reusable fake OpenAI streaming/tool/failure service and Windows no-spend acceptance launcher
+Do not do: do not enter real Vast credentials, start a paid endpoint, or begin Kimi testing while the repository is public and the no-spend gate is incomplete
+```
 
 ## Handoff template
 
