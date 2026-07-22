@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-API_BASE = "https://console.vast.ai/api/v0"
+API_BASE = os.getenv("MENTAT_VAST_API_BASE", "https://console.vast.ai/api/v0").rstrip("/")
 TRANSIENT_HTTP_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
 
 
