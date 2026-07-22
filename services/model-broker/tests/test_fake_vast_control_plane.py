@@ -1,3 +1,4 @@
+# ruff: noqa: E402, I001
 from __future__ import annotations
 
 import json
@@ -13,9 +14,9 @@ TESTING = SCRIPTS / "testing"
 if str(TESTING) not in sys.path:
     sys.path.insert(0, str(TESTING))
 
-from fake_vast import start_fake_vast  # noqa: E402
-from mentat_broker.registry import ModelRegistry  # noqa: E402
-from mentat_broker.vast import VastOfferDiscovery  # noqa: E402
+from fake_vast import start_fake_vast
+from mentat_broker.registry import ModelRegistry
+from mentat_broker.vast import VastOfferDiscovery
 
 REGISTRY = ROOT / "config" / "model-registry.json"
 KIMI_CONFIG = ROOT / "infrastructure" / "vast" / "kimi-k2.7-code" / "endpoint.json"
