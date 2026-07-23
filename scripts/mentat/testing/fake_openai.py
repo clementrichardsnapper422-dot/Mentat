@@ -96,7 +96,7 @@ def _json_completion(payload: dict[str, Any], text: str) -> dict[str, Any]:
 
 
 class FakeOpenAIHandler(BaseHTTPRequestHandler):
-    server: "FakeOpenAIServer"
+    server: FakeOpenAIServer
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
