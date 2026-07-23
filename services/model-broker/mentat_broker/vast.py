@@ -23,10 +23,16 @@ class VastOfferDiscovery:
         api_key: str | None = None,
         timeout: int = 30,
         max_attempts: int = 4,
+        api_url: str | None = None,
     ):
         self.api_key = api_key or os.getenv("VAST_API_KEY")
         self.timeout = timeout
         self.max_attempts = max(1, max_attempts)
+        self.api_url = (
+            api_url
+            or os.getenv("MENTAT_VAST_BUNDLES_URL")
+            or self.API_URL
+        )
 
     @property
     def configured(self) -> bool:
@@ -38,7 +44,7 @@ class VastOfferDiscovery:
         body = json.dumps(payload).encode("utf-8")
         for attempt in range(1, self.max_attempts + 1):
             request = urllib.request.Request(
-                self.API_URL,
+                self.api_url,
                 data=body,
                 method="POST",
                 headers={

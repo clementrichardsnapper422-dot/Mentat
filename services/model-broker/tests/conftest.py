@@ -18,13 +18,16 @@ def compose_production_broker_for_production_tests(
     """Mirror broker.py's dependency composition in production-focused tests.
 
     The real entry point installs these bindings before constructing the
-    application. Keep base-unit tests untouched while ensuring every
-    `test_production*.py` module exercises the production store and session
+    application. Keep base-unit tests untouched while ensuring production and
+    no-spend integration modules exercise the hardened store and session
     manager rather than the unhooked development defaults.
     """
 
     filename = Path(str(request.node.path)).name
-    if not filename.startswith("test_production"):
+    if not (
+        filename.startswith("test_production")
+        or filename == "test_no_spend_inference.py"
+    ):
         return
     install_endpoint_override_hooks()
     monkeypatch.setattr(broker_server, "BrokerStore", ProductionBrokerStore)
