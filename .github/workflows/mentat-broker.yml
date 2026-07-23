@@ -8,6 +8,7 @@ on:
       - "scripts/mentat/broker.py"
       - "scripts/mentat/vast_endpoint*.py"
       - "scripts/mentat/vast_http.py"
+      - "scripts/mentat/testing/**"
       - "infrastructure/vast/**"
       - ".github/workflows/mentat-broker.yml"
   push:
@@ -18,6 +19,7 @@ on:
       - "scripts/mentat/broker.py"
       - "scripts/mentat/vast_endpoint*.py"
       - "scripts/mentat/vast_http.py"
+      - "scripts/mentat/testing/**"
       - "infrastructure/vast/**"
       - ".github/workflows/mentat-broker.yml"
 
@@ -44,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ruff check mentat_broker tests --output-format concise 2>&1 | tee ruff-report.txt
+          ruff check mentat_broker tests ../../scripts/mentat/testing --output-format concise 2>&1 | tee ruff-report.txt
       - name: Upload broker lint diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -53,9 +55,9 @@ jobs:
           path: services/model-broker/ruff-report.txt
           if-no-files-found: ignore
           retention-days: 7
-      - name: Compile broker
-        working-directory: services/model-broker
-        run: python -m compileall -q mentat_broker tests
+      - name: Compile broker and acceptance tools
+        run: |
+          python -m compileall -q services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
       - name: Test deterministic routing, storage, and registry
         working-directory: services/model-broker
         shell: bash
@@ -77,3 +79,15 @@ jobs:
           MENTAT_BROKER_CLIENT_TOKEN: check-client
           MENTAT_BROKER_ADMIN_TOKEN: check-admin
         run: python scripts/mentat/broker.py --root . --data-dir "${{ runner.temp }}/broker" --check
+      - name: Run no-spend production acceptance harness
+        shell: bash
+        run: |
+          python scripts/mentat/testing/no_spend_acceptance.py --report "${{ runner.temp }}/mentat-no-spend-${{ matrix.os }}.json"
+      - name: Upload no-spend acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-no-spend-${{ matrix.os }}
+          path: ${{ runner.temp }}/mentat-no-spend-${{ matrix.os }}.json
+          if-no-files-found: error
+          retention-days: 30
