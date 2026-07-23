@@ -20,6 +20,7 @@ Mentat 1.0 is complete only when all release gates in `docs/mentat/production-co
 - Production contract: present
 - Mentat 1.0 scope: frozen on completion-program branch
 - Focused Windows and broker CI: present
+- Cross-platform no-spend Broker acceptance harness: present and green in CI
 - Live Vast canary: not completed
 - Signed installer: not completed
 
@@ -37,7 +38,7 @@ Mentat 1.0 is complete only when all release gates in `docs/mentat/production-co
 | Gate | Status | Evidence required to close |
 |---|---|---|
 | 0. Private repository and supply chain | BLOCKED: OWNER | Standalone private repository, protected `main`, required checks, secret scan, signed/reproducible release pipeline |
-| 1. No-spend Windows integration | IN PROGRESS | Clean install, fake Vast and fake OpenAI path, real Docker tool execution, credential-boundary proof, restart and shutdown tests |
+| 1. No-spend Windows integration | IN PROGRESS | CI fake Vast/OpenAI path is green; still requires clean target-PC install, real Docker tool execution, credential-boundary proof, restart and shutdown tests |
 | 2. Low-cost Vast canary | NOT STARTED | Rejection creates nothing, approval creates one endpoint, real inference, reuse, cooling, crash recovery, actual bill reconciliation |
 | 3. Kimi canary | NOT STARTED | Kimi startup, tools, reasoning, long context, streaming, cancellation, cost and zero-floor proof |
 | 4. Broker learning campaign | IN PROGRESS | Benchmark corpus, grading, quality/cost predictors, exploration policy, promotion/demotion, routing-regret reports |
@@ -62,7 +63,8 @@ These actions cannot be honestly completed by repository automation alone:
 - [x] Canonical production contract exists.
 - [x] Freeze Mentat 1.0 supported features.
 - [x] Record explicitly deferred features.
-- [ ] Convert definition of done into executable acceptance tests where possible.
+- [x] Convert the Broker no-spend definition of done into executable cross-platform acceptance tests.
+- [ ] Convert remaining desktop, sandbox, release, and live-compute gates into executable acceptance tests where possible.
 
 ### B. Repository and supply chain
 
@@ -103,6 +105,9 @@ These actions cannot be honestly completed by repository automation alone:
 - [x] Model registry and strict validation.
 - [x] Live offer discovery and hardware filters.
 - [x] Cost ceilings, approval, endpoint reuse, zero-floor lifecycle, reconciliation, and fallback capability checks.
+- [x] Reusable fake Vast control plane and real lifecycle subprocess acceptance coverage.
+- [x] Reusable fake OpenAI-compatible inference service covering JSON, SSE streaming, tool calls, context rejection, and outage behavior.
+- [x] Standalone no-spend production acceptance harness runs on Windows and Ubuntu CI.
 - [ ] Repository/attachment-aware task estimation.
 - [ ] Verification availability and blast-radius classification.
 - [ ] Versioned model profiles and experimental/approved/retired lifecycle.
@@ -114,6 +119,7 @@ These actions cannot be honestly completed by repository automation alone:
 
 - [x] Runtime telemetry and one authenticated human rating per completed decision.
 - [x] Runtime metrics separated from human quality evidence.
+- [x] No-spend acceptance verifies failed upstream requests do not create successful runtime samples.
 - [ ] Canonical benchmark corpus and grading harness.
 - [ ] Model/version/hardware-specific benchmark records.
 - [ ] Quality predictor with confidence bounds and sample-size handling.
@@ -173,31 +179,59 @@ Code existing without an executed integration test is not sufficient evidence fo
   Production defaults remain the real Vast domains.
 - Added `scripts/mentat/testing/fake_vast.py`, a reusable authenticated HTTP control-plane simulator with offers, endpoints, workergroups, lifecycle calls, state inspection, and zero-dollar billing fixtures.
 - Added cross-platform tests that exercise real HTTP offer discovery and the real `vast_endpoint.py` subprocess through create, status, warm, cool, billing, destroy, and local-state cleanup.
-- First broker CI run stopped on one Ruff import-order diagnostic; no behavioral test ran.
-- Fixed the deliberate test import ordering at commit `64b4b18223ab4b244a74eddd2445c170dce919f7`.
-- Second focused CI run was queued when this ledger entry was written.
+
+### 2026-07-23 — No-spend Broker acceptance milestone completed
+
+- Added `scripts/mentat/testing/fake_openai.py`.
+- Added deterministic fixtures for:
+  - normal OpenAI JSON completion;
+  - SSE streaming and `[DONE]` termination;
+  - OpenAI-compatible function/tool calls;
+  - context-limit rejection;
+  - upstream HTTP 503 outage;
+  - malformed-response and delay hooks for subsequent failure testing.
+- Added `services/model-broker/tests/test_no_spend_inference.py`.
+- Added `scripts/mentat/testing/no_spend_acceptance.py`, which starts fake Vast, fake inference, and the production Broker, then writes a machine-readable no-spend report.
+- Updated `.github/workflows/mentat-broker.yml` so the standalone acceptance harness runs on both Windows and Ubuntu and uploads retained JSON evidence.
+- Corrected the production-test dependency composition so the no-spend suite uses the same hardened store and session manager as `broker.py`.
+- CI evidence for commit `e9c9397cd7f19fd7391ed1a3d95c13d68f5dc446`:
+  - Windows Broker job: success;
+  - Ubuntu Broker job: success;
+  - lint: success;
+  - compile: success;
+  - 38 tests: success;
+  - committed Broker configuration validation: success;
+  - standalone no-spend acceptance: success on Windows and Ubuntu;
+  - retained acceptance artifacts: `mentat-no-spend-windows-latest` and `mentat-no-spend-ubuntu-latest`.
+- Paid compute used by this milestone: **none**.
 
 ### Current handoff
 
 ```text
-Date/time: 2026-07-22
+Date/time: 2026-07-23
 Branch/PR: agent/complete-mentat-mission / PR #11
-Last completed item: reusable no-spend Vast simulator and lifecycle integration tests implemented
-Current item: focused Windows/Linux CI validation of commit 64b4b18223ab4b244a74eddd2445c170dce919f7
+Last completed item: cross-platform no-spend Broker and fake Vast/inference acceptance milestone
+Current item: finalize and merge PR #11, then begin desktop/no-spend integration milestone on a fresh branch
 Files changed:
+- .github/workflows/mentat-broker.yml
 - docs/mentat/execution-ledger.md
 - docs/mentat/work-items.md
 - docs/mentat/version-1-scope.md
-- scripts/mentat/vast_http.py
+- scripts/mentat/testing/fake_openai.py
 - scripts/mentat/testing/fake_vast.py
+- scripts/mentat/testing/no_spend_acceptance.py
+- scripts/mentat/vast_http.py
 - services/model-broker/mentat_broker/vast.py
+- services/model-broker/pyproject.toml
+- services/model-broker/tests/conftest.py
 - services/model-broker/tests/test_fake_vast_control_plane.py
-Tests run and results: first CI attempt failed Ruff I001 only; fix committed; second run queued
-Known failures: none known after lint fix; behavioral CI result pending
-Owner action required: migrate repository to standalone private repo before real credentials or paid tests
-External dependency: none for current fake-control-plane tests
-Exact next task: inspect the latest Mentat Broker and Mentat Runtime jobs; fix failures; then build reusable fake OpenAI streaming/tool/failure service and Windows no-spend acceptance launcher
-Do not do: do not enter real Vast credentials, start a paid endpoint, or begin Kimi testing while the repository is public and the no-spend gate is incomplete
+- services/model-broker/tests/test_no_spend_inference.py
+Tests run and results: Windows and Ubuntu Broker jobs green; 38 tests green; no-spend acceptance green on both operating systems
+Known failures: none in the focused no-spend Broker work package
+Owner action required: standalone private repository migration remains required before real credentials or paid tests
+External dependency: none for the next desktop no-spend integration work
+Exact next task: merge PR #11, create a fresh desktop-integration branch, expose the no-spend acceptance result through Mentat.exe, and add installed-wrapper/desktop diagnostics tests
+Do not do: do not enter real Vast credentials, start a paid endpoint, or begin Kimi testing while the repository is public and the clean Windows/sandbox gates are incomplete
 ```
 
 ## Handoff template
