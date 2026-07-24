@@ -1,11 +1,13 @@
-schema_version: 1
-last_verified_utc: 2026-07-24T12:54:00Z
+schema_version: 2
+last_verified_utc: 2026-07-24T12:59:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
-  main_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
   visibility: public
+  state_reconciled_against_main_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+  main_commit_policy: always_verify_current_tip_from_github_at_resume
+  note: This file deliberately does not claim its own containing commit is the current main tip; that would become stale at the instant a state-sync commit merges.
 
 merged_milestones:
   - pr: 11
@@ -81,6 +83,11 @@ broker_safety_state:
     - learning may not weaken credential approval spend security quality or risk floors
     - malformed failed interrupted or unverified results cannot become positive quality evidence
 
+known_repository_ci_debt:
+  - production dependency audit failure exists on the PR 14 baseline and remained present on PR 15 and the state-sync PR
+  - docs formatting lane failure exists on the PR 14 baseline and remained present on PR 15 and the state-sync PR
+  - these failures are not recorded as green and must not be confused with focused Mentat Runtime or Desktop validation
+
 owner_blockers:
   - standalone private repository migration before real credentials or paid tests
   - clean Windows target-PC validation
@@ -103,6 +110,6 @@ resume_protocol:
   - read docs/mentat/work-items.md
   - read docs/mentat/execution-ledger.md
   - read this file
-  - verify this state against GitHub PRs branch heads and CI before coding
+  - fetch the current main tip and open PR state from GitHub before trusting any recorded commit or status
   - update stale handoff data before implementation
   - resume PR 12 as the exact active engineering package unless GitHub reality changes
