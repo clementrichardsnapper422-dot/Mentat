@@ -9,12 +9,37 @@ Mentat is a Windows-native desktop AI operator built on OpenClaw.
 - `Mentat.exe` is the primary user interface.
 - OpenClaw runs locally and owns conversations, tools, memory, approvals, repositories, and local integrations.
 - A local deterministic broker evaluates each task before inference.
-- Vast.ai supplies remote GPU compute for approved open-weight models.
+- Vast.ai supplies remote GPU compute through broker-controlled compute backends for approved open-weight models.
+- The current Mentat 1.0 compute path is guarded Vast Serverless. Direct Vast instances are an additional target backend and are not production-eligible unless their implementation, lifecycle, security, billing, and validation gates are explicitly completed.
 - Kimi K2.7 Code is the dependable primary model until measured evidence proves a cheaper registered model is good enough for a task class.
 - The broker selects the best eligible model and compatible Vast hardware within explicit quality, capability, reliability, context, time, and cost limits.
 - The user sees the model, GPU requirements, live price ceiling, estimated duration, estimated cost, reasons, and fallback policy before new paid compute begins.
-- Paid endpoints are reused when still approved, cooled when idle or expired, and reconciled after crashes.
+- Paid resources are reused when still approved, cooled/stopped when policy allows, destroyed when appropriate, and reconciled after crashes according to the backend's validated lifecycle semantics.
 - Quality, latency, throughput, success, and cost history are recorded locally and used to improve future routing.
+
+## Compute backend scope and extensibility
+
+Mentat's broker must reason through a stable backend boundary rather than hard-coding provider lifecycle logic into task classification, model quality logic, or user policy.
+
+For Mentat 1.0:
+
+- Vast Serverless remains the current release-path backend.
+- Adding the backend abstraction itself is allowed when it preserves all existing behavior and invariants.
+- Direct Vast instance support remains `PLANNED`/`EXPERIMENTAL` until explicitly implemented and validated.
+- Direct-instance work must not silently expand the frozen Mentat 1.0 release scope. Making it a Mentat 1.0 release blocker requires an explicit owner-approved scope change in the frozen scope document and work backlog.
+
+Any future compute backend, including a direct Vast instance backend, must satisfy the same broker-facing security and spending contract:
+
+- only the local broker holds the provider credential that can authorize spending;
+- provider SDK/API calls occur behind the broker boundary;
+- raw provider objects are normalized into Mentat's own typed candidate/resource records;
+- paid acquisition is impossible without a valid authenticated approval lease;
+- resource identity is durably recorded as soon as creation succeeds;
+- ambiguous create outcomes are reconciled before any retry;
+- readiness polling is bounded and handles terminal/error states instead of looping forever;
+- stop, cool, delete/destroy, storage, bandwidth, and other billing semantics are modeled explicitly rather than guessed;
+- actual provider billing remains the source of truth and is reconciled against Mentat's estimates;
+- a backend is not production-eligible until no-spend tests and the required live validation gates for that backend pass.
 
 ## Non-negotiable invariants
 
@@ -34,6 +59,7 @@ Mentat is a Windows-native desktop AI operator built on OpenClaw.
 - The desktop approval credential is separate from the inference credential.
 - Approval credentials never appear in URLs, logs, Git, model prompts, or tool environments.
 - Local credential files are protected for the current operating-system user.
+- Future Vast SDK integration must receive the credential explicitly from Mentat's broker-owned protected credential path; it must not rely on ambient CLI credential discovery as the production authority boundary.
 
 ### Local security boundary
 
@@ -57,13 +83,14 @@ Mentat is a Windows-native desktop AI operator built on OpenClaw.
 
 ### Lifecycle correctness
 
-- Endpoint creation is idempotent and reconciles exact-name resources after ambiguous network outcomes.
+- Endpoint/resource creation is idempotent where the provider supports it and otherwise reconciles exact remote identity after ambiguous network outcomes.
 - Non-idempotent create requests are never blindly retried.
-- Local endpoint state is written atomically.
+- Local endpoint/resource state is written atomically.
 - Duplicate or orphaned Vast resources cause a fail-closed error.
-- A restarted broker cools saved endpoints before accepting new approvals.
-- Idle, expired, or stale-warming endpoints are cooled.
-- Broker shutdown attempts to cool every saved Vast endpoint.
+- A restarted broker cools or safely reconciles saved paid resources before accepting new approvals.
+- Idle, expired, or stale-warming resources are cooled/stopped/destroyed according to validated backend policy.
+- Broker shutdown attempts the safest validated no-spend lifecycle action for every saved paid resource.
+- Direct-instance polling, when implemented, must use explicit timeout/error handling for states such as `exited`, `unknown`, or `offline`; it must never wait forever while storage charges continue.
 
 ### Data integrity
 
@@ -148,12 +175,13 @@ Mentat must not be described as production-ready until every gate below passes.
 
 ## Current release blockers
 
-At the time this contract was introduced:
+At the time this contract was introduced and last reconciled:
 
 - the GitHub repository is still public
 - the Windows installer is unsigned
 - no live Vast canary has been completed
 - no full Windows no-spend integration run has been completed on the owner's machine
 - no Kimi soak or billing reconciliation has been completed
+- direct Vast instance support is not production-validated and is not a Mentat 1.0 release claim unless the frozen scope is explicitly changed
 
 Those are intentional stop signs, not documentation trivia.
