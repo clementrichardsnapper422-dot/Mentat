@@ -2,13 +2,13 @@
 
 **A Windows-native AI operator and evidence-driven model-and-compute broker built on OpenClaw.**
 
-Mentat keeps the Gateway, tools, memory, repository access, approval gates, and user data on your computer. Remote inference is treated as a controlled resource: Mentat evaluates the task, selects an eligible model and compatible compute strategy, explains the expected tradeoffs, requires approval before new paid compute, records what actually happened, and uses verified evidence to improve future routing.
+Mentat keeps the Gateway, tools, memory, repository access, approval gates, and user data on your computer. Remote inference is treated as a controlled resource: Mentat evaluates the task, selects an eligible model and compatible compute strategy, explains the expected tradeoffs, requires approval before new paid compute, records what actually happened, reconciles what it actually cost, and uses verified evidence to improve future routing.
 
 The long-term goal is not simply to run the strongest model or rent the cheapest GPU.
 
-> **Mentat should obtain the best verified result for the lowest practical total cost while satisfying the required quality, context, capability, reliability, latency, risk, and spending limits.**
+> **Mentat should obtain the best verified result for the lowest practical total cost while satisfying the required quality, context, capability, reliability, latency, risk, security, and spending limits.**
 
-Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai is an important compute marketplace, but Vast.ai is not Mentat. The broker, its policy boundaries, and its growing body of local evidence are what make Mentat different.
+Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai is an important compute marketplace, but Vast.ai is not Mentat. The broker, its policy boundaries, its execution controls, and its growing body of local evidence are what make Mentat different.
 
 ---
 
@@ -27,25 +27,28 @@ Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai i
 - [Model registry](#4-model-registry)
 - [Hardware planning](#5-hardware-planning)
 - [Compute backends](#6-compute-backends)
-- [Vast marketplace discovery](#7-vast-marketplace-discovery)
+- [Vast marketplace discovery and market intelligence](#7-vast-marketplace-discovery-and-market-intelligence)
 - [Host reputation](#8-host-reputation)
 - [Direct instance provisioning](#9-direct-instance-provisioning)
+- [Vast provider adapter contract](#vast-provider-adapter-contract)
 - [Mentat workers](#10-mentat-workers)
 - [Security and spending authority](#11-security-and-spending-authority)
 - [Candidate generation and scoring](#12-candidate-generation-and-scoring)
-- [Total-cost prediction](#13-total-cost-prediction)
+- [Total-cost prediction and reconciliation](#13-total-cost-prediction-and-reconciliation)
 - [Cold starts and reuse](#14-cold-starts-and-reuse)
-- [Keep, stop, cool, or delete](#15-keep-stop-cool-or-delete)
+- [Keep, freeze, stop, cool, or delete](#15-keep-freeze-stop-cool-or-delete)
 - [Spend policy and approval](#16-spend-policy-and-approval)
 - [Inference and tools](#17-inference-and-tools)
 - [Verification](#18-verification)
 - [Telemetry and execution history](#19-telemetry-and-execution-history)
 - [Human ratings](#20-human-ratings)
 - [Learning, promotion, and demotion](#21-learning-promotion-and-demotion)
+- [Broker self-learning and efficiency loop](#broker-self-learning-and-efficiency-loop)
 - [Safe exploration](#22-safe-exploration)
 - [Fallback](#23-fallback)
 - [Watchdogs and failure recovery](#24-watchdogs-and-failure-recovery)
 - [Example decisions](#example-decisions)
+- [Economic strategy](#economic-strategy)
 - [Current implementation versus target design](#current-implementation-versus-target-design)
 - [AI construction contract — how to turn the Mentat design into code](#ai-construction-contract--how-to-turn-the-mentat-design-into-code)
 - [Installation and operation](#install-in-a-few-minutes)
@@ -60,7 +63,7 @@ Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai i
 
 Before changing code:
 
-1. Read this README completely enough to understand the mission, architecture, roadmap, and construction contract.
+1. Read this README completely enough to understand the mission, architecture, roadmap, provider boundaries, and construction contract.
 2. Read `docs/mentat/production-contract.md`.
 3. Read `docs/mentat/work-items.md`.
 4. Read `docs/mentat/execution-ledger.md`.
@@ -95,27 +98,31 @@ Implement -> verify -> record -> hand off
 
 Do **not** choose the next task because it sounds interesting or because the relevant file is already open.
 
+### External-provider documentation rule
+
+Vast.ai is a changing external system. Before implementing or changing Vast behavior:
+
+1. fetch the official documentation index at `https://docs.vast.ai/llms.txt`;
+2. discover the relevant current pages from that index;
+3. read the specific SDK/API pages needed for the work;
+4. separate **documented behavior** from **live-validated Mentat behavior**;
+5. record the provider assumption, documentation date, SDK version, and validation status;
+6. never turn a documentation assumption into a production claim until the applicable live gate passes.
+
+The README may describe target behavior discovered from current Vast documentation, but live Vast billing, permission, retry, lifecycle, and status semantics remain subject to the production validation gates.
+
 ---
 
 # Current build state
 
-This is a human-readable snapshot. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
+This is a human-readable orientation snapshot, not a substitute for checking GitHub. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
 
-Last reconciled: **2026-07-24**.
+Last documentation reconciliation: **2026-07-24**.
 
 ```text
-main:
-  de0dabb521906952f52530ef143dbdd165c8da0d
-
-merged milestones:
-  PR #11  no-spend Broker completion-program milestone
-  PR #13  complete Mentat broker architecture documented
-
-active documentation work:
-  PR #14
-  branch: docs/ai-construction-contract
-  status: IN PROGRESS
-  purpose: construction contract + roadmap + checklist + resume/handoff system
+latest merged documentation milestone:
+  PR #14 — construction contract, roadmap, checklist, and resume system
+  merge commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
 
 active engineering work:
   PR #12
@@ -132,7 +139,7 @@ current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
-exact next engineering task after documentation reconciliation:
+exact next engineering task:
   diagnose and repair PR #12 Broker/Runtime failures,
   rerun focused CI and no-spend acceptance,
   then merge or deliberately supersede PR #12.
@@ -166,8 +173,9 @@ This checklist is the bird's-eye mission status. Detailed sub-items and dependen
 - [x] Persistent execution ledger exists.
 - [x] Stable work-item backlog exists.
 - [x] Complete target broker architecture is documented.
-- [ ] AI construction contract, roadmap, checklist, and resume protocol merged to `main`.
-- [x] Machine-readable current-state handoff exists on the documentation branch.
+- [x] AI construction contract, roadmap, checklist, and resume protocol merged to `main`.
+- [x] Machine-readable current-state handoff exists on `main`.
+- [ ] Keep README, execution ledger, current-state file, and GitHub reality synchronized at every meaningful handoff.
 
 ## No-spend product and security foundation
 
@@ -191,25 +199,33 @@ This checklist is the bird's-eye mission status. Detailed sub-items and dependen
 - [ ] Candidate generation and hard-constraint filtering.
 - [ ] Quality/success prediction with uncertainty.
 - [ ] Cold/warm latency prediction.
-- [ ] Real total-cost prediction.
+- [ ] Real total-cost prediction with component-level reconciliation.
 - [ ] Host/runtime reliability penalties.
+- [ ] Provider market-state features and freshness handling.
 - [ ] Best / Balanced / Economy / Manual routing modes.
 - [ ] Full winner/alternative/rejection explanation.
+- [ ] Provider request governor, adaptive polling, caching, and rate-limit discipline.
+- [ ] Provider lifecycle state normalized independently from Mentat execution state.
 
 ## Learning system
 
 - [ ] Canonical benchmark corpus and grading harness.
 - [ ] Model/version/hardware-specific benchmark records.
 - [ ] Confidence-aware quality predictor.
+- [ ] Calibrated cost, latency, success, and reliability predictions.
+- [ ] Prediction drift detection and automatic confidence reduction.
 - [ ] Safe low-risk exploration.
+- [ ] Champion/challenger shadow routing before policy promotion.
 - [ ] Promotion/demotion with audit trail.
 - [ ] Routing-regret measurement.
 - [ ] Kimi-only baseline and savings measurement.
 - [ ] Host/GPU history and bad-host suppression.
+- [ ] Vast marketplace/benchmark/report data treated as priors rather than production truth.
 
 ## Mentat 1.0 live validation and release
 
 - [ ] Standalone private repository and supply-chain gate.
+- [ ] Least-privilege Vast credential/permission matrix live-validated.
 - [ ] Low-cost Vast Serverless canary.
 - [ ] Actual billing reconciliation.
 - [ ] Kimi canary.
@@ -225,13 +241,19 @@ This checklist is the bird's-eye mission status. Detailed sub-items and dependen
 
 - [ ] Vast direct-instance backend behind the common backend interface.
 - [ ] Pinned broker-only Vast Python SDK adapter.
+- [ ] Read-plane and mutation-plane clients with different retry semantics.
+- [ ] Least-privilege discovery/lifecycle/billing credential separation where live permissions permit it.
 - [ ] Direct-instance offer normalization and lifecycle state machine.
 - [ ] Automated Mentat worker provisioning.
 - [ ] Worker lease/watchdog.
-- [ ] Stop-versus-destroy/storage economics.
+- [ ] Keep/freeze/stop/destroy economics.
 - [ ] Direct-instance host reputation and billing reconciliation.
+- [ ] Vast GPU market metrics/trends/locations as routing priors.
+- [ ] Vast benchmarks as infrastructure bootstrap priors only.
+- [ ] Vast machine reports as host-risk priors when available.
+- [ ] Notification-webhook feasibility validated before replacing polling.
 - [ ] Serverless-versus-direct evidence campaign.
-- [ ] Broker chooses backend using measured quality, latency, reliability, and total cost.
+- [ ] Broker chooses backend using measured quality, latency, reliability, uncertainty, and total cost.
 
 Direct Vast instances are part of the target architecture but must **not silently move the frozen Mentat 1.0 goalposts**. Promoting them into the Mentat 1.0 release scope requires an explicit owner-approved scope change.
 
@@ -250,7 +272,7 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [x] Work-item backlog.
 - [x] Execution ledger.
 - [x] Complete architecture description.
-- [ ] Merge the construction contract/roadmap/checklist/resume protocol.
+- [x] Construction contract/roadmap/checklist/resume protocol merged.
 - [ ] Keep `docs/mentat/current-state.yaml` synchronized at every meaningful handoff.
 
 **Exit condition:** GitHub, README, production contract, ledger, work items, and current-state file agree on what is built and what comes next.
@@ -292,11 +314,12 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [ ] Stabilize typed `ExecutionCandidate`.
 - [ ] Stabilize typed `ApprovalLease`.
 - [ ] Stabilize typed `ExecutionResult`.
+- [ ] Stabilize typed `ProviderState`, `ProviderError`, and `ProviderMarketSnapshot`.
 - [ ] Introduce the broker-facing `ComputeBackend` boundary without regressing Serverless behavior.
 - [ ] Make the existing Vast Serverless path conform to that boundary.
 - [ ] Turn the golden scenarios in this README into executable tests where practical.
 
-**Exit condition:** task intelligence, model intelligence, policy, and learning depend on Mentat contracts instead of raw provider structures.
+**Exit condition:** task intelligence, model intelligence, policy, provider behavior, and learning depend on Mentat contracts instead of raw provider structures.
 
 ## Phase 4 — task, context, risk, and verification intelligence
 
@@ -321,10 +344,11 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [ ] Quality floor enforcement.
 - [ ] Quality and successful-completion prediction.
 - [ ] Cold-start and warm-start prediction.
-- [ ] Total-cost prediction.
+- [ ] Total-cost prediction by component.
 - [ ] Failure/reliability penalty.
 - [ ] Reuse value.
 - [ ] Prediction confidence/sample-size handling.
+- [ ] Prediction calibration and interval-coverage tracking.
 - [ ] Best / Balanced / Economy / Manual routing modes.
 - [ ] Winner, alternative, and rejection explanation.
 
@@ -337,7 +361,12 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [ ] Model/version/hardware benchmark records.
 - [ ] Human rating evidence remains separate.
 - [ ] Quality confidence bounds.
+- [ ] Cost/latency/success calibration.
+- [ ] Drift detection and evidence recency weighting.
 - [ ] Safe exploration limited to low-risk/verifiable work.
+- [ ] Contextual-bandit-style exploration only inside the safe eligible set.
+- [ ] Champion/challenger shadow evaluation before routing-policy promotion.
+- [ ] Offline replay against historical decision snapshots.
 - [ ] Promotion/demotion policy and audit trail.
 - [ ] Routing regret.
 - [ ] Kimi-only baseline and savings reporting.
@@ -351,6 +380,8 @@ This phase requires owner approval and the repository/credential gates.
 
 - [ ] Repository safe for real credentials.
 - [ ] Scoped Vast credential entered only through the protected broker boundary.
+- [ ] Exact Vast permission requirements for the Serverless operations Mentat uses are live-validated.
+- [ ] Automatic retry behavior is verified not to undermine Mentat's non-idempotent lifecycle rules.
 - [ ] Low-cost Serverless canary.
 - [ ] Rejection creates nothing.
 - [ ] Approval creates one intended resource.
@@ -369,6 +400,11 @@ This phase requires owner approval and the repository/credential gates.
 
 - [ ] Network loss during create/warm/stream/cool.
 - [ ] Ambiguous create response.
+- [ ] SDK/helper automatic-retry attempted on a non-idempotent mutation.
+- [ ] HTTP 429/rate-limit storm.
+- [ ] Malformed provider error shape.
+- [ ] Provider permission denied after a key-scope change.
+- [ ] Provider status `null`, `loading`, `running`, `stopped`, `frozen`, `exited`, `rebooting`, `unknown`, and `offline` where applicable.
 - [ ] Broker kill.
 - [ ] Gateway kill.
 - [ ] Windows restart and user logoff.
@@ -412,23 +448,36 @@ Do not begin this because it is exciting while the active release work is broken
 When authorized:
 
 - [ ] Add a pinned `vastai` Python SDK dependency behind a broker-owned adapter.
-- [ ] Pass the Vast credential explicitly from protected broker storage; do not rely on ambient `~/.config/vastai/vast_api_key` discovery as the production authority boundary.
+- [ ] Instantiate the production SDK with an explicitly supplied broker credential; never depend on ambient key-file discovery.
+- [ ] Use machine-readable production settings such as `raw=True`, `quiet=True`, `explain=False`, and `curl=False` unless a controlled diagnostic mode explicitly overrides them.
+- [ ] Separate read-plane and mutation-plane clients so safe read retries cannot become hidden paid-mutation retries.
+- [ ] Set or otherwise enforce **zero automatic retry** for non-idempotent paid mutations unless the specific operation has proven idempotency semantics.
+- [ ] Normalize provider error variants into a typed Mentat `ProviderError`.
+- [ ] Add a provider request governor for caching, rate limits, coalescing, and adaptive polling.
+- [ ] Validate a least-privilege credential matrix rather than assuming permission categories are narrower than they are.
+- [ ] Treat Vast `misc` as potentially spending-capable because current permission docs place both search operations and Serverless create/update/delete operations in that category.
+- [ ] Use endpoint-level permission constraints where supported and live-validated; never assume an unrestricted `misc` key is read-only.
 - [ ] Use `search_offers` only inside the adapter and normalize raw results into Mentat candidates.
 - [ ] Use `create_instance` only after policy + authenticated approval lease validation.
+- [ ] Re-check the selected offer/price immediately before the paid mutation.
 - [ ] Persist the returned instance/contract ID immediately after successful creation.
 - [ ] Reconcile ambiguous create outcomes before any retry.
+- [ ] Evaluate `cancel_unavail=True` for interactive on-demand acquisitions; make it production default only after live validation proves the desired behavior.
 - [ ] Implement bounded readiness polling.
-- [ ] Handle at least `loading`, `running`, `exited`, `unknown`, and `offline` explicitly.
+- [ ] Preserve provider `actual_status`, `intended_status`, `cur_state`, and `status_msg` separately from Mentat execution state.
+- [ ] Handle documented instance states `null`, `loading`, `running`, `stopped`, `frozen`, `exited`, `rebooting`, `unknown`, and `offline` explicitly where applicable.
 - [ ] Never poll forever while storage charges continue.
+- [ ] Require more than provider `running` before Mentat marks a worker ready: network reachability, health, expected model/runtime identity, and a controlled test inference must pass.
 - [ ] Version/integrity-check the Mentat worker bootstrap or image.
 - [ ] Start the OpenAI-compatible runtime and health-check it before routing inference.
 - [ ] Record acquisition, image pull, provisioning, model download/load, TTFT, throughput, runtime, and teardown timing.
-- [ ] Implement `stop` versus `destroy` according to measured economics and validated Vast semantics.
-- [ ] Record storage, bandwidth, and compute cost separately when available.
+- [ ] Model `running`, `frozen`, `stopped`, and destroyed resources as economically different states.
+- [ ] Record GPU, storage, bandwidth, and other provider charge components separately when available.
+- [ ] Reconcile provider charges to Mentat's predicted cost components and calculate prediction error.
 - [ ] Add independent worker lease/watchdog protection.
 - [ ] Add no-spend simulator coverage before a live direct-instance canary.
 
-The Vast SDK documentation supplied during design confirms programmatic primitives for authentication, `search_offers`, `create_instance`, `show_instance`, SSH/data movement, `stop_instance`, and `destroy_instance`. Those provider primitives are **inputs to a Mentat backend adapter**, not permission to expose Vast control directly to models or tools.
+The current Vast SDK/API documentation confirms programmatic primitives for scoped keys, offer search, benchmark search, market metrics, instance creation/status, data movement, stop/destroy, machine reports, billing charges, and notification webhooks. Those provider primitives are **inputs to a Mentat backend adapter**, not permission to expose Vast control directly to models or tools.
 
 **Exit condition:** direct instances satisfy the same credential, approval, reconciliation, billing, evidence, and failure-safety contract as Serverless.
 
@@ -437,8 +486,12 @@ The Vast SDK documentation supplied during design confirms programmatic primitiv
 - [ ] Compare Serverless and direct instances on equivalent model/task workloads.
 - [ ] Measure cold/warm latency, quality, throughput, completion rate, and actual total cost.
 - [ ] Build direct-host reputation and temporary suppression.
-- [ ] Learn keep-warm / stop / destroy economics.
+- [ ] Add Vast marketplace supply/demand/price features with source timestamps and freshness bounds.
+- [ ] Add Vast benchmark priors without allowing them to become automatic quality-promotion evidence.
+- [ ] Add recent machine-report signals when available, weighted below Mentat's own verified production history.
+- [ ] Learn keep-warm / freeze / stop / destroy economics.
 - [ ] Include storage and re-provisioning costs.
+- [ ] Evaluate signed notification webhooks as a supplement to polling only after event types and delivery/replay behavior are validated.
 - [ ] Let the broker choose backend only from eligible, validated plans.
 
 **Exit condition:** Mentat can explain why a particular model + hardware + backend plan wins from measured evidence.
@@ -446,12 +499,13 @@ The Vast SDK documentation supplied during design confirms programmatic primitiv
 ## Phase 12 — continuous broker optimization
 
 - [ ] Detect prediction error and drift.
-- [ ] Recalibrate cost/latency/quality models.
-- [ ] Revalidate new model/runtime versions.
+- [ ] Recalibrate cost/latency/quality/success models.
+- [ ] Revalidate new model/runtime/provider-adapter versions.
 - [ ] Demote regressions quickly.
 - [ ] Safely explore cheaper alternatives.
 - [ ] Preserve hard security/spending constraints outside the learning loop.
-- [ ] Continuously report savings, regret, reliability, and quality versus baselines.
+- [ ] Continuously report savings, regret, reliability, calibration, and quality versus baselines.
+- [ ] Keep provider-market priors fresh without letting external data overwrite stronger local evidence.
 
 **Exit condition:** Mentat becomes more efficient over time without becoming less predictable, less safe, or less explainable.
 
@@ -473,11 +527,13 @@ The user should be able to talk to Mentat like a normal AI assistant. Behind the
 - What hardware can run those models correctly?
 - Is compatible compute already warm and approved?
 - What does Vast.ai currently offer?
-- How reliable are those hosts based on both marketplace data and Mentat's own history?
+- Is the current GPU market unusually expensive or constrained?
+- How reliable are those hosts based on marketplace data, recent provider signals, and Mentat's own history?
 - How long will a cold start take?
 - What will the entire job cost, not just the GPU hourly rate?
+- How uncertain are those predictions?
 - Is the proposed spend permitted?
-- Should compute remain warm, be cooled or stopped, or be destroyed afterward?
+- Should compute remain warm, be cooled, frozen, stopped, or destroyed afterward?
 
 The system should become better at answering those questions as it operates.
 
@@ -488,11 +544,14 @@ Request
   -> requirements
   -> eligible models
   -> eligible hardware
+  -> provider/market snapshot
   -> eligible compute backends
   -> candidate execution plans
+  -> conservative predictions + uncertainty
   -> policy and approval
   -> execution
   -> verification
+  -> billing reconciliation
   -> telemetry and rating
   -> evidence
   -> better future decisions
@@ -541,13 +600,20 @@ Request
                        \                   /
                         \                 /
                          v               v
+                     Provider Adapter Layer
+                    state / market / errors
+                                |
+                                v
                          Candidate Plans
+                                |
+                                v
+                   Hard Eligibility Filters
                                 |
                                 v
                          Broker Scoring
                                 |
                                 v
-                         Spend Policy
+                      Spend / Policy Governor
                                 |
                                 v
                        Local User Approval
@@ -558,6 +624,9 @@ Request
                                 |
                                 v
                         Verify / Measure
+                                |
+                                v
+                    Billing Reconciliation
                                 |
                                 v
                         Execution History
@@ -574,7 +643,9 @@ The model is not Mentat.
 
 The endpoint is not Mentat.
 
-**Mentat is the local operator, broker, policy boundary, evidence store, and learning loop that decides how those resources should be used.**
+The Vast SDK is not Mentat.
+
+**Mentat is the local operator, broker, policy boundary, execution governor, evidence store, and learning loop that decides how those resources should be used.**
 
 ---
 
@@ -590,18 +661,24 @@ A typical request should eventually follow this lifecycle:
 5. Mentat evaluates risk and verification options
 6. Model registry produces eligible models
 7. Hardware planner produces valid hardware configurations
-8. Compute backends produce live execution candidates
-9. Broker scores candidates for quality, cost, latency, and reliability
-10. Spend policy rejects anything outside hard limits
-11. New paid compute waits for authenticated local approval
-12. Approved compute is created, reused, or warmed
-13. Inference runs
-14. Tools run locally through the OpenClaw security boundary
-15. Mentat verifies the result where possible
-16. Runtime telemetry is recorded
-17. Human quality feedback may be recorded separately
-18. Compute is kept warm, cooled/stopped, or destroyed according to policy
-19. The learning system updates evidence for future decisions
+8. Provider adapter supplies normalized live market/resource information
+9. Compute backends produce execution candidates
+10. Hard eligibility removes candidates that cannot safely satisfy requirements
+11. Predictors estimate quality, success, latency, total cost, and uncertainty
+12. Broker scores only remaining eligible candidates
+13. Spend policy rejects anything outside hard limits
+14. New paid compute waits for authenticated local approval
+15. Budget/approval authority is reserved atomically before a paid mutation
+16. Approved compute is created, reused, or warmed
+17. Provider lifecycle state is reconciled until the resource is truly ready
+18. Inference runs
+19. Tools run locally through the OpenClaw security boundary
+20. Mentat verifies the result where possible
+21. Runtime telemetry is recorded
+22. Provider billing is reconciled when available
+23. Human quality feedback may be recorded separately
+24. Compute is kept warm, cooled/frozen/stopped, or destroyed according to validated policy
+25. The learning system updates evidence for future decisions
 ```
 
 Each stage exists for a reason. A system that skips these stages and simply sends every task to one expensive model is not the Mentat we are trying to build.
@@ -743,10 +820,9 @@ compilation
 schema validation
 runtime health checks
 known-answer checks
+independent model review
 human review
 ```
-
-This matters economically.
 
 A cheaper experimental model can safely receive more opportunities on low-risk tasks with strong automatic verification. High-risk work with weak verification should strongly favor models with better measured evidence.
 
@@ -782,6 +858,8 @@ context:
 
 runtime:
   engine: vllm
+  runtime_version: pinned
+  image_digest: sha256:...
   openai_compatible: true
 
 hardware:
@@ -844,7 +922,7 @@ very large long-context primary
     -> larger multi-GPU H100/H200-class configuration
 ```
 
-The broker should first determine the cheapest technically valid hardware class, then evaluate marketplace offers within that class.
+The broker should determine technically valid hardware classes first, then compare real execution plans. The cheapest hourly GPU is not automatically the cheapest successful task.
 
 ---
 
@@ -894,13 +972,13 @@ Conceptually:
 
 ```text
 Mentat
-  -> search Vast marketplace
-  -> rent CUDA instance
+  -> normalized marketplace search
+  -> rent approved CUDA instance
   -> provision Mentat worker
   -> install/verify runtime
   -> load selected model
   -> start OpenAI-compatible API
-  -> health check
+  -> verify worker identity and health
   -> inference
 ```
 
@@ -910,7 +988,7 @@ Direct instances give Mentat finer control over the exact host, GPU, storage, ru
 
 ---
 
-# 7. Vast marketplace discovery
+# 7. Vast marketplace discovery and market intelligence
 
 Mentat should evaluate complete offers, not just GPU names and hourly prices.
 
@@ -962,6 +1040,63 @@ Host: 402342
 
 Two machines with the same GPU and hourly price can still have very different network, disk, CPU, reliability, and historical performance. Mentat should treat them as different candidates.
 
+## Market-intelligence inputs
+
+Current Vast documentation exposes more than individual offer rows. The provider adapter may eventually consume, cache, and timestamp:
+
+- **GPU metrics** — current supply, availability, utilization and price distribution, including price percentiles and performance-per-dollar fields;
+- **GPU trends** — time-series supply, demand and pricing data;
+- **GPU locations** — geographic distribution of marketplace GPUs;
+- **search benchmarks** — benchmark records containing fields such as machine, image, model, GPU count, benchmark name, update time, and score;
+- **machine reports** — recent provider-side machine problem reports when available.
+
+These are **market and infrastructure priors**, not proof that a model is good at the user's task.
+
+A provider benchmark may help estimate whether a new host/configuration is worth exploring. It must not directly promote a model into high-risk production work.
+
+## Market snapshot contract
+
+Every external market observation used by routing should carry at least:
+
+```text
+provider
+source endpoint/capability
+observed_at
+expires_at / freshness policy
+raw provider identity
+normalized fields
+adapter version
+confidence / evidence tier
+```
+
+Stale market data may inform planning, but paid acquisition must revalidate critical price/availability information immediately before spending.
+
+## Provider request governor
+
+Provider reads should not be scattered across independent subsystems. A central request governor should coordinate:
+
+```text
+search offers
+market metrics/trends
+host reports
+benchmarks
+instance status
+serverless status
+billing reads
+```
+
+The governor should support:
+
+- request coalescing;
+- short-lived caching by data type;
+- endpoint-aware rate-limit budgets;
+- adaptive polling during lifecycle transitions;
+- jitter where appropriate;
+- explicit stale-data markers;
+- observability for 429s, retries, and provider latency.
+
+Vast currently documents endpoint/identity-based rate limits and no `Retry-After` header for HTTP 429. Mentat therefore needs its own request discipline rather than relying on aggressive polling.
+
 ---
 
 # 8. Host reputation
@@ -994,13 +1129,31 @@ poor disk performance
 
 Mentat can penalize or temporarily suppress that host.
 
+## Host evidence sources
+
+A host score should keep its sources separate rather than collapsing everything into one unexplained number:
+
+```text
+Vast marketplace reliability     external prior
+Vast benchmark records           external prior
+Vast recent machine reports      external risk prior, when available
+Mentat startup history           local measured evidence
+Mentat throughput history        local measured evidence
+Mentat disconnect/failure rate   local measured evidence
+Mentat cost reconciliation       local measured evidence
+```
+
+Mentat's own recent verified history should eventually outweigh generic external priors for the exact workload/configuration it has observed.
+
+External provider reports should decay with age and should not be double-counted with failures already observed by Mentat.
+
 The broker therefore learns not merely that:
 
 ```text
 RTX 5090 is good
 ```
 
-but that a specific GPU class on a specific host with a specific storage/network profile has performed well or poorly for Mentat's real workload.
+but that a specific GPU class on a specific host with a specific storage/network/runtime profile has performed well or poorly for Mentat's real workload.
 
 ---
 
@@ -1012,19 +1165,22 @@ The target flow is:
 
 ```text
 Search normalized offers
+  -> validate freshness
   -> validate policy and approval lease
+  -> re-check selected offer/price
+  -> reserve approved budget authority
   -> create exactly one intended instance
-  -> persist returned instance ID
-  -> poll bounded lifecycle state
+  -> persist returned instance ID immediately
+  -> poll bounded provider lifecycle state
   -> CUDA container starts
   -> Mentat provisioning script/image runs
   -> verify runtime dependencies
-  -> install vLLM/SGLang when needed
-  -> acquire selected model
+  -> install/verify vLLM/SGLang when needed
+  -> acquire pinned model revision
   -> load model
   -> start OpenAI-compatible server
-  -> expose health endpoint
-  -> health check
+  -> verify health + model/runtime identity
+  -> controlled test inference
   -> mark worker ready
 ```
 
@@ -1034,7 +1190,9 @@ A worker bootstrap can receive controlled configuration such as:
 
 ```text
 MENTAT_MODEL=<registered model id>
+MENTAT_MODEL_REVISION=<pinned revision>
 MENTAT_RUNTIME=vllm
+MENTAT_RUNTIME_VERSION=<pinned version>
 MENTAT_PORT=8000
 MENTAT_JOB_ID=<job id>
 MENTAT_LEASE_SECONDS=<bounded lease>
@@ -1042,42 +1200,241 @@ MENTAT_LEASE_SECONDS=<bounded lease>
 
 The provisioning path should be versioned, integrity checked, and treated as part of Mentat's supply chain.
 
-### Direct-instance SDK rules
+---
 
-When this target backend is authorized for implementation:
+# Vast provider adapter contract
+
+Provider SDKs are implementation helpers. They are **not** Mentat's policy authority.
+
+The target architecture is:
 
 ```text
-Vast SDK
-   |
-   v
-broker-only Vast adapter
-   |
-   v
-normalized Mentat candidates/resources
-   |
-   v
-policy + ApprovalLease
-   |
-   v
-resource lifecycle
+                    Mentat Broker
+                         |
+         +---------------+----------------+
+         |               |                |
+         v               v                v
+   Vast Read Plane   Vast Spend Plane   Billing Plane
+         |               |                |
+         +---------------+----------------+
+                         |
+                  Vast Adapter
+                         |
+                         v
+                    Vast API/SDK
 ```
 
-The adapter must:
+## SDK construction rules
 
-- pin the `vastai` SDK version used by Mentat;
-- receive the API key explicitly from broker-owned protected credential storage;
-- not rely on automatic CLI-key discovery as the production security boundary;
-- normalize `search_offers` results instead of leaking raw Vast structures throughout the broker;
-- call `create_instance` only after approval;
-- persist the returned contract/instance identity before continuing lifecycle work;
-- bound the readiness wait with timeouts and explicit error states;
-- handle `loading` and `running` plus terminal/problem states such as `exited`, `unknown`, and `offline`;
-- destroy/reconcile failed resources instead of looping forever while disk charges continue;
-- distinguish storage billing from GPU-running billing;
-- model `stop_instance` and `destroy_instance` as economically different lifecycle choices;
-- reconcile actual Vast charges against Mentat estimates when billing data is available.
+The current VastAI constructor documents options including `api_key`, `server_url`, `retry`, `raw`, `explain`, `quiet`, and `curl`. Production Mentat should instantiate the SDK explicitly and predictably.
 
-Provider convenience must never weaken Mentat's credential, approval, reconciliation, or evidence boundaries.
+Target production posture:
+
+```python
+VastAI(
+    api_key=broker_owned_secret,
+    retry=<plane-specific>,
+    raw=True,
+    explain=False,
+    quiet=True,
+    curl=False,
+)
+```
+
+The official VastAI reference currently contains inconsistent text for implicit API-key file fallback paths. Mentat must therefore **not depend on implicit key discovery at all**. The broker passes its protected credential explicitly.
+
+## Read plane versus spend plane
+
+Safe read operations and paid mutations have different retry requirements.
+
+Current Vast SDK documentation says the normal `VastAI` client automatically retries HTTP 429 by default, while the Serverless client retries 408, 429, and 5xx with exponential backoff/jitter.
+
+That convenience is useful for idempotent reads. It is dangerous if it can hide a repeated non-idempotent paid mutation.
+
+Target rule:
+
+```text
+READ PLANE
+  automatic bounded retry may be allowed
+  cache/coalesce where useful
+  record retry count and latency
+
+SPEND PLANE
+  no hidden automatic retry of non-idempotent create/start/warm mutations
+  ambiguous result -> RECONCILE -> then decide
+```
+
+For the normal VastAI client, a mutation client should use `retry=0` unless the exact operation has proven safe idempotency/retry semantics. For Serverless or other helpers with internal retries, Mentat must either configure/bypass those retries for spending mutations or wrap only operations whose idempotency behavior has been explicitly validated.
+
+## Error normalization
+
+Vast currently documents more than one error response shape. Some responses contain:
+
+```json
+{
+  "success": false,
+  "error": "invalid_args",
+  "msg": "..."
+}
+```
+
+while some endpoints may return only `msg` or `message`.
+
+Raw provider errors must therefore be normalized into a Mentat-owned structure such as:
+
+```text
+ProviderError
+  provider
+  operation
+  http_status
+  provider_code
+  message
+  retryable_read
+  ambiguous_mutation
+  rate_limited
+  auth_or_permission_failure
+  raw_shape_version
+```
+
+The rest of the broker should not branch on random provider dictionaries.
+
+## Least-privilege credential design
+
+Vast currently documents permission categories including `instance_read`, `instance_write`, `user_read`, `user_write`, `billing_read`, `billing_write`, `machine_read`, `machine_write`, `misc`, `team_read`, and `team_write`, plus endpoint-specific constraints.
+
+Mentat should use the smallest permissions that can actually perform each broker role.
+
+A future setup may use:
+
+```text
+OWNER / BOOTSTRAP CREDENTIAL
+  only during explicit setup
+  may create Mentat-specific scoped keys
+  removed from Mentat runtime storage afterward
+  never automatically revoke/delete an owner's unrelated key
+
+DISCOVERY / READ CREDENTIAL
+  only the exact search/read endpoints required
+
+LIFECYCLE CREDENTIAL
+  only exact instance/serverless lifecycle operations required
+
+BILLING / RECONCILIATION CREDENTIAL
+  only the exact read permission needed for charges
+```
+
+### Important `misc` warning
+
+Current Vast permission documentation places **both** search operations and Serverless endpoint/workergroup create/update/delete operations under `misc`.
+
+Therefore:
+
+> **An unrestricted `misc` key is not a read-only discovery key.**
+
+Mentat should use endpoint-level restrictions/constraints when the live API and permission identifiers support them. If the required least-privilege split cannot be proven, the credential remains isolated to the broker process and the limitation is recorded honestly.
+
+### Billing permission must be validated, not guessed
+
+The current Vast permission reference describes `billing_read` primarily in terms of invoices/earnings, while `show charges` is documented separately as the per-instance GPU/storage/bandwidth cost endpoint. Mentat must live-test the minimum permission required to read charges rather than assuming the category from a label.
+
+## Provider lifecycle state normalization
+
+Current Vast instance documentation exposes multiple status dimensions. Mentat should preserve them separately:
+
+```text
+ProviderInstanceState
+  actual_status
+  intended_status
+  cur_state
+  status_msg
+  observed_at
+```
+
+Documented `actual_status` values include:
+
+```text
+null       provisioning
+loading    image/container startup
+running    container executing; GPU charges apply
+stopped    container halted; disk charges continue, no GPU charges
+frozen     memory preserved; GPU charges continue
+exited     container process exited unexpectedly
+rebooting  transient restart
+unknown    no recent host heartbeat
+offline    host disconnected from Vast servers
+```
+
+Mentat execution state is separate:
+
+```text
+ACQUIRING
+PROVISIONING
+READY
+RUNNING
+VERIFYING
+RECONCILING
+RELEASING
+FAILED_...
+```
+
+Do not collapse provider status and Mentat job status into one field.
+
+## Readiness contract
+
+Provider `running` is necessary but not sufficient for `Mentat READY`.
+
+A worker becomes ready only after all applicable checks pass:
+
+```text
+provider state is compatible with running
+network route reachable
+runtime health endpoint passes
+expected runtime/version identity matches
+expected model/profile/revision identity matches
+controlled inference probe succeeds
+approval lease still valid
+```
+
+## `cancel_unavail`
+
+The Vast `create_instance` SDK currently exposes `cancel_unavail`, documented as returning an error when scheduling fails rather than creating a stopped instance.
+
+For interactive Mentat jobs, that may be preferable to receiving a stopped/unavailable resource. Treat it as a candidate policy and test it in no-spend/live canaries before making it a production default.
+
+## Rate limits and adaptive polling
+
+Vast documents rate limits per endpoint and identity, and HTTP 429 responses without a `Retry-After` header.
+
+Mentat should therefore use state-aware polling rather than fixed aggressive loops.
+
+Example policy:
+
+```text
+new transition:
+  poll relatively quickly
+
+known long image/model pull:
+  back off
+
+near predicted ready time:
+  shorten interval modestly
+
+429 / provider pressure:
+  expand interval with jitter
+
+terminal/error state or deadline:
+  stop polling and reconcile
+```
+
+Polling strategy itself should be measurable and later tunable from real startup distributions.
+
+## Notifications as an optional optimization
+
+The current Vast documentation index includes signed notification-webhook management and discoverable notification types.
+
+Mentat may investigate webhooks as a supplement to polling, but must not assume that the notification types required for instance/serverless readiness exist until they are enumerated and tested.
+
+Any webhook path must validate signatures, protect the signing secret, handle duplicates/replays, and retain polling/reconciliation as a recovery path.
 
 ---
 
@@ -1093,11 +1450,11 @@ Mentat Worker
   +-- CUDA
   +-- Python runtime
   +-- vLLM / SGLang / approved engine
-  +-- selected model
+  +-- selected pinned model revision
   +-- OpenAI-compatible inference API
-  +-- health monitor
+  +-- health/identity monitor
   +-- metrics collector
-  +-- lease/watchdog
+  +-- bounded lease/watchdog
   +-- shutdown controller
 ```
 
@@ -1111,37 +1468,47 @@ The worker should expose only the capabilities required to serve inference and r
 
 Mentat has a hard security rule:
 
-> **A language model cannot create, warm, resize, approve, or otherwise authorize paid compute.**
+> **A language model cannot create, warm, resize, approve, retry, extend, or otherwise authorize paid compute.**
 
 Spending authority belongs to the local broker and ultimately the local authenticated user.
 
-The intended credential boundary is:
+The current implementation protects the Vast key inside the broker boundary. The target design narrows this further with broker-owned least-privilege credential roles where live Vast permissions allow it.
 
 ```text
-                 Local PC
+                         Local PC
 
-+-------------------------------------------+
-| Broker process                            |
-|   - Vast credential                       |
-|   - spending policy                       |
-|   - infrastructure lifecycle authority    |
-+-------------------+-----------------------+
-                    |
-         non-spending authenticated API
-                    |
-+-------------------v-----------------------+
-| OpenClaw Gateway / tools / Mentat.exe     |
-|   - no Vast spending credential           |
-+-------------------+-----------------------+
-                    |
-                    v
-               Model endpoint
-                    |
-                    X
-             no Vast API key
++-------------------------------------------------------+
+| Broker security boundary                              |
+|                                                       |
+|  Credential vault                                     |
+|    - current protected Vast credential                |
+|    - future scoped read credential                    |
+|    - future scoped lifecycle credential               |
+|    - future scoped billing credential                 |
+|                                                       |
+|  Spend / Policy Governor                              |
+|    - approval leases                                  |
+|    - price ceilings                                   |
+|    - session/job budgets                              |
+|    - atomic spend reservation                         |
+|    - kill switch                                      |
++---------------------------+---------------------------+
+                            |
+                 non-spending authenticated API
+                            |
++---------------------------v---------------------------+
+| OpenClaw Gateway / tools / Mentat.exe                 |
+|   - no Vast spending credential                       |
++---------------------------+---------------------------+
+                            |
+                            v
+                       Model endpoint
+                            |
+                            X
+                     no Vast API key
 ```
 
-Approval credentials must never appear in:
+Approval and provider credentials must never appear in:
 
 - model prompts
 - tool environments
@@ -1149,8 +1516,39 @@ Approval credentials must never appear in:
 - logs
 - Git history
 - repository workspaces
+- provider diagnostic output that is retained without redaction
 
 The current Windows installation protects the Vast API key with Windows DPAPI for the current operating-system user.
+
+## Credential bootstrap target
+
+If Mentat later automates scoped-key creation, the setup flow should be explicit:
+
+```text
+owner supplies bootstrap-capable key locally
+      -> Mentat creates/validates narrowly scoped runtime keys
+      -> Mentat removes bootstrap key from its own runtime storage
+      -> owner key is NOT silently deleted/revoked
+```
+
+The everyday broker should not require `user_write`, `billing_write`, `machine_write`, or team-management authority unless a future feature explicitly requires and separately approves it.
+
+## Spend Governor target
+
+Every operation capable of increasing paid exposure should pass through one narrow internal governor.
+
+```text
+proposed paid mutation
+      -> verify approval lease
+      -> verify policy
+      -> verify current price/resource identity
+      -> atomically reserve worst-case authorized exposure
+      -> perform one controlled mutation
+      -> persist remote identity
+      -> reconcile result
+```
+
+This prevents two concurrent jobs from each believing the same remaining budget is available.
 
 ---
 
@@ -1163,12 +1561,12 @@ A candidate is a combination of factors such as:
 ```text
 Candidate
   |
-  +-- model
-  +-- model version
-  +-- runtime
+  +-- model + exact version/profile
+  +-- runtime + image/bootstrap identity
   +-- hardware configuration
   +-- compute backend
   +-- specific host or Serverless profile
+  +-- current market snapshot
   +-- expected quality
   +-- expected startup time
   +-- expected inference time
@@ -1187,9 +1585,11 @@ Backend: Vast Direct Instance
 GPU: 1 x RTX 5090
 Host: 402342
 Predicted quality: 4.5 / 5
+Quality lower bound: 4.2
 Predicted cold start: 95 sec
-Predicted inference: 22 sec
+Latency upper bound: 150 sec
 Predicted total cost: $0.014
+Cost upper bound: $0.025
 ```
 
 versus:
@@ -1201,43 +1601,74 @@ Model: Kimi
 Backend: Vast Serverless
 GPU: larger multi-GPU profile
 Predicted quality: 4.9 / 5
+Quality lower bound: 4.7
 Predicted startup: 30 sec
 Predicted inference: 15 sec
 Predicted total cost: $0.41
+Cost upper bound: $0.50
 ```
 
 The correct choice depends on the task requirements.
 
 A low-risk CSS change probably does not justify paying many times more for a small quality advantage. A repository-wide architecture or security task may justify exactly that premium.
 
-Conceptually the broker is optimizing something like:
+## Hard filters before scoring
+
+A candidate that violates a hard requirement is **ineligible**, not merely lower-scoring.
+
+Hard filters include:
+
+```text
+capability
+context
+model/profile status
+runtime compatibility
+hardware compatibility
+security policy
+quality lower bound
+risk policy
+reliability floor
+provider availability
+approval scope
+hourly price ceiling
+worst-case cost bound
+lease expiration
+```
+
+Only eligible candidates reach economic scoring.
+
+Conceptually the broker is optimizing:
 
 ```text
 expected useful result
-  = quality
-  x reliability
+  = expected quality
   x probability of successful completion
+  x reliability
 
 while minimizing:
-  total cost
+  total successful-task cost
   latency
-  failure risk
+  failure/retry risk
+  uncertainty
 ```
 
 The production implementation should use explicit, testable scoring rules rather than a vague single formula.
 
 ---
 
-# 13. Total-cost prediction
+# 13. Total-cost prediction and reconciliation
 
 GPU hourly price is only one component of real task cost.
 
-Mentat should estimate:
+Mentat should estimate cost by component:
 
 ```text
 TOTAL EXPECTED COST
 
-instance or endpoint acquisition
+compute / GPU runtime
++ storage
++ bandwidth
++ endpoint/instance acquisition effects
 + container/image startup
 + provisioning
 + model download
@@ -1245,10 +1676,9 @@ instance or endpoint acquisition
 + inference runtime
 + retry probability
 + failed-start probability
++ fallback probability
 + warm idle time
-+ storage
-+ bandwidth
-+ teardown overhead
++ teardown/restart effects
 ```
 
 The broker should also estimate total latency:
@@ -1264,11 +1694,49 @@ market search
 + model load
 + queue/warmup
 + inference
++ verification
 ```
 
 A $0.30/hour GPU that takes ten minutes to become useful can be worse for an interactive job than a more expensive worker that is already warm.
 
-Vast billing remains the source of truth for actual infrastructure charges. Mentat predictions are estimates that must later be reconciled with actual billing evidence.
+## Reconcile predicted cost to provider charges
+
+Vast's current `show charges` API is documented as reporting per-instance charges including GPU, storage, and bandwidth, and can carry endpoint/workergroup metadata for applicable records.
+
+Mentat should retain both prediction and actual provider evidence:
+
+```text
+Predicted:
+  gpu:       $0.018
+  storage:   $0.003
+  bandwidth: $0.001
+  total:     $0.022
+
+Actual:
+  gpu:       $0.020
+  storage:   $0.004
+  bandwidth: $0.001
+  total:     $0.025
+
+Prediction error:
+  +$0.003
+```
+
+Actual provider billing remains the source of truth. Mentat uses the error to improve future cost predictions.
+
+Do not train one opaque `cost` number when useful components are available. Component-level learning makes failures and drift much easier to diagnose.
+
+## Economic north-star metric
+
+The broker should track:
+
+```text
+TOTAL REAL COST
+-------------------------------
+VERIFIED SUCCESSFUL TASKS
+```
+
+A model that costs less per attempt but fails often and triggers retries may be more expensive per successful task.
 
 ---
 
@@ -1313,13 +1781,13 @@ Reuse existing worker:
   near-immediate inference
 ```
 
-Over time the broker can learn the economically useful warm window from actual request patterns.
+Over time the broker can learn the economically useful warm window from actual request-arrival patterns, GPU price, restart cost, storage cost, and cold-start distributions.
 
 ---
 
-# 15. Keep, stop, cool, or delete
+# 15. Keep, freeze, stop, cool, or delete
 
-Different backends expose different lifecycle choices.
+Different backends expose different lifecycle choices. Provider words must not be treated as interchangeable economic states.
 
 ## Serverless
 
@@ -1335,36 +1803,46 @@ future approved work can reuse endpoint identity
 
 ## Direct instance target
 
-A direct Vast instance may support economically distinct choices such as:
+Current Vast instance documentation distinguishes at least these relevant states:
 
-### Keep warm
+### Running / keep warm
 
 ```text
-GPU running
-model loaded
+container executing
+GPU charges apply
+model may stay loaded
 fast next request
-GPU billing continues
 ```
 
-### Stop
+### Frozen
 
 ```text
-GPU compute stops
-persistent storage may remain
-storage charges may continue
-future restart may avoid downloading everything again
+container memory preserved
+GPU charges still apply
+NOT equivalent to stopped compute
 ```
 
-### Delete
+A frozen instance may be operationally useful in some workflows, but it is not a cheap sleep state if GPU charges continue.
+
+### Stopped
+
+```text
+container halted
+GPU charges stop
+storage charges continue
+future restart may avoid rebuilding all state
+```
+
+### Destroyed
 
 ```text
 instance removed
-associated instance storage removed according to Vast lifecycle semantics
-all avoidable charges end
-next job requires a cold start
+instance data is lost according to provider destroy semantics
+avoidable instance charges end
+next job requires a cold path unless separate persistent storage exists
 ```
 
-The broker should eventually compare the expected cost of keeping compute warm, retaining storage, or destroying the worker based on the probability and timing of future tasks.
+The broker should compare the expected cost of keeping compute running, freezing, stopping, or destroying based on the probability and timing of future tasks.
 
 Example:
 
@@ -1373,10 +1851,13 @@ Expected next task: 4 minutes
   -> keep warm may win
 
 Expected next task: several hours
-  -> stop/cool may win
+  -> stop may win
 
 Expected next task: tomorrow or unknown
-  -> delete may win
+  -> destroy may win
+
+Frozen:
+  -> only when its operational benefit exceeds continued GPU billing
 ```
 
 These are policy decisions backed by measured evidence, not hard-coded guesses forever.
@@ -1391,10 +1872,13 @@ Examples include:
 
 ```text
 maximum hourly rate
-maximum estimated job cost
+maximum expected job cost
+maximum worst-case authorized job cost
 maximum session cost
 maximum session duration
 maximum simultaneous paid model sessions
+maximum retry/fallback spend
+maximum exploration spend
 approved providers
 approved GPU classes
 approved model profiles
@@ -1402,7 +1886,7 @@ approved model profiles
 
 New paid sessions require authenticated local approval.
 
-A decision UI should explain what is being purchased before money is spent.
+A decision UI should explain both the expected spend and the maximum authorized exposure.
 
 Example:
 
@@ -1424,10 +1908,10 @@ High
 Estimated startup:
 42 sec
 
-Estimated task cost:
+Expected task cost:
 $0.28
 
-Maximum approved cost:
+Maximum authorized cost:
 $0.50
 
 Reason:
@@ -1441,9 +1925,11 @@ Approval is a **bounded lease**, not unlimited permission.
 For example:
 
 ```text
-Model: Kimi
+Model/profile scope: Kimi profile X
+Backend scope: Vast Serverless
 Maximum total cost: $0.50
 Maximum hourly rate: $4.00
+Maximum paid resource count: 1
 Lease expires: 30 minutes
 ```
 
@@ -1502,9 +1988,22 @@ Known-answer benchmark:
   deterministic expected result
 ```
 
-A malformed or failed upstream result must not become a successful learning sample.
+Verification strength should be recorded explicitly:
 
-Verification evidence is especially important when cheaper models are being considered for promotion.
+```text
+strong:
+  deterministic tests / compile / schema / known-answer
+
+medium:
+  independent model/rubric/cross-check
+
+weak:
+  same-model self-evaluation
+```
+
+Task risk should influence the minimum verification strength required.
+
+A malformed or failed upstream result must not become a successful learning sample.
 
 ---
 
@@ -1515,27 +2014,38 @@ Every completed decision should create a structured operational record.
 A future record may contain fields such as:
 
 ```text
-Task ID:                 82174
-Task class:              coding-medium
-Model:                   Qwen
-Model version:           pinned version
-Backend:                 Vast Direct
-GPU:                     RTX 5090
-Host:                    402342
-Marketplace price:       $0.300/hr
-Startup time:            18.4 sec
-Provision time:          21.8 sec
-Model download:          48.1 sec
-Model load:              32.6 sec
-Time to first token:     0.77 sec
-Generation throughput:   84.2 tok/sec
-Inference duration:      21.4 sec
-Total worker lifetime:   143.7 sec
-Estimated cost:          $0.012
-Actual reconciled cost:  pending
-Result:                  success
-Verification:            passed
-Human rating:            5/5
+Task ID:                    82174
+Task class:                 coding-medium
+Model:                      Qwen
+Model version:              pinned version
+Runtime/image profile:      pinned identity
+Backend:                    Vast Direct
+GPU:                        RTX 5090
+Host:                       402342
+Market snapshot observed:   timestamp
+Marketplace price:          $0.300/hr
+Provider actual_status:     running
+Provider status history:    retained transitions
+Startup time:               18.4 sec
+Provision time:             21.8 sec
+Model download:             48.1 sec
+Model load:                 32.6 sec
+Time to first token:        0.77 sec
+Generation throughput:      84.2 tok/sec
+Inference duration:         21.4 sec
+Total worker lifetime:      143.7 sec
+Provider read retries:      1
+Provider mutation retries:  0
+Rate-limit events:          0
+Estimated GPU cost:         ...
+Estimated storage cost:     ...
+Estimated bandwidth cost:   ...
+Estimated total cost:       $0.012
+Actual reconciled cost:     pending
+Prediction error:           pending
+Result:                     success
+Verification:               passed / strong
+Human rating:               5/5
 ```
 
 Runtime measurements and human quality ratings are deliberately separate forms of evidence.
@@ -1543,10 +2053,12 @@ Runtime measurements and human quality ratings are deliberately separate forms o
 The history should answer questions such as:
 
 - Which model is best for TypeScript debugging?
-- Which model is cheapest for simple code edits without reducing success rate?
+- Which model is cheapest per verified successful simple code edit?
 - Which hosts fail most often?
 - Does H100 beat RTX 5090 after cold-start time is included?
-- Is Serverless or a direct instance better for Kimi?
+- Is Serverless or a direct instance better for a specific model/task class?
+- Which provider-market conditions predict poor acquisition times?
+- How accurate are our quality/cost/latency intervals?
 - How much money has the broker saved versus a Kimi-only policy?
 
 ---
@@ -1571,7 +2083,8 @@ A rating belongs to the exact decision context:
 task class
 model
 model version
-hardware/runtime context
+runtime/profile
+hardware/backend context
 completed decision
 ```
 
@@ -1616,7 +2129,7 @@ Predicted:
 
 Actual:
   model download failed
-  second instance required
+  second attempt required
   total cost: $0.061
   user waited 7 minutes
 ```
@@ -1636,6 +2149,7 @@ Rated samples:        150
 Verified success:     97%
 Average human rating: 4.7
 Cost saving vs Kimi:  84%
+Calibration:          acceptable
 
 Result:
 promote for coding-medium
@@ -1645,9 +2159,252 @@ promote for coding-medium
 
 Promotion is reversible.
 
-If a model version, host class, runtime, or workload begins producing worse outcomes, Mentat should reduce its preference or remove it from eligibility until revalidated.
+If a model version, host class, runtime, provider condition, or workload begins producing worse outcomes, Mentat should reduce its preference or remove it from eligibility until revalidated.
 
 Every promotion and demotion should have an audit trail.
+
+---
+
+# Broker self-learning and efficiency loop
+
+Mentat should become more efficient by improving **predictions and routing evidence**, not by letting an unconstrained learner rewrite safety rules.
+
+```text
+                    NEW TASK
+                       |
+                       v
+              TaskRequirements
+                       |
+                       v
+              Candidate Plans
+                       |
+                       v
+        predict quality/success/cost/time
+                       |
+                       v
+           hard policy + route choice
+                       |
+                       v
+                    execute
+                       |
+                       v
+             verify + reconcile
+                       |
+                       v
+          compare prediction vs reality
+                       |
+                       v
+              update evidence models
+                       |
+                       +----------> future task
+```
+
+## Learn separate predictors
+
+Do not hide everything in one opaque broker score.
+
+Maintain distinct estimators for:
+
+```text
+quality
+probability of successful completion
+cold-start latency
+warm latency
+total latency
+GPU cost
+storage cost
+bandwidth cost
+retry/failure cost
+host reliability
+reuse value
+verification strength
+```
+
+Then combine them only after hard eligibility constraints pass.
+
+## Learn by task and exact configuration
+
+Evidence should be conditioned on relevant context:
+
+```text
+task class
+programming language / workload family
+risk tier
+repository/context size
+tool requirements
+model + exact version
+quantization/profile
+runtime + version
+container/image/bootstrap identity
+GPU / GPU count
+host
+backend
+market conditions
+```
+
+Do not treat two materially different model/runtime profiles as the same evidence bucket.
+
+## Recency and drift
+
+Models, hosts, runtimes, and marketplaces change.
+
+Mentat should:
+
+- weight recent comparable evidence more heavily;
+- reduce confidence after model/runtime/provider changes;
+- detect sustained prediction error;
+- trigger re-benchmark/revalidation when drift crosses a threshold;
+- demote candidates when recent verified performance no longer supports their old status.
+
+## Calibration
+
+A prediction system must learn how wrong it is.
+
+Track:
+
+```text
+success-probability calibration
+quality prediction error
+cost interval coverage
+latency interval coverage
+host reliability calibration
+```
+
+If jobs predicted at 90% success only succeed 65% of the time, the predictor is not trustworthy even if its ranking looks plausible.
+
+## External data is a prior, not a reward
+
+Vast marketplace metrics, trends, benchmark records, and machine reports can improve bootstrap estimates and exploration choices.
+
+They should enter the evidence store with a lower-trust source class such as:
+
+```text
+provider market prior
+provider benchmark prior
+provider machine-risk prior
+```
+
+They do not count as verified task success and do not directly promote a model.
+
+Mentat's own verified executions, deterministic checks, and authenticated human ratings remain stronger evidence for real routing quality.
+
+## Contextual-bandit-style exploration
+
+Mentat's routing problem resembles a contextual bandit:
+
+```text
+context:
+  task/risk/context/tools/budget/market
+
+actions:
+  eligible model + runtime + hardware + backend plans
+
+reward evidence:
+  verified quality
+  successful completion
+  real total cost
+  latency
+  failure/retry penalty
+```
+
+Use this style of exploration only **inside the already-safe eligible set**.
+
+Hard security, approval, capability, context, quality-floor, and budget constraints stay outside the learner.
+
+## Champion / challenger
+
+New routing policies should begin in shadow mode.
+
+```text
+                    REQUEST
+                       |
+              +--------+--------+
+              |                 |
+         Champion vN       Challenger vN+1
+              |                 |
+       actual decision      shadow decision
+              |                 |
+              +--------+--------+
+                       |
+                    compare
+```
+
+The challenger may be promoted only after replay/shadow evidence shows improvement without violating safety/quality floors.
+
+## Offline replay
+
+Persist enough decision context to replay historical tasks through a new broker policy without spending money.
+
+Replay should compare:
+
+```text
+old winner
+new hypothetical winner
+hard-eligibility differences
+predicted cost difference
+predicted latency difference
+quality/risk difference
+confidence/calibration effects
+```
+
+## Exploration budget
+
+Exploration should have its own bounded budget separate from ordinary production spending.
+
+```text
+production budget
+exploration budget
+```
+
+When exploration budget is exhausted, production continues with trusted routes rather than silently funding more experiments.
+
+## Cost of failure and routing regret
+
+The learner should measure the total cost of a failed cheap attempt followed by a stronger fallback.
+
+Example:
+
+```text
+cheap attempt:  $0.04
+fallback:       $0.31
+total:          $0.35
+
+Kimi first:     $0.31
+
+cost regret:    $0.04
+plus latency regret
+```
+
+This prevents Mentat from calling a route "cheap" merely because the first attempt had a low hourly rate.
+
+## Learning boundary
+
+Mentat may automatically learn:
+
+```text
+quality estimates
+cost estimates
+latency estimates
+host reputation
+market priors
+warm timeout
+exploration preference
+model/task specialization
+```
+
+Mentat may **not** learn around:
+
+```text
+credential isolation
+user approval
+maximum spend
+provider allowlist
+sandbox rules
+hard capability/context requirements
+minimum quality/risk policy
+```
+
+That separation is fundamental.
 
 ---
 
@@ -1676,6 +2433,8 @@ credential handling
 high-blast-radius infrastructure changes
 ```
 
+External Vast benchmark/market data may help choose which alternatives are worth exploring, but it never removes the need for Mentat's own verification.
+
 Mentat should never sacrifice safety merely to collect cheaper-model data.
 
 ---
@@ -1693,17 +2452,31 @@ context requirement
 risk requirement
 quality tier
 spending policy
+remaining approval/budget
 ```
 
 A high-risk repository-scale task must not silently fall back to a tiny cheap model solely because the preferred endpoint became unavailable.
 
-Fallback should also avoid silently starting a second paid cluster outside the user's approved spending boundary.
+Fallback should be a fresh routing decision using updated evidence from the failure.
+
+Example:
+
+```text
+primary host failed
+  -> mark host evidence
+  -> update available candidates
+  -> re-run hard eligibility
+  -> re-check remaining approval/budget
+  -> choose next eligible plan
+```
+
+Fallback must not silently start a second paid cluster outside the user's approved spending boundary.
 
 ---
 
 # 24. Watchdogs and failure recovery
 
-Paid compute must fail safely when Mentat, Windows, the network, or Vast behaves unexpectedly.
+Paid compute must fail safely when Mentat, Windows, the network, the SDK, or Vast behaves unexpectedly.
 
 The system must account for failures such as:
 
@@ -1715,9 +2488,15 @@ Gateway crash
 network loss
 ambiguous create response
 Vast API timeout
+HTTP 429 / rate-limit pressure
+provider permission failure
+SDK/helper hidden retry
+provider malformed error shape
+provider status unknown/offline/exited/frozen/rebooting
 worker startup failure
 model-server crash
 stream interruption
+billing mismatch
 disk full
 SQLite corruption
 context overflow
@@ -1727,6 +2506,28 @@ runaway tool loop
 ## Local lifecycle reconciliation
 
 The broker should use idempotent or explicitly reconciled lifecycle operations, write local state atomically, and fail closed on duplicate or orphaned remote resources.
+
+## Circuit breakers
+
+Repeated provider failures should not turn into an expensive failure storm.
+
+Examples:
+
+```text
+repeated create/provision failures
+  -> open provider/operation circuit
+  -> stop new paid acquisition
+  -> require cooldown/reconciliation
+
+host repeatedly fails startup
+  -> temporarily suppress host
+
+model/profile verification failure spikes
+  -> demote profile and require revalidation
+
+rate-limit storm
+  -> throttle/coalesce reads and extend polling intervals
+```
 
 ## Worker watchdog target
 
@@ -1825,12 +2626,28 @@ Decision UI:
 Selected: Kimi K2.7 Code
 Reason: measured quality advantage outweighs the estimated additional cost
 Expected cost: $0.28
-Maximum approved cost: $0.50
+Maximum authorized cost: $0.50
 
 Approve?
 ```
 
 This is exactly the kind of task where premium compute is justified.
+
+## Example C — cheap host versus reliable host
+
+```text
+Host A:
+  $0.27/hr
+  low local sample count
+  recent startup failures
+
+Host B:
+  $0.31/hr
+  strong local completion history
+  stable startup
+```
+
+If Host B's expected **cost per verified successful task** is lower after failure/retry penalties, the broker should choose Host B even though its hourly rate is higher.
 
 ---
 
@@ -1858,6 +2675,8 @@ Mentat should not follow a naive escalation ladder on every request, but its pre
 The goal is not to force every request through each tier in sequence. The goal is to predict the correct tier before execution and learn from mistakes.
 
 A trivial task should not automatically wake the most expensive model in the system.
+
+The broker should optimize **successful-task economics**, not hourly price vanity metrics.
 
 ---
 
@@ -1894,25 +2713,33 @@ The complete design also calls for work such as:
 - repository- and attachment-aware task estimation
 - explicit blast-radius and verification-availability classification
 - versioned experimental/approved/retired model lifecycle
-- richer candidate scoring with uncertainty
+- richer candidate scoring with uncertainty and conservative bounds
+- prediction calibration and drift detection
 - real cold-start prediction
-- real total-cost prediction
+- component-level total-cost prediction
+- actual Vast charge reconciliation
 - stable compute-backend abstraction
+- provider error/state normalization
+- provider request governor, caching, and adaptive polling
+- least-privilege provider credential roles
 - host-specific reputation and bad-host suppression
+- provider market metrics/trends as routing priors
+- provider benchmark/report data as lower-tier evidence
 - canonical benchmark corpus and grading harness
 - quality prediction with confidence bounds
 - safe exploration
+- champion/challenger shadow routing
+- offline decision replay
 - promotion and demotion policy
 - routing-regret reporting
 - Kimi-only baseline cost comparison
-- actual Vast billing reconciliation
 - low-cost live canary
 - Kimi canary
 - clean Windows target-machine validation
 - long-running soak and adversarial failure testing
 - signed reproducible release pipeline
 
-The target architecture also includes a **direct Vast instance backend**, automatic CUDA worker provisioning, worker leases/watchdogs, and warm/stop/destroy optimization. Those capabilities are planned/experimental expansion and are not part of the frozen Mentat 1.0 release claim unless the owner explicitly changes scope.
+The target architecture also includes a **direct Vast instance backend**, automatic CUDA worker provisioning, worker leases/watchdogs, and keep/freeze/stop/destroy optimization. Those capabilities are planned/experimental expansion and are not part of the frozen Mentat 1.0 release claim unless the owner explicitly changes scope.
 
 A feature should not be described as production-ready merely because it appears in the design. Live-compute claims require executed integration evidence.
 
@@ -1934,8 +2761,10 @@ FOR THE LOWEST TOTAL PRACTICAL COST
 WHILE SATISFYING REQUIRED
 QUALITY, CONTEXT, CAPABILITY,
 RELIABILITY, LATENCY, RISK,
-AND SPENDING LIMITS
+SECURITY, AND SPENDING LIMITS
 ```
+
+Optimization happens only inside the safe eligible region.
 
 That is the central Mentat design principle.
 
@@ -1952,13 +2781,14 @@ A change that appears to work but violates this contract is a regression.
 
 Before substantial implementation work, read and reconcile these sources in this order:
 
-1. `README.md` — product vision, architecture, roadmap, mission checklist, and this construction contract.
+1. `README.md` — product vision, architecture, roadmap, mission checklist, provider contract, and this construction contract.
 2. `docs/mentat/production-contract.md` — canonical production invariants and release gates.
 3. `docs/mentat/work-items.md` — authoritative MNT work-item backlog and execution order.
 4. `docs/mentat/execution-ledger.md` — permanent evidence, completed work, blockers, and handoffs.
 5. `docs/mentat/current-state.yaml` — concise machine-readable current resume state.
 6. The implementation and tests for the subsystem being changed.
 7. Current GitHub PR/branch/CI reality.
+8. For Vast behavior, fetch `https://docs.vast.ai/llms.txt` first and discover the current relevant provider pages.
 
 Do not begin by editing code from a vague prompt. First identify the exact product requirement and the exact MNT work item being advanced.
 
@@ -1976,6 +2806,7 @@ Target behavior:
 Files expected to change:
 Interfaces/data contracts affected:
 Security or spending invariants affected:
+Provider assumptions affected:
 Tests that will prove completion:
 Failure cases to test:
 Things explicitly out of scope:
@@ -1990,7 +2821,7 @@ These are laws of the system, not preferences.
 
 ```text
 INV-001  A language model never receives a credential that can authorize paid compute.
-INV-002  A language model never creates, warms, resizes, approves, or extends paid compute directly.
+INV-002  A language model never creates, warms, resizes, approves, retries, or extends paid compute directly.
 INV-003  Every increase in paid-compute authority must fit inside a valid authenticated approval lease.
 INV-004  Fallback may not silently exceed the original quality, risk, capability, context, or spending policy.
 INV-005  Unknown or ambiguous infrastructure state fails closed and is reconciled before more spending.
@@ -2003,10 +2834,17 @@ INV-011  Tool execution remains inside the intended local security boundary; bro
 INV-012  Paid resource creation is never blindly retried after an ambiguous outcome.
 INV-013  Local lifecycle state is durable/atomic enough to support crash reconciliation.
 INV-014  Rejection or expired approval must not start new paid compute.
-INV-015  One task's approval cannot be silently converted into unlimited time, GPUs, models, or dollars.
+INV-015  One task's approval cannot be silently converted into unlimited time, GPUs, models, retries, or dollars.
 INV-016  Verification failure counts as task failure for learning and routing evidence.
 INV-017  Current implementation, tested behavior, live-validated behavior, and target design remain distinguishable.
 INV-018  Safety controls may not be weakened merely to make tests pass or simplify implementation.
+INV-019  Provider SDK/helper automatic retries must never cause a hidden repeated non-idempotent paid mutation.
+INV-020  Production provider credentials are explicit, broker-owned, least-privilege where validated, and never discovered implicitly from ambient key files.
+INV-021  Raw provider response/error/status structures are normalized at the adapter boundary before entering broker logic.
+INV-022  Provider benchmarks, market metrics, trends, and machine reports are priors; they are not verified task-success evidence.
+INV-023  Provider rate-limit handling and lifecycle polling are centrally governed, bounded, and observable.
+INV-024  Provider permission, billing, lifecycle, and retry assumptions remain untrusted until documented and live-validated at the appropriate gate.
+INV-025  Provider infrastructure state and Mentat execution state remain separate concepts.
 ```
 
 If an implementation seems to require breaking an invariant, the implementation is wrong until the product owner explicitly changes the invariant and production contract.
@@ -2015,21 +2853,26 @@ If an implementation seems to require breaking an invariant, the implementation 
 
 Never:
 
-- give OpenClaw, a model, renderer, tool subprocess, or workspace the Vast spending credential;
+- give OpenClaw, a model, renderer, tool subprocess, or workspace a Vast spending credential;
 - allow model-generated shell commands to control Vast billing or lifecycle directly;
 - bypass authenticated local approval for a new paid session;
 - silently start a second paid model/backend as fallback;
+- rely on an SDK's automatic retry for an ambiguous non-idempotent paid create/start/warm mutation;
+- assume an unrestricted Vast `misc` credential is read-only;
+- rely on implicit Vast SDK key-file discovery as the production credential boundary;
+- parse pretty CLI/SDK output when a machine-readable provider response is available;
+- expose `curl`/verbose SDK diagnostics containing sensitive request context in normal production logs;
 - weaken, delete, skip, or rewrite a test merely because the implementation fails it;
 - hard-code invented Vast behavior when live behavior is unknown;
-- treat a public benchmark as equivalent to Mentat's verified local evidence;
+- treat a public/provider benchmark as equivalent to Mentat's verified local evidence;
 - treat bootstrap priors as measured model quality;
-- treat an HTTP `200` as proof that a task succeeded;
+- treat an HTTP `200` or provider `running` status as proof that a task/worker is valid;
 - mark a feature complete because code exists without executed evidence;
 - make unrelated architectural changes while implementing one work item;
 - hide uncertainty behind fake precision;
 - assume a host/GPU/runtime is reliable without evidence;
 - use real credentials or paid compute in ordinary CI;
-- commit secrets, private tokens, approval credentials, endpoint credentials, or sensitive local state.
+- commit secrets, private tokens, approval credentials, endpoint credentials, webhook signing secrets, or sensitive local state.
 
 ## 5. Work-item discipline
 
@@ -2101,6 +2944,7 @@ ExecutionCandidate
   compute_backend
   hardware_profile
   host_or_endpoint_identity
+  provider_market_snapshot_id
   reuse_state
   expected_quality
   quality_confidence
@@ -2123,13 +2967,56 @@ ApprovalLease
   approval_id
   model/profile scope
   backend scope
-  maximum GPU count
+  maximum GPU/resource count
   maximum hourly rate
   maximum total spend
+  maximum retry/fallback spend
   maximum duration
   issued_at
   expires_at
   authenticated local approver
+```
+
+### ProviderState
+
+```text
+ProviderState
+  provider
+  resource_identity
+  provider_actual_status
+  provider_intended_status
+  provider_allocation_state
+  provider_status_message
+  observed_at
+  normalized_state
+```
+
+### ProviderError
+
+```text
+ProviderError
+  provider
+  operation
+  http_status
+  provider_code
+  message
+  retryable_read
+  rate_limited
+  auth_or_permission_failure
+  ambiguous_mutation
+```
+
+### ProviderMarketSnapshot
+
+```text
+ProviderMarketSnapshot
+  provider
+  observed_at
+  freshness_deadline
+  source_capabilities
+  normalized_offer/market fields
+  adapter_version
+  evidence_tier
 ```
 
 ### ExecutionResult
@@ -2141,15 +3028,16 @@ ExecutionResult
   actual startup/provision/load timings
   actual inference timings
   observed throughput
-  estimated cost
-  actual reconciled billing when available
+  estimated cost components
+  actual reconciled billing components when available
+  prediction error
   success/failure classification
-  verification result
+  verification result + strength
   retry/fallback history
   human rating when supplied
 ```
 
-Do not let two subsystems invent incompatible meanings for `candidate`, `success`, `cost`, `quality`, `host`, or `approval`.
+Do not let two subsystems invent incompatible meanings for `candidate`, `success`, `cost`, `quality`, `host`, `provider state`, or `approval`.
 
 ## 8. Compute backends must implement a common boundary
 
@@ -2157,13 +3045,16 @@ The target conceptual interface is:
 
 ```text
 ComputeBackend
+  capabilities()
   discover(requirements)
   estimate(candidate)
   acquire(approved_candidate, approval_lease)
   status(resource)
   prepare(resource, model_profile)
+  health(resource)
   execute(resource, request)
   cool(resource)
+  freeze(resource)     # when supported
   stop(resource)       # when supported
   destroy(resource)
   reconcile(saved_state)
@@ -2172,7 +3063,7 @@ ComputeBackend
 
 `VastServerlessBackend` and a future `VastInstanceBackend` should implement the same broker-facing concepts even when their internal lifecycle operations differ. Avoid scattering backend-specific conditionals throughout task classification, model quality logic, and policy code.
 
-Direct-instance SDK integration, when authorized, must remain behind this boundary. The Vast Python SDK is an infrastructure adapter dependency, not a new authority boundary. Its automatic CLI-key discovery must not replace Mentat's broker-only protected credential handling.
+Direct-instance SDK integration, when authorized, must remain behind this boundary. The Vast Python SDK is an infrastructure adapter dependency, not a new authority boundary. Its automatic credential discovery and retry convenience must not replace Mentat's broker-owned credential and reconciliation controls.
 
 ## 9. Deterministic broker decision order
 
@@ -2182,20 +3073,25 @@ Direct-instance SDK integration, when authorized, must remain behind this bounda
 1. Build TaskRequirements from observable task/context/tool/risk information.
 2. Generate registered model candidates.
 3. Reject candidates that fail hard capability or context requirements.
-4. Generate technically valid hardware/runtime/backend plans.
-5. Reject plans violating security, risk, reliability, quality, or budget floors.
-6. Predict quality and successful-completion probability with uncertainty.
-7. Predict cold/warm latency and total cost with uncertainty.
-8. Apply host/runtime failure and cold-start penalties.
-9. Apply reuse advantages only when an existing session is still authorized and compatible.
-10. Score remaining eligible plans according to the user's routing mode.
-11. Explain the winner and meaningful rejected alternatives.
-12. Require authenticated approval before new paid authority is exercised.
-13. Execute within the approval lease.
-14. Verify the result.
-15. Record telemetry and evidence.
-16. Reconcile billing and lifecycle state.
-17. Feed verified evidence back into future decisions.
+4. Obtain a fresh-enough normalized provider/market snapshot.
+5. Generate technically valid hardware/runtime/backend plans.
+6. Reject plans violating security, risk, reliability, quality, or budget floors.
+7. Predict quality and successful-completion probability with uncertainty.
+8. Predict cold/warm latency and total cost with uncertainty.
+9. Apply host/runtime/provider failure, stale-market, and cold-start penalties.
+10. Apply reuse advantages only when an existing session is still authorized and compatible.
+11. Score remaining eligible plans according to the user's routing mode.
+12. Explain the winner and meaningful rejected alternatives.
+13. Revalidate price/resource facts required for spending.
+14. Require authenticated approval before new paid authority is exercised.
+15. Atomically reserve authorized exposure.
+16. Execute exactly one controlled paid mutation when needed.
+17. Reconcile provider state until the worker is truly ready or safely failed.
+18. Execute inference.
+19. Verify the result.
+20. Record telemetry and evidence.
+21. Reconcile billing and lifecycle state.
+22. Feed verified evidence and prediction error back into future decisions.
 ```
 
 Hard eligibility rules run **before** economic optimization. A cheap plan that cannot safely do the job is not a candidate.
@@ -2226,21 +3122,32 @@ Evidence age: recent
 
 not fake precision such as `$0.021437` when the data cannot support it.
 
-Quality, cost, latency, host reliability, and success predictions should say how many comparable samples support them, how variable/recent those samples are, whether the model/runtime/version changed, and whether the value is measured evidence or a bootstrap prior.
+Quality, cost, latency, host reliability, and success predictions should say how many comparable samples support them, how variable/recent those samples are, whether the model/runtime/version/provider conditions changed, and whether the value is measured evidence or a bootstrap prior.
+
+For hard policy, use conservative bounds where appropriate:
+
+```text
+quality lower bound >= required quality floor
+cost upper bound <= maximum authorized spend
+latency upper bound <= hard latency limit, when one exists
+failure-risk upper bound <= accepted risk threshold
+```
 
 ## 12. Evidence hierarchy
 
 Mentat should know what kind of evidence taught it something:
 
 ```text
-Tier 0  bootstrap prior / explicit assumption
-Tier 1  synthetic or deterministic benchmark evidence
+Tier 0  bootstrap assumption / explicit prior
+Tier 1  provider/public benchmark or synthetic deterministic benchmark
 Tier 2  real task with automatic verification
 Tier 3  real task with authenticated human quality rating
 Tier 4  repeated, recent, high-confidence production evidence
 ```
 
-Promotion policies should require evidence appropriate to task risk. No external benchmark silently overwrites stronger local evidence.
+Provider market metrics, trends, benchmarks, and machine reports carry their source labels and do not masquerade as task-quality evidence.
+
+Promotion policies should require evidence appropriate to task risk. No external benchmark silently overwrites stronger local production evidence.
 
 ## 13. Golden scenarios are executable product specifications
 
@@ -2283,7 +3190,7 @@ Forbidden: selecting Host A from hourly price alone
 
 ```text
 Approved total spend: $0.50
-New required spend: $0.67
+New required upper-bound spend: $0.67
 Expected: stop and request new approval
 Forbidden: extending the original approval silently
 ```
@@ -2293,7 +3200,7 @@ Forbidden: extending the original approval silently
 ```text
 Create request: network timeout after request may have reached Vast
 Expected: reconcile exact remote state before another create
-Forbidden: blind retry that can create duplicate paid resources
+Forbidden: SDK/helper blind retry that can create duplicate paid resources
 ```
 
 ### F — malformed HTTP-200 response
@@ -2310,7 +3217,7 @@ Forbidden: treating status code alone as task success
 ```text
 Primary unavailable
 Original task: high-risk, tool-heavy, large context
-Expected: fallback independently satisfies original requirements and approved spend
+Expected: fallback independently satisfies original requirements and remaining approved spend
 Forbidden: tiny model or second paid cluster started silently
 ```
 
@@ -2320,6 +3227,41 @@ Forbidden: tiny model or second paid cluster started silently
 Instance status: loading -> unknown/offline/exited, or readiness timeout
 Expected: stop waiting, reconcile/destroy according to policy, record failure, penalize host/runtime where justified
 Forbidden: infinite polling while storage charges continue
+```
+
+### I — SDK automatic retry on paid mutation
+
+```text
+Operation: non-idempotent paid create
+SDK default: automatic retry enabled
+Expected: Mentat disables/bypasses hidden mutation retry and owns reconciliation
+Forbidden: letting provider convenience repeat the paid create silently
+```
+
+### J — frozen is not stopped
+
+```text
+Provider actual_status: frozen
+Documented economics: GPU charges still apply
+Expected: model as paid GPU state
+Forbidden: treating frozen as zero-compute-cost sleep
+```
+
+### K — broad misc permission
+
+```text
+Credential: unrestricted Vast misc category
+Need: offer discovery only
+Expected: reject as overly broad for a read-only role or validate endpoint-level restriction
+Forbidden: calling misc a read-only discovery permission
+```
+
+### L — provider rate-limit storm
+
+```text
+Repeated reads receive HTTP 429
+Expected: request governor throttles/coalesces/backoffs and records pressure
+Forbidden: every subsystem independently retries/polls harder
 ```
 
 Golden scenarios should become automated tests whenever possible.
@@ -2354,6 +3296,8 @@ Requirement
 
 Simulator evidence can close a simulator/test gate; it cannot close a live-service gate.
 
+Provider documentation can justify a design assumption; it cannot close a live-provider gate.
+
 ## 16. Tests must prove failure behavior
 
 Depending on the subsystem, include cases such as:
@@ -2363,20 +3307,26 @@ network timeout
 ambiguous create
 partial response
 malformed JSON/SSE
+provider error missing expected fields
+HTTP 429 / rate limit
+SDK/helper hidden retry
+permission denied
+stale market snapshot
+price changed before acquisition
 duplicate/orphan remote resource
+provider null/loading/stopped/frozen/exited/rebooting/unknown/offline state
 expired approval
 budget exhaustion
 context overflow
 model/runtime startup failure
 host failure
-billing mismatch
+billing mismatch / partial charge data
 cancellation
 Windows/Gateway/Broker restart
 SQLite corruption
 disk full
 concurrent requests
 runaway tool loop
-direct-instance exited/unknown/offline readiness state
 bounded readiness timeout
 ```
 
@@ -2398,6 +3348,7 @@ Problem being solved:
 Design chosen:
 Alternatives rejected:
 Invariants touched:
+Provider assumptions touched:
 Files/subsystems changed:
 Tests executed:
 Evidence produced:
@@ -2416,6 +3367,7 @@ Alternatives considered
 Why this choice
 Consequences
 Security/spending impact
+Provider dependency/assumptions
 How the decision can be revisited
 ```
 
@@ -2424,6 +3376,8 @@ How the decision can be revisited
 Stop and report the blocker when:
 
 - live Vast behavior contradicts the documented assumption;
+- the exact permission required for a sensitive provider action is unknown;
+- SDK retry semantics could repeat a paid mutation and have not been proven safe;
 - a real credential is required but unavailable through the approved local boundary;
 - paid compute would begin without explicit owner approval;
 - billing semantics needed for correctness are unknown;
@@ -2438,7 +3392,7 @@ Do not manufacture a plausible answer to cross one of these boundaries.
 
 ## 20. Owner-only actions remain owner-only
 
-Coding agents must not pretend to complete owner-only actions such as entering/rotating the real Vast API key, approving paid canaries, inspecting private billing, clean owner-PC validation, code-signing certificate operations, or irreversible repository/security changes reserved for the owner.
+Coding agents must not pretend to complete owner-only actions such as entering/rotating the real Vast API key, creating production scoped credentials with real account authority, approving paid canaries, inspecting private billing, clean owner-PC validation, code-signing certificate operations, or irreversible repository/security changes reserved for the owner.
 
 Prepare everything possible up to the gate, document the exact owner action, then stop.
 
@@ -2450,6 +3404,7 @@ A work item is not `DONE` merely because code was written.
 [ ] requirement is unambiguous
 [ ] implementation exists
 [ ] interfaces/data contracts are explicit
+[ ] provider assumptions are documented and current
 [ ] unit tests pass
 [ ] important adversarial/failure cases pass
 [ ] integration path passes
@@ -2457,6 +3412,7 @@ A work item is not `DONE` merely because code was written.
 [ ] no secrets are introduced
 [ ] current-vs-target status is documented honestly
 [ ] live validation is complete when the requirement depends on live behavior
+[ ] provider permission/retry/billing behavior is live-validated when correctness depends on it
 [ ] retained evidence exists
 [ ] execution ledger is updated
 [ ] current-state.yaml is updated when the handoff changed
@@ -2482,6 +3438,7 @@ Current item:
 Files changed:
 Tests run and results:
 Evidence produced:
+Provider docs/live behavior checked:
 Known failures:
 Owner action required:
 External dependency:
@@ -2504,8 +3461,10 @@ more testable
 more evidence-driven
 safer with credentials
 safer with money
-cheaper when quality is equivalent
+cheaper per verified successful task
 faster when cost/quality are equivalent
+more robust to provider changes
+less dependent on hidden SDK behavior
 easier to evolve without breaking invariants
 ```
 
@@ -2673,7 +3632,9 @@ The **current Serverless setup path** asks for:
 - a scoped Vast API key
 - the Vast Serverless template hash, which may be left blank until endpoint creation
 
-On Windows, the key is DPAPI-encrypted in `%LOCALAPPDATA%\Mentat\config\config.json`. On macOS and Linux, the local environment file is created with owner-only permissions.
+On Windows, the current key is DPAPI-encrypted in `%LOCALAPPDATA%\Mentat\config\config.json`. On macOS and Linux, the local environment file is created with owner-only permissions.
+
+The target credential architecture is stricter than the current one-key setup: Mentat should eventually create/use narrowly scoped broker credentials for discovery, lifecycle, and billing where Vast's live permission model allows that split. A bootstrap-capable owner key should not remain in everyday runtime storage.
 
 As the broker evolves, setup should move toward configuring policy and credentials while allowing the broker to create or select runtime endpoints itself rather than requiring the user to understand infrastructure details.
 
@@ -2754,7 +3715,27 @@ The acknowledgement is required because the initial profile may launch a complet
 
 Mentat's broker development path includes fake Vast and fake OpenAI-compatible services so important lifecycle and inference behavior can be exercised without renting a real GPU.
 
-The no-spend acceptance path is intentionally separate from live Vast canaries. Passing a no-spend test proves local broker behavior against the simulator; it does not prove real Vast billing or real GPU behavior.
+The no-spend acceptance path is intentionally separate from live Vast canaries. Passing a no-spend test proves local broker behavior against the simulator; it does not prove real Vast billing, permissions, retry semantics, or GPU behavior.
+
+## Vast documentation references for broker work
+
+Provider behavior should be rechecked from the current documentation index before implementation:
+
+- [Vast documentation index](https://docs.vast.ai/llms.txt)
+- [VastAI SDK client](https://docs.vast.ai/sdk/python/reference/vastai)
+- [SDK permissions](https://docs.vast.ai/sdk/python/permissions)
+- [API permissions mapping](https://docs.vast.ai/api-reference/permissions)
+- [SDK rate limits and errors](https://docs.vast.ai/sdk/python/rate-limits)
+- [create_instance](https://docs.vast.ai/sdk/python/reference/create-instance)
+- [show_instances status semantics](https://docs.vast.ai/sdk/python/reference/show-instances)
+- [show charges](https://docs.vast.ai/api-reference/billing/show-charges)
+- [search benchmarks](https://docs.vast.ai/api-reference/search/search-benchmarks)
+- [GPU metrics](https://docs.vast.ai/api-reference/machines/show-gpu-metrics)
+- [GPU trends](https://docs.vast.ai/api-reference/machines/show-gpu-trends)
+- [machine reports](https://docs.vast.ai/api-reference/machines/show-reports)
+- [notification webhooks](https://docs.vast.ai/api-reference/notifications/create-notification-webhook)
+
+These links document provider capabilities; they are not a substitute for Mentat's retained live validation evidence.
 
 ## Update Mentat
 
@@ -2850,6 +3831,8 @@ Never commit:
 
 - Vast API keys
 - endpoint credentials
+- scoped lifecycle/discovery/billing credentials
+- webhook signing secrets
 - Hugging Face tokens
 - Ollama credentials
 - `MENTAT_COMPUTE_TOKEN`
