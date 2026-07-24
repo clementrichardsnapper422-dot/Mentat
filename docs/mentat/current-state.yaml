@@ -1,5 +1,5 @@
 schema_version: 1
-last_verified_utc: 2026-07-24T08:05:00Z
+last_verified_utc: 2026-07-24T12:47:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -19,7 +19,7 @@ merged_milestones:
   - pr: 14
     title: Add AI construction contract to Mentat README
     merge_commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
-    result: construction contract, roadmap, checklist, and resume system merged
+    result: construction contract roadmap checklist and resume system merged
 
 active_engineering_pr:
   pr: 12
@@ -37,7 +37,7 @@ active_engineering_pr:
 
 active_documentation_pr:
   pr: 15
-  title: Harden Vast broker learning, security, and efficiency design
+  title: Harden Vast broker learning security and efficiency design
   branch: docs/vast-broker-learning-hardening
   state: open
   status: final_review_and_ci
@@ -52,7 +52,7 @@ active_documentation_pr:
     - work-item statuses and execution order reconciled
     - spend governor and atomic budget reservation made explicit Mentat 1.0 P0 work
     - paid execution state machine and concurrency safety made explicit Mentat 1.0 P0 work
-    - advanced provider/direct-instance and self-improvement work separated into deferred Program 7
+    - advanced provider direct-instance and self-improvement work separated into deferred Program 7
     - provider documentation assumptions remain distinct from live validation
 
 current_release_gate:
@@ -70,7 +70,7 @@ provider_design_state:
     live_validation: not_started
   rules:
     - fetch https://docs.vast.ai/llms.txt before changing Vast behavior and discover the current relevant provider pages
-    - separate provider read, spend, and billing concerns
+    - separate provider read spend and billing concerns
     - pass broker-owned credentials explicitly rather than relying on ambient SDK key discovery
     - least-privilege permissions must be live-validated
     - no hidden automatic retry for ambiguous non-idempotent paid mutations
