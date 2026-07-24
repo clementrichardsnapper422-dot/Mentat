@@ -1,16 +1,20 @@
-# Mentat 1.0 work items
+# Mentat work items
 
 GitHub Issues were disabled when this completion program began. This file is the authoritative backlog until Issues or another tracker is enabled. Keep work-item IDs stable when migrating them.
+
+This backlog contains both the **frozen Mentat 1.0 release program** and explicitly **deferred target-broker expansion**. A deferred target item does not become a Mentat 1.0 release blocker unless the owner deliberately changes frozen scope.
 
 ## Priority definitions
 
 - `P0` — release blocker or potential credential/spending/security failure.
 - `P1` — required Mentat 1.0 capability.
-- `P2` — important improvement that may follow the first stable release if explicitly accepted.
+- `P2` — important target improvement that may follow the first stable release unless explicitly promoted into scope.
 
 ## State definitions
 
-`TODO`, `ACTIVE`, `BLOCKED_OWNER`, `BLOCKED_EXTERNAL`, `REVIEW`, `DONE`, `DEFERRED`.
+`TODO`, `PARTIAL`, `ACTIVE`, `BLOCKED_OWNER`, `BLOCKED_EXTERNAL`, `REVIEW`, `DONE`, `DEFERRED`.
+
+A state may only advance when the evidence required by the exit criteria exists. Simulator evidence cannot close a live-service gate.
 
 ---
 
@@ -19,20 +23,19 @@ GitHub Issues were disabled when this completion program began. This file is the
 ### MNT-001 — Freeze Mentat 1.0 scope
 
 - Priority: P0
-- State: TODO
-- Deliverables:
-  - supported features list;
-  - explicitly deferred features list;
-  - acceptance criteria mapped to tests;
-  - product-owner approval.
-- Exit: no release-blocking feature remains ambiguous.
+- State: DONE
+- Evidence: `docs/mentat/version-1-scope.md`, `docs/mentat/production-contract.md`, README scope boundary.
+- Exit: no release-blocking feature remains ambiguous and target expansion cannot silently move the 1.0 goalposts.
 
-### MNT-002 — Maintain mission ledger
+### MNT-002 — Maintain mission ledger and resumable state
 
 - Priority: P0
 - State: ACTIVE
-- Deliverable: update `docs/mentat/execution-ledger.md` at every work boundary.
-- Exit: all work has evidence and an exact handoff point.
+- Deliverables:
+  - update `docs/mentat/execution-ledger.md` at every meaningful work boundary;
+  - update `docs/mentat/current-state.yaml` whenever the resume point changes;
+  - verify both against GitHub before coding or handoff.
+- Exit: all work has evidence, an exact handoff point, and no stale PR/commit claims.
 
 ---
 
@@ -81,25 +84,27 @@ GitHub Issues were disabled when this completion program began. This file is the
 
 ## Program 2 — Windows no-spend integration
 
-### MNT-200 — Build fake Vast control-plane service
-
-- Priority: P0
-- State: TODO
-- Exit: deterministic local service supports offer discovery, endpoint/workergroup lifecycle, ambiguous responses, timeouts, duplicates, orphans, billing fixtures, and assertions that no external network/spend occurred.
-
-### MNT-201 — Build fake OpenAI-compatible inference service
+### MNT-200 — Fake Vast control-plane service
 
 - Priority: P0
 - State: PARTIAL
-- Existing evidence: focused broker integration fixture.
-- Exit: reusable service supports streaming, tools, failures, context errors, cancellation, latency, and usage fixtures.
+- Existing evidence: reusable fake Vast HTTP control plane, offer discovery, endpoint/workergroup lifecycle, state inspection, zero-dollar billing fixtures, and cross-platform no-spend acceptance.
+- Exit: deterministic local service also covers the complete required ambiguity/timeout/duplicate/orphan/rate-limit/error-shape matrix while proving no external network or spend occurred.
+
+### MNT-201 — Fake OpenAI-compatible inference service
+
+- Priority: P0
+- State: PARTIAL
+- Existing evidence: reusable JSON, SSE, `[DONE]`, tool-call, context rejection, outage, malformed-response, and delay fixtures.
+- Exit: remaining cancellation, interruption, usage, and adversarial protocol cases required by Gate 1 are reusable and deterministic.
 
 ### MNT-202 — Full Windows no-spend acceptance harness
 
 - Priority: P0
-- State: TODO
+- State: ACTIVE
 - Dependencies: MNT-200, MNT-201.
-- Exit: installed Mentat completes setup, decision, approval, inference, tool, rating, shutdown, and recovery entirely against local fakes.
+- Active work: PR #12 `agent/desktop-no-spend-integration`.
+- Exit: installed Mentat completes setup, decision, approval, inference, tool, rating, diagnostics, shutdown, and recovery entirely against local fakes, with retained machine-readable evidence.
 
 ### MNT-203 — Clean target-PC installation
 
@@ -111,7 +116,7 @@ GitHub Issues were disabled when this completion program began. This file is the
 
 - Priority: P0
 - State: TODO
-- Exit: Gateway, tools, renderer, prompts, URLs, logs, crash output, and sandbox cannot access Vast/admin credentials.
+- Exit: Gateway, tools, renderer, prompts, URLs, logs, crash output, workspace, and sandbox cannot access Vast/admin credentials.
 
 ### MNT-205 — Real Docker tool-isolation proof
 
@@ -139,139 +144,176 @@ GitHub Issues were disabled when this completion program began. This file is the
 
 - Priority: P0
 - State: PARTIAL
-- Exit: model, candidates, hardware, live ceiling, cost range, confidence, new/reused state, fallback, approve/reject, and user override shown in `Mentat.exe`.
+- Exit: model, candidates, hardware, live ceiling, expected cost range, maximum authorized exposure, confidence, new/reused state, fallback, approve/reject, and user override shown in `Mentat.exe`.
 
-### MNT-302 — Active compute controls
+### MNT-302 — Active compute controls and emergency lockout
 
 - Priority: P0
 - State: TODO
-- Exit: endpoint status, rate, approved-until, spend estimate, last activity, cool, destroy, and emergency lockout available.
+- Exit: endpoint/resource status, rate, approval expiry, spend estimate, last activity, cool/stop/destroy where supported, and a local paid-compute kill switch are available without giving the model infrastructure authority.
 
-### MNT-303 — History, benchmarks, and costs
+### MNT-303 — History, benchmarks, costs, and prediction error
 
 - Priority: P1
 - State: TODO
-- Exit: decisions, models, task classes, estimates, actual costs, ratings, failures, and Kimi-only savings visible.
+- Exit: decisions, models, task classes, estimates, actual costs, prediction errors, ratings, failures, evidence tier, regret, and Kimi-only savings visible.
 
 ### MNT-304 — Models and routing settings
 
 - Priority: P1
 - State: TODO
-- Exit: Best/Balanced/Economy/Manual modes, budgets, exploration opt-in, model status, and disable controls.
+- Exit: Best/Balanced/Economy/Manual modes, budgets, exploration opt-in, model status, disable controls, and hard-safety boundaries clearly separated from preferences.
 
 ### MNT-305 — Diagnostics and repair
 
 - Priority: P0
 - State: TODO
-- Exit: Desktop/Gateway/Broker/Docker/Vast/sandbox/ports/logs/config checks plus safe repair actions.
+- Exit: Desktop/Gateway/Broker/Docker/Vast/sandbox/ports/logs/config/provider-state checks plus safe repair actions.
 
 ### MNT-306 — Update, rollback, repair, uninstall
 
 - Priority: P0
 - State: TODO
-- Exit: all paths tested with user-data preservation rules documented.
+- Exit: all paths tested with user-data preservation and rollback rules documented.
 
 ---
 
-## Program 4 — Broker intelligence
+## Program 4 — Broker intelligence and learning
 
 ### MNT-400 — Structured task analyzer v2
 
 - Priority: P0
 - State: TODO
-- Exit: repository, attachment, output, tool schema, verification, reversibility, blast radius, latency, quality, and budget requirements included with explainable confidence.
+- Exit: repository, attachment, output, tool schema, verification strength, reversibility, blast radius, latency, quality, and budget requirements included with explainable confidence.
 
 ### MNT-401 — Versioned model/profile registry
 
 - Priority: P0
 - State: TODO
-- Exit: exact model/version/quantization/profile status, migration, retirement, validation, and rollback supported.
+- Exit: exact model/version/revision/quantization/runtime/image/profile status, migration, retirement, validation, rollback, and evidence isolation supported.
 
 ### MNT-402 — Canonical benchmark corpus and grader
 
 - Priority: P0
 - State: TODO
-- Exit: simple, reasoning, coding, repository, tools, and high-risk suites with automatic and blind-human grading.
+- Exit: simple, reasoning, coding, repository, tools, and high-risk suites with automatic and blind-human grading; benchmark evidence remains distinguishable from real production evidence.
 
-### MNT-403 — Quality predictor with uncertainty
+### MNT-403 — Quality/success predictor with uncertainty and calibration
 
 - Priority: P0
 - State: TODO
 - Dependencies: MNT-402.
-- Exit: task-specific expected quality/success with sample count, variance, recency, version, profile, and confidence bounds.
+- Exit:
+  - task-specific expected quality and successful-completion probability;
+  - sample count, variance, recency, model/runtime version, profile, and confidence bounds;
+  - interval/probability calibration measured;
+  - drift reduces confidence or triggers revalidation instead of silently trusting stale evidence.
 
 ### MNT-404 — Total-cost and latency predictors
 
 - Priority: P0
 - State: TODO
-- Exit: setup, cold start, inference, retries, fallback, reuse, and billing increments predicted as ranges and reconciled to actuals.
+- Exit:
+  - setup, cold start, warm start, acquisition, inference, retries, failed attempts, fallback, reuse, warm idle, storage, bandwidth, and teardown modeled where applicable;
+  - estimates represented as ranges with uncertainty;
+  - actual provider charges reconciled by component when available;
+  - prediction error retained;
+  - cost per **verified successful task** reported rather than optimizing hourly GPU price alone.
 
 ### MNT-405 — Multi-objective route scorer
 
 - Priority: P0
 - State: TODO
 - Dependencies: MNT-400, MNT-403, MNT-404.
-- Exit: eligible candidates scored for quality, success, cost, speed, reuse, evidence, uncertainty, failure, and risk with deterministic guards.
+- Exit:
+  - hard capability/context/security/risk/reliability/quality/spend eligibility runs before economic scoring;
+  - conservative quality lower bounds and cost/latency/failure upper bounds can disqualify unsafe uncertain plans;
+  - eligible candidates ranked for quality, success, total cost, speed, reuse, evidence, uncertainty, failure, and user routing mode;
+  - routing modes change preferences, never hard safety.
 
 ### MNT-406 — Safe exploration
 
 - Priority: P1
 - State: TODO
-- Exit: opt-in, low-risk, verifiable, capped exploration with rollback and audit trail.
+- Exit:
+  - opt-in/capped exploration only inside the already-safe eligible set;
+  - low-risk, reversible, strongly verifiable work favored;
+  - dedicated exploration budget and audit trail;
+  - contextual-bandit-style selection may be used, but no learning algorithm can bypass hard policy.
 
-### MNT-407 — Promotion/demotion and routing regret
+### MNT-407 — Promotion/demotion, replay, and routing regret
 
 - Priority: P0
 - State: TODO
-- Exit: evidence thresholds, automatic demotion, decision replay, alternatives, regret, and Kimi-only savings tracked.
+- Exit:
+  - evidence thresholds and reversible promotion/demotion;
+  - decision/policy version retained;
+  - old decisions can be replayed from retained snapshots;
+  - alternatives, regret, Kimi-only savings, and cost-of-failure measured;
+  - regressions trigger demotion rather than being averaged away.
 
-### MNT-408 — Hardware/host intelligence
+### MNT-408 — Hardware/host/provider-market intelligence
 
 - Priority: P1
 - State: TODO
-- Exit: host/GPU/profile startup, throughput, reliability, total cost, bad-host suppression, and preferred-host scoring.
+- Exit:
+  - host/GPU/profile startup, throughput, reliability, total cost, bad-host suppression, and preferred-host scoring;
+  - provider marketplace metrics, trends, benchmark records, and machine reports retained only as timestamped external priors;
+  - Mentat's recent local evidence can outweigh generic provider priors;
+  - stale market observations cannot authorize stale-price paid acquisition.
 
-### MNT-409 — Failure taxonomy and fallback controller
+### MNT-409 — Failure taxonomy, fallback controller, and circuit breakers
 
 - Priority: P0
 - State: TODO
-- Exit: error-specific retry, offer fallback, endpoint recreation, reapproval, context recovery, verification escalation, and circuit breakers.
+- Exit:
+  - normalized failure taxonomy drives error-specific retry/replan/fallback/reapproval/reconciliation behavior;
+  - ambiguous paid mutations reconcile before retry;
+  - fallback independently re-satisfies original requirements and remaining approval scope;
+  - host/model/provider failure storms open bounded circuit breakers;
+  - recovery actions and suppression expiry are auditable.
 
 ### MNT-410 — Full decision explainability
 
 - Priority: P1
 - State: TODO
-- Exit: candidates, rejection reasons, estimates, confidence, policy, fallback, exploration, and override audit visible and exportable.
+- Exit: candidates, hard rejection reasons, estimates, uncertainty, evidence age/tier, policy version, fallback, exploration, provider-market freshness, and override audit visible/exportable.
 
 ---
 
 ## Program 5 — Live Vast validation
 
-### MNT-500 — Validate live API payloads and lifecycle
+### MNT-500 — Validate current Vast API/SDK assumptions and permission matrix
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Exit: current live API behavior verified with redacted evidence and no undocumented assumptions.
+- Exit:
+  - begin from the current official documentation index at `https://docs.vast.ai/llms.txt`;
+  - exact endpoints/SDK calls used by Mentat validated against live Vast with redacted evidence;
+  - minimum permissions for search, Serverless lifecycle, instance lifecycle, and charge reconciliation measured rather than guessed;
+  - documented SDK retry behavior proven not to weaken Mentat's ambiguous-mutation rules;
+  - provider error/status shapes normalized and tested;
+  - no undocumented behavior is represented as production fact.
 
 ### MNT-501 — Low-cost canary
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Dependencies: Windows no-spend gate complete.
-- Exit: reject/no-spend, one create, inference, tool loop, reuse, idle/manual cooling, crash recovery, and actual bill reconciliation.
+- Dependencies: Windows no-spend gate complete, repository/credential gate safe, MNT-500 applicable assumptions validated.
+- Exit: reject/no-spend, one intended create, inference, tool loop, reuse, idle/manual cooling, rate-limit/error handling, crash recovery, and actual bill reconciliation.
 
 ### MNT-502 — Billing import and reconciliation
 
 - Priority: P0
 - State: BLOCKED_EXTERNAL
-- Exit: actual Vast charges imported and allocated; estimate error and cost per successful task reported.
+- Exit: actual Vast charges imported and allocated by available components; estimate error and cost per verified successful task reported; permission requirements recorded from live validation.
 
 ### MNT-503 — Kimi production canary
 
 - Priority: P0
 - State: BLOCKED_OWNER
 - Dependencies: MNT-501.
-- Exit: exact Kimi profile, tools, reasoning, long context, streaming, cancellation, repository task, caps, recovery, and zero-floor proven.
+- Exit: exact Kimi profile, tools, reasoning, long context, streaming, cancellation, repository task, caps, recovery, billing, and zero-floor proven.
 
 ---
 
@@ -281,25 +323,25 @@ GitHub Issues were disabled when this completion program began. This file is the
 
 - Priority: P0
 - State: TODO
-- Exit: assets, trust boundaries, threats, mitigations, residual risks, and action levels documented and tested.
+- Exit: assets, trust boundaries, provider credentials, spend authority, threats, mitigations, residual risks, kill switch, and action levels documented and tested.
 
 ### MNT-601 — Adversarial sandbox and prompt-injection campaign
 
 - Priority: P0
 - State: TODO
-- Exit: malicious prompts/workspaces cannot escape, obtain credentials, or perform unapproved consequential actions.
+- Exit: malicious prompts/workspaces cannot escape, obtain credentials, influence infrastructure authorization, or perform unapproved consequential actions.
 
-### MNT-602 — Failure-injection suite
+### MNT-602 — Failure-injection, race, and property-test suite
 
 - Priority: P0
 - State: TODO
-- Exit: network loss, ambiguous create, disk full, SQLite corruption, context overflow, cancellation, budget exhaustion, and partial streams fail safely.
+- Exit: network loss, ambiguous create, provider 429/error variants, automatic-retry hazards, disk full, SQLite corruption, context overflow, cancellation, budget exhaustion, partial streams, concurrent approvals, duplicate requests, and lifecycle races fail safely.
 
 ### MNT-603 — Soak and concurrency validation
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Exit: 100 sessions, 24-hour run, multi-day normal use, concurrent chats, no leaks, no stale paid workers.
+- Exit: 100 sessions, 24-hour run, multi-day normal use, concurrent chats, no credential leaks, no budget overcommit, no stale paid workers, and recovery evidence retained.
 
 ### MNT-604 — Independent security review
 
@@ -311,25 +353,100 @@ GitHub Issues were disabled when this completion program began. This file is the
 
 - Priority: P1
 - State: TODO
-- Exit: setup, user, troubleshooting, spending, emergency stop, credential rotation, backup/restore, cleanup, incident, model registration, and release guides.
+- Exit: setup, user, troubleshooting, spending, emergency stop, credential rotation, backup/restore, cleanup, incident, model registration, provider outage, and release guides.
 
 ### MNT-606 — Signed Mentat 1.0 release candidate
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Dependencies: all P0 items.
+- Dependencies: all in-scope P0 items.
 - Exit: signed artifact installed from release channel and passes final acceptance on clean Windows.
+
+---
+
+## Program 7 — Deferred target broker hardening and direct-compute expansion
+
+These are part of the documented long-term Mentat architecture. They are **DEFERRED from the frozen Mentat 1.0 scope** unless the owner explicitly promotes a specific item. Normal execution begins after MNT-606.
+
+### MNT-700 — Provider adapter, request governor, and least-privilege credentials
+
+- Priority: P2
+- State: DEFERRED
+- Dependencies: MNT-500, MNT-606 unless scope is explicitly changed.
+- Exit: pinned provider adapter; separate read/spend/billing concerns; explicit protected credentials; endpoint-level least privilege where supported; typed provider errors/state/market snapshots; caching/coalescing/adaptive polling; no hidden non-idempotent mutation retries.
+
+### MNT-701 — Vast direct-instance backend lifecycle
+
+- Priority: P2
+- State: DEFERRED
+- Exit: normalized offer discovery, price freshness recheck, approved create, immediate resource-ID persistence, bounded provider polling, reconciliation, stop/destroy semantics, and no-spend simulator coverage.
+
+### MNT-702 — Pinned Mentat Worker supply chain and readiness attestation
+
+- Priority: P2
+- State: DEFERRED
+- Exit: pinned image/bootstrap/runtime/model revision, integrity evidence, health + identity checks, controlled inference probe, bounded worker lease/watchdog, and no infrastructure credential in the model process.
+
+### MNT-703 — Direct-host and marketplace intelligence
+
+- Priority: P2
+- State: DEFERRED
+- Exit: local host reputation, provider priors, freshness/decay, bad-host suppression, provider-market condition features, and evidence-source separation.
+
+### MNT-704 — Keep/freeze/stop/destroy economics
+
+- Priority: P2
+- State: DEFERRED
+- Exit: lifecycle choices use measured GPU/storage/bandwidth/restart/reprovisioning economics and predicted next-request timing; `frozen` is never treated as compute-free.
+
+### MNT-705 — Broker policy versioning, champion/challenger shadowing, and offline replay
+
+- Priority: P2
+- State: DEFERRED
+- Exit: immutable policy versions; current known-good champion; challenger evaluates without spending authority; historical replay; evidence-based promotion; automatic/manual rollback path.
+
+### MNT-706 — Spend Governor, atomic budget reservation, and layered limits
+
+- Priority: P2
+- State: DEFERRED
+- Exit: one narrow internal authority for spend-increasing actions; atomic reservations prevent concurrent budget overcommit; per-job/session/hour/day/month and retry/exploration limits; local global paid-compute kill switch.
+
+### MNT-707 — Append-only broker event ledger and deterministic decision replay
+
+- Priority: P2
+- State: DEFERRED
+- Exit: critical lifecycle/decision events are append-only or equivalently auditable; state can be reconstructed; decision replay captures policy/model/provider snapshots without storing secrets unnecessarily.
+
+### MNT-708 — Calibration, drift, and evidence-decay engine
+
+- Priority: P2
+- State: DEFERRED
+- Exit: quality/success/cost/latency interval calibration measured; evidence decays/version-invalidates appropriately; drift lowers trust, triggers rebenchmarking, or demotes affected routes.
+
+### MNT-709 — Serverless-versus-direct evidence campaign
+
+- Priority: P2
+- State: DEFERRED
+- Exit: equivalent workloads compared on verified quality, success, cold/warm latency, throughput, reliability, full provider charges, retry/failure cost, and cost per verified successful task.
+
+### MNT-710 — Safe software self-improvement proposals
+
+- Priority: P2
+- State: DEFERRED
+- Exit: Mentat may detect systematic broker error and prepare a branch/PR with tests, replay, and shadow evidence, but may not self-merge, weaken hard safety rules, or grant itself new spending authority.
 
 ---
 
 ## Current execution order
 
-1. MNT-001 and MNT-100.
-2. MNT-200 through MNT-206.
-3. MNT-300 through MNT-306.
-4. MNT-400 through MNT-410 in evidence-dependent order.
-5. MNT-501 then MNT-503.
-6. MNT-600 through MNT-605.
-7. MNT-606.
+1. Keep MNT-002 active continuously; GitHub and handoff documents must agree.
+2. Finish the existing PR #12 work package advancing MNT-201/MNT-202; diagnose Broker/Runtime CI without weakening invariants.
+3. Close the remaining no-spend Gate 1 work in MNT-202 through MNT-206 as dependencies/owner actions permit.
+4. Complete MNT-100 through MNT-104 before real credentials, paid canaries, or release operations that depend on the private supply-chain boundary.
+5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-410 in dependency/evidence order; parallelize only when it cannot skip a safety gate.
+6. Validate live Vast assumptions with MNT-500, then MNT-501/MNT-502, then MNT-503.
+7. Complete MNT-600 through MNT-605 and close all in-scope P0 gates.
+8. Complete MNT-606.
+9. Begin MNT-700 through MNT-710 only after Mentat 1.0 or an explicit owner-approved scope change.
 
-Do not begin an expensive Kimi canary before the no-spend Windows gate and low-cost canary are complete.
+Do not begin an expensive Kimi canary before the no-spend Windows gate and low-cost canary are complete. Do not start deferred target work merely because it is more interesting than the current blocker.
