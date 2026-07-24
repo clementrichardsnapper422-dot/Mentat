@@ -138,7 +138,7 @@ A state may only advance when the evidence required by the exit criteria exists.
 
 - Priority: P1
 - State: TODO
-- Exit: requirements, Docker, Vast connection, budgets, workspace, privacy, no-spend test, and ready state handled in the app.
+- Exit: requirements, Docker, Vast connection, hourly/per-session/daily/monthly budgets, workspace, privacy, no-spend test, and ready state handled in the app.
 
 ### MNT-301 — Integrated compute-decision experience
 
@@ -150,7 +150,7 @@ A state may only advance when the evidence required by the exit criteria exists.
 
 - Priority: P0
 - State: TODO
-- Exit: endpoint/resource status, rate, approval expiry, spend estimate, last activity, cool/stop/destroy where supported, and a local paid-compute kill switch are available without giving the model infrastructure authority.
+- Exit: endpoint/resource status, rate, approval expiry, spend estimate, last activity, cool/stop/destroy where supported, and a local global paid-compute kill switch are available without giving the model infrastructure authority.
 
 ### MNT-303 — History, benchmarks, costs, and prediction error
 
@@ -178,7 +178,7 @@ A state may only advance when the evidence required by the exit criteria exists.
 
 ---
 
-## Program 4 — Broker intelligence and learning
+## Program 4 — Broker intelligence, spending safety, and learning
 
 ### MNT-400 — Structured task analyzer v2
 
@@ -279,6 +279,32 @@ A state may only advance when the evidence required by the exit criteria exists.
 - State: TODO
 - Exit: candidates, hard rejection reasons, estimates, uncertainty, evidence age/tier, policy version, fallback, exploration, provider-market freshness, and override audit visible/exportable.
 
+### MNT-411 — Spend Governor and atomic budget ledger
+
+- Priority: P0
+- State: TODO
+- Exit:
+  - exactly one narrow internal authority controls actions that can increase paid exposure;
+  - a valid authenticated `ApprovalLease` is revalidated immediately before spend;
+  - worst-case authorized exposure is reserved atomically before acquisition/warm/extension so concurrent jobs cannot overcommit the same budget;
+  - committed, reserved, released, reconciled, and remaining budget are distinguishable;
+  - per-job, per-session, hourly-price, daily, monthly, retry/fallback, and exploration limits are enforced where configured;
+  - rejection, expiry, cancellation, database failure, and race conditions cannot silently increase authority;
+  - the local global paid-compute kill switch prevents new spend-increasing actions without requiring the model.
+
+### MNT-412 — Paid execution state machine and concurrency safety
+
+- Priority: P0
+- State: TODO
+- Dependencies: MNT-411 for spend-bearing transitions.
+- Exit:
+  - paid execution uses one explicit state machine rather than incompatible loose booleans;
+  - legal transitions are enumerated and enforced atomically/with compare-and-swap semantics where concurrent actors can race;
+  - acquisition versus cancellation, approval expiry versus warm/create, fallback versus original execution, shutdown versus active work, and duplicate-request races have adversarial tests;
+  - provider state remains separate from Mentat execution state;
+  - invalid transitions fail closed and ambiguous remote state enters reconciliation rather than another paid mutation;
+  - restart can reconstruct/reconcile enough durable state to prevent duplicate or orphaned paid resources.
+
 ---
 
 ## Program 5 — Live Vast validation
@@ -335,7 +361,8 @@ A state may only advance when the evidence required by the exit criteria exists.
 
 - Priority: P0
 - State: TODO
-- Exit: network loss, ambiguous create, provider 429/error variants, automatic-retry hazards, disk full, SQLite corruption, context overflow, cancellation, budget exhaustion, partial streams, concurrent approvals, duplicate requests, and lifecycle races fail safely.
+- Dependencies: include MNT-411/MNT-412 behavior before release.
+- Exit: network loss, ambiguous create, provider 429/error variants, automatic-retry hazards, disk full, SQLite corruption, context overflow, cancellation, budget exhaustion, partial streams, concurrent approvals, duplicate requests, budget reservation races, invalid state transitions, and lifecycle races fail safely.
 
 ### MNT-603 — Soak and concurrency validation
 
@@ -359,7 +386,7 @@ A state may only advance when the evidence required by the exit criteria exists.
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Dependencies: all in-scope P0 items.
+- Dependencies: all in-scope P0 items, including MNT-411 and MNT-412.
 - Exit: signed artifact installed from release channel and passes final acceptance on clean Windows.
 
 ---
@@ -399,17 +426,18 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 - State: DEFERRED
 - Exit: lifecycle choices use measured GPU/storage/bandwidth/restart/reprovisioning economics and predicted next-request timing; `frozen` is never treated as compute-free.
 
-### MNT-705 — Broker policy versioning, champion/challenger shadowing, and offline replay
+### MNT-705 — Advanced broker policy shadowing and offline comparison
 
 - Priority: P2
 - State: DEFERRED
-- Exit: immutable policy versions; current known-good champion; challenger evaluates without spending authority; historical replay; evidence-based promotion; automatic/manual rollback path.
+- Exit: immutable policy versions; current known-good champion; challenger evaluates without spending authority; large-scale historical replay; evidence-based promotion; automatic/manual rollback path. This extends the basic versioning/replay required by MNT-407 rather than replacing it.
 
-### MNT-706 — Spend Governor, atomic budget reservation, and layered limits
+### MNT-706 — Adaptive spend forecasting and session economics
 
 - Priority: P2
 - State: DEFERRED
-- Exit: one narrow internal authority for spend-increasing actions; atomic reservations prevent concurrent budget overcommit; per-job/session/hour/day/month and retry/exploration limits; local global paid-compute kill switch.
+- Dependencies: MNT-411.
+- Exit: forecast request-arrival/reuse and remaining-budget economics to optimize warm/reuse choices while never weakening the hard atomic reservations, approval scope, configured spending caps, or kill switch required by Mentat 1.0.
 
 ### MNT-707 — Append-only broker event ledger and deterministic decision replay
 
@@ -417,11 +445,11 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 - State: DEFERRED
 - Exit: critical lifecycle/decision events are append-only or equivalently auditable; state can be reconstructed; decision replay captures policy/model/provider snapshots without storing secrets unnecessarily.
 
-### MNT-708 — Calibration, drift, and evidence-decay engine
+### MNT-708 — Advanced calibration, drift, and evidence-decay engine
 
 - Priority: P2
 - State: DEFERRED
-- Exit: quality/success/cost/latency interval calibration measured; evidence decays/version-invalidates appropriately; drift lowers trust, triggers rebenchmarking, or demotes affected routes.
+- Exit: extend the basic calibration/drift behavior required by MNT-403 across model/runtime/provider-policy changes with richer decay/rebenchmarking automation and rollback signals.
 
 ### MNT-709 — Serverless-versus-direct evidence campaign
 
@@ -443,7 +471,7 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 2. Finish the existing PR #12 work package advancing MNT-201/MNT-202; diagnose Broker/Runtime CI without weakening invariants.
 3. Close the remaining no-spend Gate 1 work in MNT-202 through MNT-206 as dependencies/owner actions permit.
 4. Complete MNT-100 through MNT-104 before real credentials, paid canaries, or release operations that depend on the private supply-chain boundary.
-5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-410 in dependency/evidence order; parallelize only when it cannot skip a safety gate.
+5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-412 in dependency/evidence order; MNT-411/MNT-412 are spending/concurrency safety work, not optional optimization.
 6. Validate live Vast assumptions with MNT-500, then MNT-501/MNT-502, then MNT-503.
 7. Complete MNT-600 through MNT-605 and close all in-scope P0 gates.
 8. Complete MNT-606.
