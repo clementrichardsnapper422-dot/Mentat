@@ -12,26 +12,27 @@ The economic objective is not cheapest GPU-hour. It is the **best verified resul
 
 Mentat 1.0 is complete only when every in-scope release gate in `docs/mentat/production-contract.md` passes and the release candidate is installed from a signed artifact on a clean Windows machine.
 
-Target direct-instance and advanced broker-hardening work documented in Program 7 of `docs/mentat/work-items.md` is deferred from the frozen Mentat 1.0 release scope unless the owner explicitly changes scope.
+Target direct-instance and advanced broker-hardening work documented in Program 7 of `docs/mentat/work-items.md` remains deferred from the frozen Mentat 1.0 release scope unless the owner explicitly changes scope.
 
 ## Current repository state
 
-Last reconciled for PR #15 review: **2026-07-24**.
+Last reconciled: **2026-07-24 after PR #15 merge**.
 
 - Repository: `clementrichardsnapper422-dot/Mentat`
 - Default branch: `main`
-- Current `main` baseline: `ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa`
+- Current `main` commit: `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`
 - Current visibility: **public**
-- Current repository type: public fork larger than 1 GB
+- Repository type: public fork larger than 1 GB
 - GitHub Issues: disabled; `docs/mentat/work-items.md` is the authoritative backlog until a replacement tracker is enabled
 - Production contract: present and canonical
 - Mentat 1.0 scope: frozen
 - Machine-readable handoff: `docs/mentat/current-state.yaml`
 - PR #11: merged; no-spend Broker milestone established
 - PR #13: merged; complete target broker architecture documented
-- PR #14: merged as `ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa`; construction contract, roadmap, checklist, and resume system established
-- PR #15: open documentation hardening package on `docs/vast-broker-learning-hardening`
-- PR #12: open draft engineering work package on `agent/desktop-no-spend-integration`; latest verified engineering head remains `655634d1a4dacb8a4c077a0970e16571f6c8cb48`
+- PR #14: merged; construction contract, roadmap, checklist, and resume system established
+- PR #15: merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`; provider/learning/spending design hardening complete
+- PR #12: **open draft and exact active engineering work package** on `agent/desktop-no-spend-integration`, head `655634d1a4dacb8a4c077a0970e16571f6c8cb48`
+- Last verified PR #12 engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL
 - Live Vast canary: not completed
 - Signed installer: not completed
 
@@ -53,13 +54,11 @@ Last reconciled for PR #15 review: **2026-07-24**.
 | 1. No-spend Windows integration | IN PROGRESS | PR #12 repaired/accepted, clean target-PC install, Docker tool isolation, credential-boundary proof, restart/shutdown behavior |
 | 2. Low-cost Vast canary | NOT STARTED | current API/permission assumptions validated, reject/no-spend, one intended create, real inference, reuse/cooling, recovery, actual billing reconciliation |
 | 3. Kimi canary | NOT STARTED | exact Kimi profile, tools, long context, stream/cancellation, caps, recovery, actual latency/throughput/billing |
-| 4. Broker intelligence/learning | IN PROGRESS BY DESIGN | benchmark corpus, calibrated quality/success/cost/latency predictions, safe exploration, promotion/demotion, regret/savings, explainability |
+| 4. Broker intelligence/learning | IN PROGRESS BY DESIGN | benchmark corpus, calibrated quality/success/cost/latency predictions, safe exploration, promotion/demotion, regret/savings, explainability, spending/concurrency safeguards |
 | 5. Soak/adversarial validation | NOT STARTED | race/failure injection, security attacks, 100-session/24-hour/multi-day campaign, no leaks or stale paid resources |
 | 6. Signed Mentat 1.0 release | NOT STARTED | all in-scope P0 gates closed, signed/checksummed/provenanced artifact installed on clean Windows |
 
 ## Owner-only gates
-
-These actions cannot be honestly completed by repository automation alone:
 
 1. Approve/create the standalone private repository migration.
 2. Rotate and enter real Vast credentials locally without sharing them in chat, Git, prompts, logs, CI, or workspaces.
@@ -90,7 +89,7 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [x] Stable MNT backlog exists.
 - [x] Persistent execution ledger exists.
 - [x] Machine-readable current-state file exists.
-- [x] README contains target architecture, roadmap, construction invariants, and resume protocol.
+- [x] README contains target architecture, roadmap, construction invariants, provider contract, and resume protocol.
 - [ ] Keep GitHub, README orientation state, work items, ledger, and `current-state.yaml` synchronized at meaningful handoffs.
 
 ### B. Repository and supply chain
@@ -118,7 +117,7 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [ ] Clean target-PC Windows installation.
 - [ ] Restart/logoff/shutdown recovery proof.
 
-### D. Broker intelligence and learning
+### D. In-scope Mentat 1.0 broker intelligence, safety, and learning
 
 - [x] Deterministic task-classification foundation.
 - [x] Model registry/strict validation foundation.
@@ -131,12 +130,14 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [ ] Stable provider/backend contracts instead of raw provider structures.
 - [ ] Confidence-aware quality/success prediction.
 - [ ] Component-level total-cost/latency prediction and actual reconciliation.
-- [ ] Calibration, recency, drift, and evidence-age handling.
+- [ ] Calibration, recency, drift, and evidence-age handling required by the 1.0 predictors.
 - [ ] Hard eligibility before multi-objective economic scoring.
 - [ ] Safe exploration only inside the eligible low-risk/verifiable set.
-- [ ] Promotion/demotion, decision replay, routing regret, and Kimi-only baseline.
+- [ ] Promotion/demotion, basic decision replay, routing regret, and Kimi-only baseline.
 - [ ] Host/GPU/provider-market priors kept separate from Mentat local measured evidence.
 - [ ] Full candidate/rejection/policy explanation.
+- [ ] **MNT-411 Spend Governor and atomic budget ledger**: one narrow spend authority, atomic worst-case budget reservation, layered configured limits, and global paid-compute kill switch.
+- [ ] **MNT-412 paid execution state machine and concurrency safety**: legal atomic transitions, race handling, durable reconciliation, and prevention of duplicate/orphaned paid resources.
 
 ### E. Vast live validation
 
@@ -154,7 +155,7 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [ ] Threat model and action-risk policy.
 - [ ] Prompt-injection/workspace/sandbox adversarial campaign.
 - [ ] Failure taxonomy and circuit breakers.
-- [ ] Race/concurrency/property tests for approvals, budget, lifecycle, fallback, and provider ambiguity.
+- [ ] Race/concurrency/property tests for approvals, atomic budget reservation, state transitions, lifecycle, fallback, and provider ambiguity.
 - [ ] 100-session, 24-hour, and multi-day soak.
 - [ ] Independent security review or explicit accepted-risk record.
 - [ ] Operator/emergency/credential-rotation/backup/recovery/provider-outage runbooks.
@@ -164,39 +165,29 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 
 These do not become Mentat 1.0 blockers without explicit scope change.
 
-- [ ] Provider adapter with read/spend/billing separation and request governor.
-- [ ] Least-privilege broker credentials where live permissions permit it.
+- [ ] Full provider adapter with read/spend/billing separation, request governor, and validated least-privilege role split.
 - [ ] Vast direct-instance lifecycle backend.
 - [ ] Pinned Mentat Worker provisioning/readiness attestation and watchdog.
 - [ ] Direct-host/market intelligence and bad-host suppression.
-- [ ] Keep/freeze/stop/destroy economics.
-- [ ] Spend Governor with atomic budget reservation, layered limits, and kill switch.
-- [ ] Broker policy versioning, champion/challenger shadowing, and offline replay.
-- [ ] Append-only/equivalently auditable broker event history and deterministic replay.
-- [ ] Calibration/drift/evidence-decay engine.
+- [ ] Keep/freeze/stop/destroy economics for direct workers.
+- [ ] Advanced broker policy champion/challenger shadowing and large-scale offline comparison.
+- [ ] Adaptive spend forecasting/session economics that extends—but never weakens—the MNT-411 hard budget ledger.
+- [ ] Append-only/equivalently auditable broker event history and richer deterministic replay.
+- [ ] Advanced calibration/drift/evidence-decay automation.
 - [ ] Serverless-versus-direct evidence campaign.
-- [ ] Safe software self-improvement proposals may open tested PRs but may never self-merge or grant themselves spending authority.
+- [ ] Safe software self-improvement proposals may open tested PRs but may never self-merge, weaken hard policy, or grant themselves spending authority.
 
 ## Evidence rules
 
-A checkbox or gate is complete only when the required evidence is linked or described. Acceptable evidence includes:
+A checkbox or gate is complete only when the required evidence is linked or described. Acceptable evidence includes merged pull requests/commits, green focused CI, retained machine-readable test artifacts, clean-Windows proof, redacted live Vast resource/billing evidence, signed artifact provenance, or written accepted-risk records.
 
-- merged pull request and commit;
-- green CI run covering the behavior;
-- retained machine-readable test artifact/log;
-- clean-Windows screenshot/video when UI/installation behavior matters;
-- live Vast resource/billing record with secrets redacted;
-- signed installer checksum/provenance;
-- written owner acceptance of residual risk.
-
-Code existing is not enough for a live-system claim. Provider documentation is not live validation. A simulator can close simulator gates, not real billing/hardware gates.
+Code existing is not enough for a live-system claim. Provider documentation is not live validation. Simulator evidence can close simulator gates, not real billing/hardware gates.
 
 ## Execution log
 
 ### 2026-07-22 — completion program started
 
 - Created the persistent execution ledger, work-item backlog, and frozen scope document.
-- Confirmed repository was public and GitHub Issues unavailable for tracking.
 - Added test seams for a fake Vast control plane without changing production Vast defaults.
 - No paid compute used.
 
@@ -204,76 +195,48 @@ Code existing is not enough for a live-system claim. Provider documentation is n
 
 - Added reusable fake Vast and fake OpenAI-compatible services.
 - Added JSON/SSE/tool/context/outage fixtures and production Broker acceptance orchestration.
-- CI evidence retained for commit `e9c9397cd7f19fd7391ed1a3d95c13d68f5dc446`:
-  - Windows Broker: success;
-  - Ubuntu Broker: success;
-  - lint/compile/config validation: success;
-  - 38 tests: success;
-  - standalone no-spend acceptance: success on Windows and Ubuntu.
+- Prior retained evidence for commit `e9c9397cd7f19fd7391ed1a3d95c13d68f5dc446`: Windows Broker success, Ubuntu Broker success, lint/compile/config validation success, 38 tests success, standalone no-spend acceptance success on Windows and Ubuntu.
 - PR #11 later merged as `7bb276cf593e09c45e69c41e594b58a1b71f7332`.
 - Paid compute used: **none**.
 
-### 2026-07-24 — broker architecture documentation
+### 2026-07-24 — architecture and construction contracts
 
-- PR #13 merged as `de0dabb521906952f52530ef143dbdd165c8da0d`.
-- README gained the complete target broker architecture while distinguishing implemented/live-validated behavior from target design.
+- PR #13 merged as `de0dabb521906952f52530ef143dbdd165c8da0d` with the complete target broker architecture.
+- PR #14 merged as `ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa` with the master roadmap/checklist, AI construction contract, resume discipline, and machine-readable state.
+- Guarded Vast Serverless remains the frozen Mentat 1.0 path; direct Vast instances remain target expansion unless scope changes.
 
-### 2026-07-24 — construction/resume contract
+### 2026-07-24 — PR #15 hard broker-design review and merge
 
-- PR #14 merged as `ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa`.
-- Added the master roadmap/checklist, AI construction contract, resume discipline, and `docs/mentat/current-state.yaml`.
-- Reaffirmed guarded Vast Serverless as the frozen Mentat 1.0 path; direct Vast instances remain target expansion unless scope changes.
-
-### 2026-07-24 — PR #15 hard broker-design review
-
-- Branch: `docs/vast-broker-learning-hardening`.
-- Reviewed new Vast SDK/API information against the architecture rather than copying provider convenience behavior into policy.
-- README changes include:
-  - external-provider documentation protocol;
-  - read/spend/billing provider separation;
-  - least-privilege credential target and unrestricted-`misc` warning;
-  - explicit retry/reconciliation ownership;
-  - provider state/error/market normalization;
-  - stronger readiness identity/health rules;
-  - rate-limit/request-governor/adaptive-polling design;
-  - component cost reconciliation;
-  - market/benchmark/report signals treated as priors;
-  - calibration, drift, safe exploration, shadow routing, replay, regret, and cost-per-verified-successful-task objective;
-  - Spend Governor/atomic reservation/kill-switch target;
-  - expanded failure/circuit-breaker requirements.
-- `docs/mentat/work-items.md` was hard-reviewed and reconciled:
-  - stale MNT status/order corrected;
-  - PR #12 restored as the exact active engineering work package;
-  - advanced direct/provider hardening moved into explicit deferred Program 7 so it cannot silently expand Mentat 1.0.
-- `docs/mentat/current-state.yaml` refreshed for PR #14 merged / PR #15 active / PR #12 engineering blocker.
-- This ledger refreshed so it no longer instructs a future agent to finish already-merged PR #14.
-- Runtime code changed: **none**.
-- Real credentials used: **none**.
-- Paid compute used: **none**.
+- PR #15 merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`.
+- Re-reviewed current official Vast documentation beginning from `https://docs.vast.ai/llms.txt` before locking provider assumptions into the design.
+- Added/readied the provider adapter contract, explicit retry ownership, least-privilege target, provider state/error/market normalization, readiness rules, rate-limit discipline, cost-component reconciliation, self-learning/calibration/drift/exploration/regret design, and circuit breakers.
+- Hard review found stale handoff/backlog state and corrected it.
+- `MNT-411` Spend Governor + atomic budget ledger and `MNT-412` paid execution state machine/concurrency safety were made explicit **P0 Mentat 1.0 requirements** rather than left as optional optimization.
+- Advanced provider/direct-instance/self-improvement work was separated into deferred Program 7 so it cannot silently expand the frozen release scope.
+- PR #15 changed documentation/state only: no runtime code, real credentials, or paid compute.
+- Focused PR #15 results: Mentat Runtime PASS, Mentat Desktop PASS, Workflow Sanity PASS, Shared OpenClawKit Periphery PASS, iOS Periphery PASS, macOS Periphery PASS.
+- General repository CI remained red because `security-fast` failed the production dependency audit and `check-docs` failed formatting; the same two failure categories were already present on the merged PR #14 baseline, so they were not evidence of a PR #15 runtime regression. They remain repository CI debt and are not being called green.
 
 ## Current handoff
 
 ```text
 Date/time: 2026-07-24
-Main baseline before PR #15: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
-Documentation branch/PR: docs/vast-broker-learning-hardening / PR #15
+Main commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+Documentation work: PR #15 merged; no active documentation PR after state sync
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
-Active documentation item: final review/CI and merge of PR #15
-Active engineering item: PR #12 desktop/no-spend integration blocked by focused Broker/Runtime CI failures
+Current engineering item: PR #12 desktop/no-spend integration blocked by focused Broker/Runtime CI failures
 Last verified PR #12 engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL on head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
 Owner action required: private-repository migration remains required before real credentials or paid tests
-Exact next task after PR #15 is complete:
-1. Reconcile current-state/ledger against the actual PR #15 merge commit.
-2. Resume PR #12.
-3. Diagnose Broker and Runtime failures without weakening tests/invariants.
+Exact next task:
+1. Resume PR #12.
+2. Diagnose the Broker and Runtime failures.
+3. Fix them without weakening tests, spending/security invariants, or the construction contract.
 4. Rerun focused Broker, Runtime, Desktop, and no-spend acceptance CI.
-5. Merge or deliberately supersede PR #12 only when evidence is green and handoff files are updated.
-Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, new broker implementation features, or deferred Program-7 work while PR #12 remains unresolved.
+5. Merge or deliberately supersede PR #12 only when its required evidence is green and the handoff is updated.
+Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 
 ## Handoff template
-
-Copy this block whenever stopping work:
 
 ```text
 Date/time:
