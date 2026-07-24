@@ -14,15 +14,21 @@ Mentat 1.0 is complete only when all release gates in `docs/mentat/production-co
 
 - Repository: `clementrichardsnapper422-dot/Mentat`
 - Default branch: `main`
-- Current visibility at the start of this execution program: **public**
+- Current `main` commit at the 2026-07-24 documentation reconciliation: `de0dabb521906952f52530ef143dbdd165c8da0d`
+- Current visibility: **public**
 - Current repository type: public fork larger than 1 GB
 - GitHub Issues: disabled; `docs/mentat/work-items.md` is the temporary authoritative backlog
 - Production contract: present
-- Mentat 1.0 scope: frozen on completion-program branch
+- Mentat 1.0 scope: frozen
 - Focused Windows and broker CI: present
-- Cross-platform no-spend Broker acceptance harness: present and green in CI
+- Cross-platform no-spend Broker acceptance harness: present and previously green in CI
+- PR #11: merged; no-spend Broker milestone established
+- PR #13: merged; complete broker architecture added to README
+- PR #12: open draft; desktop/no-spend integration work exists, but latest verified head has Broker and Runtime CI failures that must be repaired before merge
+- PR #14: open; AI construction contract, roadmap/handoff improvements, and documentation reconciliation in progress
 - Live Vast canary: not completed
 - Signed installer: not completed
+- Machine-readable handoff: `docs/mentat/current-state.yaml`
 
 ## Status vocabulary
 
@@ -65,6 +71,7 @@ These actions cannot be honestly completed by repository automation alone:
 - [x] Record explicitly deferred features.
 - [x] Convert the Broker no-spend definition of done into executable cross-platform acceptance tests.
 - [ ] Convert remaining desktop, sandbox, release, and live-compute gates into executable acceptance tests where possible.
+- [x] Clarify that direct Vast instances are a target backend, not silently part of the frozen Mentat 1.0 release scope.
 
 ### B. Repository and supply chain
 
@@ -114,6 +121,7 @@ These actions cannot be honestly completed by repository automation alone:
 - [ ] Candidate scoring with uncertainty, reuse, cold-start, and failure penalties.
 - [ ] User routing modes: Best, Balanced, Economy, Manual.
 - [ ] Explain full candidate comparison and rejection reasons.
+- [ ] Stable compute-backend abstraction that preserves the current Serverless path and can later host direct instances without bypassing policy.
 
 ### F. Broker learning system
 
@@ -148,6 +156,19 @@ These actions cannot be honestly completed by repository automation alone:
 - [ ] Disk-full, SQLite corruption, network loss, context overflow, and runaway tool-loop tests completed.
 - [ ] Third-party security review completed or findings explicitly accepted.
 - [ ] Signed installer, checksums, provenance, SBOM, and release documentation completed.
+
+### I. Target broker expansion after the frozen 1.0 scope
+
+These items are part of the documented target architecture, but they must not silently move the Mentat 1.0 release goalposts. Promoting them into 1.0 requires an explicit owner-approved scope change.
+
+- [ ] Vast direct-instance backend behind the common compute-backend interface.
+- [ ] Broker-only pinned Vast Python SDK integration with scoped credential handling.
+- [ ] Direct-instance offer normalization, create/reconcile state machine, bounded readiness polling, and stop/destroy lifecycle.
+- [ ] Automated Mentat worker provisioning and health validation.
+- [ ] Direct-instance worker lease/watchdog.
+- [ ] Direct-instance host reputation and bad-host suppression.
+- [ ] Direct-instance storage/bandwidth/GPU billing reconciliation.
+- [ ] Serverless-versus-direct backend comparison using real quality, latency, reliability, and total-cost evidence.
 
 ## Evidence rules
 
@@ -205,33 +226,43 @@ Code existing without an executed integration test is not sufficient evidence fo
   - retained acceptance artifacts: `mentat-no-spend-windows-latest` and `mentat-no-spend-ubuntu-latest`.
 - Paid compute used by this milestone: **none**.
 
+### 2026-07-24 — Architecture and handoff reconciliation
+
+- PR #11 is merged as `7bb276cf593e09c45e69c41e594b58a1b71f7332`.
+- PR #13 is merged as `de0dabb521906952f52530ef143dbdd165c8da0d`; the README now contains the full target Mentat broker architecture.
+- PR #14 is open on `docs/ai-construction-contract`; it adds the AI construction contract and is being expanded with the master roadmap, checklist, resume protocol, and current-state reconciliation before merge.
+- Added `docs/mentat/current-state.yaml` as a machine-readable resume pointer that must be verified against GitHub before coding.
+- Reconciled the production contract so the frozen Mentat 1.0 path remains Vast Serverless while direct Vast instances are explicitly a target/experimental backend unless the owner changes scope.
+- PR #12 remains open and draft on `agent/desktop-no-spend-integration`, head `655634d1a4dacb8a4c077a0970e16571f6c8cb48`.
+- Last verified PR #12 CI state:
+  - Mentat Desktop: success;
+  - Mentat Broker: failure on Windows and Ubuntu during deterministic routing/storage/registry tests;
+  - Mentat Runtime: failure.
+- Therefore the next engineering task is **not** a new broker feature. It is to diagnose and repair PR #12's focused CI failures, rerun the relevant checks, and merge or deliberately supersede that work package.
+- Paid compute used by this documentation reconciliation: **none**.
+
 ### Current handoff
 
 ```text
-Date/time: 2026-07-23
-Branch/PR: agent/complete-mentat-mission / PR #11
-Last completed item: cross-platform no-spend Broker and fake Vast/inference acceptance milestone
-Current item: finalize and merge PR #11, then begin desktop/no-spend integration milestone on a fresh branch
-Files changed:
-- .github/workflows/mentat-broker.yml
-- docs/mentat/execution-ledger.md
-- docs/mentat/work-items.md
-- docs/mentat/version-1-scope.md
-- scripts/mentat/testing/fake_openai.py
-- scripts/mentat/testing/fake_vast.py
-- scripts/mentat/testing/no_spend_acceptance.py
-- scripts/mentat/vast_http.py
-- services/model-broker/mentat_broker/vast.py
-- services/model-broker/pyproject.toml
-- services/model-broker/tests/conftest.py
-- services/model-broker/tests/test_fake_vast_control_plane.py
-- services/model-broker/tests/test_no_spend_inference.py
-Tests run and results: Windows and Ubuntu Broker jobs green; 38 tests green; no-spend acceptance green on both operating systems
-Known failures: none in the focused no-spend Broker work package
+Date/time: 2026-07-24
+Main commit: de0dabb521906952f52530ef143dbdd165c8da0d
+Documentation branch/PR: docs/ai-construction-contract / PR #14
+Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
+Last completed milestone: PR #13 merged; complete Mentat broker architecture documented
+Current documentation item: finish PR #14 roadmap/checklist/resume/current-state documentation and merge when reviewed
+Current engineering item: PR #12 desktop/no-spend integration is blocked by focused CI failures
+Known engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL on PR #12 head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
 Owner action required: standalone private repository migration remains required before real credentials or paid tests
-External dependency: none for the next desktop no-spend integration work
-Exact next task: merge PR #11, create a fresh desktop-integration branch, expose the no-spend acceptance result through Mentat.exe, and add installed-wrapper/desktop diagnostics tests
-Do not do: do not enter real Vast credentials, start a paid endpoint, or begin Kimi testing while the repository is public and the clean Windows/sandbox gates are incomplete
+External dependency: none for diagnosing PR #12
+Exact next task:
+1. If PR #14 is still open, finish/review/merge the documentation reconciliation.
+2. Re-verify docs/mentat/current-state.yaml against GitHub.
+3. Resume PR #12.
+4. Diagnose the Broker and Runtime failures from the latest PR #12 head.
+5. Repair without weakening tests or invariants.
+6. Rerun focused Broker, Runtime, Desktop, and no-spend acceptance CI.
+7. Merge PR #12 only when the work package is green and its ledger evidence is updated.
+Do not do: do not enter real Vast credentials, start paid compute, begin Kimi testing, claim Gate 1 complete, or start a new broker feature while PR #12 is unresolved.
 ```
 
 ## Handoff template
@@ -240,11 +271,14 @@ Copy this block when stopping work:
 
 ```text
 Date/time:
+Main commit:
 Branch/PR:
+MNT work item:
 Last completed item:
 Current item:
 Files changed:
 Tests run and results:
+Evidence produced:
 Known failures:
 Owner action required:
 External dependency:
