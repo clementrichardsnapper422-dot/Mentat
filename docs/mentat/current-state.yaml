@@ -1,10 +1,10 @@
 schema_version: 1
-last_verified_utc: 2026-07-24T06:50:00Z
+last_verified_utc: 2026-07-24T07:42:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
-  main_commit: de0dabb521906952f52530ef143dbdd165c8da0d
+  main_commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
   visibility: public
 
 merged_milestones:
@@ -16,6 +16,10 @@ merged_milestones:
     title: Document the complete Mentat broker architecture
     merge_commit: de0dabb521906952f52530ef143dbdd165c8da0d
     result: complete broker architecture documented in README
+  - pr: 14
+    title: Add AI construction contract to Mentat README
+    merge_commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
+    result: construction contract, roadmap, checklist, and resume system merged
 
 active_engineering_pr:
   pr: 12
@@ -29,20 +33,38 @@ active_engineering_pr:
     desktop: pass
     broker: fail
     runtime: fail
-  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI, then merge or deliberately supersede the PR before starting new broker features.
+  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting new broker features.
 
 active_documentation_pr:
-  pr: 14
-  title: Add AI construction contract to Mentat README
-  branch: docs/ai-construction-contract
+  pr: 15
+  title: Harden Vast broker learning, security, and efficiency design
+  branch: docs/vast-broker-learning-hardening
   state: open
   status: in_progress
+  scope: documentation only
 
 current_release_gate:
   number: 1
   name: no-spend local integration
   status: in_progress
   complete: false
+
+provider_design_state:
+  vast_serverless:
+    release_scope: mentat_1_0
+    live_validation: incomplete
+  vast_direct_instance:
+    release_scope: target_expansion_unless_owner_changes_scope
+    live_validation: not_started
+  new_documentation_guidance:
+    - separate provider read, spend, and billing concerns
+    - explicit broker-owned credentials rather than ambient SDK key discovery
+    - least-privilege permissions must be live-validated
+    - no hidden automatic retry for ambiguous non-idempotent paid mutations
+    - normalize provider state/errors/market data at the adapter boundary
+    - treat provider benchmarks and market signals as priors rather than verified task-quality evidence
+    - component-level cost reconciliation and prediction-error learning
+    - calibration, drift detection, shadow routing, offline replay, and safe exploration remain inside hard safety boundaries
 
 owner_blockers:
   - standalone private repository migration before real credentials or paid tests
@@ -56,6 +78,7 @@ forbidden_until_gates_change:
   - do not begin the Kimi canary
   - do not claim Gate 1 complete
   - do not describe direct Vast instances as production-validated
+  - do not start a new broker implementation feature while PR 12 remains unresolved
 
 resume_protocol:
   - read README.md
@@ -64,5 +87,6 @@ resume_protocol:
   - read docs/mentat/execution-ledger.md
   - read this file
   - verify this state against GitHub PRs, branch heads, and CI before coding
+  - for Vast work, fetch https://docs.vast.ai/llms.txt first and discover current relevant provider pages
   - update stale handoff data before starting implementation
   - resume the earliest incomplete roadmap item whose dependencies are satisfied
