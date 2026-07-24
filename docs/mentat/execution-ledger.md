@@ -16,12 +16,13 @@ Target direct-instance and advanced broker-hardening work documented in Program 
 
 ## Current repository state
 
-Last reconciled: **2026-07-24 after PR #15 merge**.
+Last reconciled: **2026-07-24 after PR #15 merge**, against `main` commit `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941` before the post-merge state-sync commit itself.
+
+The ledger deliberately does **not** claim that hash is forever the current `main` tip. A document cannot safely embed the hash of the commit that will contain its own update. **Always fetch the current GitHub `main` tip and PR state at resume time.**
 
 - Repository: `clementrichardsnapper422-dot/Mentat`
 - Default branch: `main`
-- Current `main` commit: `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`
-- Current visibility: **public**
+- Current visibility at reconciliation: **public**
 - Repository type: public fork larger than 1 GB
 - GitHub Issues: disabled; `docs/mentat/work-items.md` is the authoritative backlog until a replacement tracker is enabled
 - Production contract: present and canonical
@@ -183,6 +184,18 @@ A checkbox or gate is complete only when the required evidence is linked or desc
 
 Code existing is not enough for a live-system claim. Provider documentation is not live validation. Simulator evidence can close simulator gates, not real billing/hardware gates.
 
+## Known repository CI debt
+
+The general repository CI currently contains failures that predate PR #15 and the post-merge state sync:
+
+- `security-fast` fails the production dependency audit;
+- `check-docs` fails the repository formatting lane;
+- the aggregate `openclaw/ci-gate` therefore fails.
+
+The same failure categories were present on the merged PR #14 baseline. They are **not** being called green and still need repair, but they are not evidence that the PR #15 documentation design changed runtime behavior.
+
+Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, Shared OpenClawKit Periphery, iOS Periphery, and macOS Periphery.
+
 ## Execution log
 
 ### 2026-07-22 — completion program started
@@ -211,28 +224,36 @@ Code existing is not enough for a live-system claim. Provider documentation is n
 - Re-reviewed current official Vast documentation beginning from `https://docs.vast.ai/llms.txt` before locking provider assumptions into the design.
 - Added/readied the provider adapter contract, explicit retry ownership, least-privilege target, provider state/error/market normalization, readiness rules, rate-limit discipline, cost-component reconciliation, self-learning/calibration/drift/exploration/regret design, and circuit breakers.
 - Hard review found stale handoff/backlog state and corrected it.
-- `MNT-411` Spend Governor + atomic budget ledger and `MNT-412` paid execution state machine/concurrency safety were made explicit **P0 Mentat 1.0 requirements** rather than left as optional optimization.
+- `MNT-411` Spend Governor + atomic budget ledger and `MNT-412` paid execution state machine/concurrency safety were made explicit **P0 Mentat 1.0 requirements** rather than optional optimization.
 - Advanced provider/direct-instance/self-improvement work was separated into deferred Program 7 so it cannot silently expand the frozen release scope.
 - PR #15 changed documentation/state only: no runtime code, real credentials, or paid compute.
-- Focused PR #15 results: Mentat Runtime PASS, Mentat Desktop PASS, Workflow Sanity PASS, Shared OpenClawKit Periphery PASS, iOS Periphery PASS, macOS Periphery PASS.
-- General repository CI remained red because `security-fast` failed the production dependency audit and `check-docs` failed formatting; the same two failure categories were already present on the merged PR #14 baseline, so they were not evidence of a PR #15 runtime regression. They remain repository CI debt and are not being called green.
+
+### 2026-07-24 — post-PR-15 handoff synchronization
+
+- Removed the self-referential `main_commit` assumption from machine-readable state. The state now records the commit it was reconciled against and explicitly requires fetching the live `main` tip on resume.
+- Cleared PR #15 from active documentation work.
+- Kept PR #12 as the exact active engineering work package.
+- Reconciled the ledger's in-scope/deferred split with the final work-item backlog.
+- No runtime code, credentials, or paid compute changed.
 
 ## Current handoff
 
 ```text
 Date/time: 2026-07-24
-Main commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
-Documentation work: PR #15 merged; no active documentation PR after state sync
+State reconciled against main: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+Current main tip: FETCH FROM GITHUB AT RESUME TIME
+Documentation work: PR #15 merged; no active documentation package after state sync
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
 Current engineering item: PR #12 desktop/no-spend integration blocked by focused Broker/Runtime CI failures
 Last verified PR #12 engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL on head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
-1. Resume PR #12.
-2. Diagnose the Broker and Runtime failures.
-3. Fix them without weakening tests, spending/security invariants, or the construction contract.
-4. Rerun focused Broker, Runtime, Desktop, and no-spend acceptance CI.
-5. Merge or deliberately supersede PR #12 only when its required evidence is green and the handoff is updated.
+1. Fetch current GitHub main/PR/CI reality.
+2. Resume PR #12 unless that reality changed.
+3. Diagnose the Broker and Runtime failures.
+4. Fix them without weakening tests, spending/security invariants, or the construction contract.
+5. Rerun focused Broker, Runtime, Desktop, and no-spend acceptance CI.
+6. Merge or deliberately supersede PR #12 only when its required evidence is green and the handoff is updated.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 
@@ -240,7 +261,8 @@ Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims
 
 ```text
 Date/time:
-Main commit:
+State reconciled against main commit:
+Current main tip verified live:
 Branch/PR:
 MNT work item:
 Last completed item:
