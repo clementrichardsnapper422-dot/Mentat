@@ -1,5 +1,5 @@
 schema_version: 1
-last_verified_utc: 2026-07-24T07:42:00Z
+last_verified_utc: 2026-07-24T08:05:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -33,15 +33,27 @@ active_engineering_pr:
     desktop: pass
     broker: fail
     runtime: fail
-  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting new broker features.
+  exact_next_task_after_documentation_merge: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting new broker features.
 
 active_documentation_pr:
   pr: 15
   title: Harden Vast broker learning, security, and efficiency design
   branch: docs/vast-broker-learning-hardening
   state: open
-  status: in_progress
-  scope: documentation only
+  status: final_review_and_ci
+  scope: documentation_and_state_only
+  reviewed_files:
+    - README.md
+    - docs/mentat/current-state.yaml
+    - docs/mentat/work-items.md
+    - docs/mentat/execution-ledger.md
+  hard_review_corrections:
+    - stale PR 14 handoff removed from authoritative state documents
+    - work-item statuses and execution order reconciled
+    - spend governor and atomic budget reservation made explicit Mentat 1.0 P0 work
+    - paid execution state machine and concurrency safety made explicit Mentat 1.0 P0 work
+    - advanced provider/direct-instance and self-improvement work separated into deferred Program 7
+    - provider documentation assumptions remain distinct from live validation
 
 current_release_gate:
   number: 1
@@ -56,15 +68,32 @@ provider_design_state:
   vast_direct_instance:
     release_scope: target_expansion_unless_owner_changes_scope
     live_validation: not_started
-  new_documentation_guidance:
+  rules:
+    - fetch https://docs.vast.ai/llms.txt before changing Vast behavior and discover the current relevant provider pages
     - separate provider read, spend, and billing concerns
-    - explicit broker-owned credentials rather than ambient SDK key discovery
+    - pass broker-owned credentials explicitly rather than relying on ambient SDK key discovery
     - least-privilege permissions must be live-validated
     - no hidden automatic retry for ambiguous non-idempotent paid mutations
-    - normalize provider state/errors/market data at the adapter boundary
+    - normalize provider state errors and market data at the adapter boundary
     - treat provider benchmarks and market signals as priors rather than verified task-quality evidence
-    - component-level cost reconciliation and prediction-error learning
-    - calibration, drift detection, shadow routing, offline replay, and safe exploration remain inside hard safety boundaries
+    - reconcile component-level cost to actual billing when available
+    - keep provider state separate from Mentat execution state
+
+broker_safety_state:
+  required_for_mentat_1_0:
+    - authenticated bounded approval leases
+    - worst-case spend bounds
+    - atomic budget reservation before spend-increasing actions
+    - one narrow spend authority
+    - global paid-compute kill switch
+    - explicit paid execution state machine
+    - atomic legal state transitions where concurrency can race
+    - ambiguous remote state reconciled before another paid mutation
+    - failure-specific fallback and circuit breakers
+  learning_boundary:
+    - learning may improve predictions preferences and exploration inside the eligible set
+    - learning may not weaken credential approval spend security quality or risk floors
+    - malformed failed interrupted or unverified results cannot become positive quality evidence
 
 owner_blockers:
   - standalone private repository migration before real credentials or paid tests
@@ -73,20 +102,26 @@ owner_blockers:
   - Authenticode signing certificate for release
 
 forbidden_until_gates_change:
-  - do not enter or expose real Vast credentials in the public repository, chat, prompts, logs, or CI
+  - do not enter or expose real Vast credentials in the public repository chat prompts logs or CI
   - do not start paid Vast compute from ordinary development or CI
   - do not begin the Kimi canary
   - do not claim Gate 1 complete
   - do not describe direct Vast instances as production-validated
   - do not start a new broker implementation feature while PR 12 remains unresolved
+  - do not start deferred Program 7 work unless Mentat 1.0 is complete or the owner explicitly changes scope
 
 resume_protocol:
   - read README.md
   - read docs/mentat/production-contract.md
+  - read docs/mentat/version-1-scope.md
   - read docs/mentat/work-items.md
   - read docs/mentat/execution-ledger.md
   - read this file
-  - verify this state against GitHub PRs, branch heads, and CI before coding
-  - for Vast work, fetch https://docs.vast.ai/llms.txt first and discover current relevant provider pages
-  - update stale handoff data before starting implementation
-  - resume the earliest incomplete roadmap item whose dependencies are satisfied
+  - verify this state against GitHub PRs branch heads and CI before coding
+  - update stale handoff data before implementation
+  - resume the earliest incomplete authorized work item whose dependencies are satisfied
+
+post_merge_required_sync:
+  - after PR 15 merges update this file and the execution ledger with the actual merge commit
+  - clear active_documentation_pr
+  - leave PR 12 as the exact next engineering work package unless GitHub reality changes
