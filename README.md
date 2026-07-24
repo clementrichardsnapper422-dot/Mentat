@@ -14,6 +14,10 @@ Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai i
 
 ## Table of contents
 
+- [AI / developer — start here](#ai--developer--start-here)
+- [Current build state](#current-build-state)
+- [Master mission checklist](#master-mission-checklist)
+- [Master build roadmap](#master-build-roadmap)
 - [What Mentat is](#what-mentat-is)
 - [System architecture](#system-architecture)
 - [How a request flows through Mentat](#how-a-request-flows-through-mentat)
@@ -45,6 +49,411 @@ Kimi is an important dependable primary model, but Kimi is not Mentat. Vast.ai i
 - [Current implementation versus target design](#current-implementation-versus-target-design)
 - [AI construction contract — how to turn the Mentat design into code](#ai-construction-contract--how-to-turn-the-mentat-design-into-code)
 - [Installation and operation](#install-in-a-few-minutes)
+
+---
+
+# AI / developer — start here
+
+**Do not start coding from a chat prompt alone.** Mentat has a persistent engineering state and a frozen release contract. A new human or coding AI must first reconstruct the real repository state, then resume the earliest authorized incomplete work.
+
+## Resume protocol
+
+Before changing code:
+
+1. Read this README completely enough to understand the mission, architecture, roadmap, and construction contract.
+2. Read `docs/mentat/production-contract.md`.
+3. Read `docs/mentat/work-items.md`.
+4. Read `docs/mentat/execution-ledger.md`.
+5. Read `docs/mentat/current-state.yaml`.
+6. Inspect the current `main` commit, open Mentat pull requests, branch heads, and relevant CI.
+7. Compare GitHub reality with the handoff files.
+8. If the handoff is stale, **update the handoff before implementation**.
+9. Find the earliest incomplete roadmap/work-item slice whose dependencies are satisfied.
+10. State what you are resuming, why it is next, the evidence already present, the acceptance criterion being closed, and what is explicitly out of scope.
+11. Implement only that coherent slice.
+12. Run the required unit, adversarial, integration, and platform checks.
+13. Before stopping, update the execution ledger and machine-readable current state with the branch/PR, commit, tests, evidence, blockers, exact next task, and `Do not do` rules.
+
+A fresh AI should never need old chat history to determine where to continue.
+
+### Resume decision rule
+
+```text
+GitHub reality
+    + production contract
+    + frozen scope
+    + work-item dependencies
+    + execution evidence
+    + current-state handoff
+            |
+            v
+Earliest incomplete authorized slice
+            |
+            v
+Implement -> verify -> record -> hand off
+```
+
+Do **not** choose the next task because it sounds interesting or because the relevant file is already open.
+
+---
+
+# Current build state
+
+This is a human-readable snapshot. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
+
+Last reconciled: **2026-07-24**.
+
+```text
+main:
+  de0dabb521906952f52530ef143dbdd165c8da0d
+
+merged milestones:
+  PR #11  no-spend Broker completion-program milestone
+  PR #13  complete Mentat broker architecture documented
+
+active documentation work:
+  PR #14
+  branch: docs/ai-construction-contract
+  status: IN PROGRESS
+  purpose: construction contract + roadmap + checklist + resume/handoff system
+
+active engineering work:
+  PR #12
+  branch: agent/desktop-no-spend-integration
+  head: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
+  status: OPEN / DRAFT / BLOCKED BY CI
+
+last verified PR #12 CI:
+  Mentat Desktop: PASS
+  Mentat Broker:  FAIL
+  Mentat Runtime: FAIL
+
+current release gate:
+  Gate 1 — no-spend local integration
+  status: IN PROGRESS
+
+exact next engineering task after documentation reconciliation:
+  diagnose and repair PR #12 Broker/Runtime failures,
+  rerun focused CI and no-spend acceptance,
+  then merge or deliberately supersede PR #12.
+```
+
+Until the documented gates change:
+
+```text
+DO NOT enter/expose real Vast credentials in the public repository, chat, prompts, logs, or CI.
+DO NOT start paid Vast compute from ordinary development or CI.
+DO NOT begin the Kimi canary.
+DO NOT claim Gate 1 complete.
+DO NOT describe the direct Vast instance backend as production-validated.
+DO NOT begin a new broker feature while the current PR #12 work package is unresolved.
+```
+
+The permanent detailed evidence and handoff live in `docs/mentat/execution-ledger.md`.
+
+---
+
+# Master mission checklist
+
+This checklist is the bird's-eye mission status. Detailed sub-items and dependencies belong in `docs/mentat/work-items.md` and `docs/mentat/execution-ledger.md`.
+
+> **A checkbox is complete only when retained evidence exists. Code existing by itself is not enough for a live-system gate.**
+
+## Foundation and specification
+
+- [x] Canonical product/production contract exists.
+- [x] Mentat 1.0 scope is frozen.
+- [x] Persistent execution ledger exists.
+- [x] Stable work-item backlog exists.
+- [x] Complete target broker architecture is documented.
+- [ ] AI construction contract, roadmap, checklist, and resume protocol merged to `main`.
+- [x] Machine-readable current-state handoff exists on the documentation branch.
+
+## No-spend product and security foundation
+
+- [x] Fake Vast control plane exists.
+- [x] Fake OpenAI-compatible inference service exists.
+- [x] Cross-platform no-spend Broker acceptance harness exists.
+- [ ] PR #12 focused Broker/Runtime CI failures repaired.
+- [ ] Installed `mentat test no-spend` path fully accepted.
+- [ ] Desktop no-spend diagnostics fully accepted.
+- [ ] Clean Windows installation completed.
+- [ ] Actual tool execution proven inside Docker.
+- [ ] Gateway/tool processes proven unable to read Vast/admin credentials.
+- [ ] Reject, timeout, restart, malformed-response, and shutdown acceptance paths complete.
+
+## Broker intelligence
+
+- [ ] Repository/attachment-aware task estimation.
+- [ ] Verification availability and blast-radius classification.
+- [ ] Versioned model lifecycle and evidence-aware registry.
+- [ ] Stable compute-backend abstraction.
+- [ ] Candidate generation and hard-constraint filtering.
+- [ ] Quality/success prediction with uncertainty.
+- [ ] Cold/warm latency prediction.
+- [ ] Real total-cost prediction.
+- [ ] Host/runtime reliability penalties.
+- [ ] Best / Balanced / Economy / Manual routing modes.
+- [ ] Full winner/alternative/rejection explanation.
+
+## Learning system
+
+- [ ] Canonical benchmark corpus and grading harness.
+- [ ] Model/version/hardware-specific benchmark records.
+- [ ] Confidence-aware quality predictor.
+- [ ] Safe low-risk exploration.
+- [ ] Promotion/demotion with audit trail.
+- [ ] Routing-regret measurement.
+- [ ] Kimi-only baseline and savings measurement.
+- [ ] Host/GPU history and bad-host suppression.
+
+## Mentat 1.0 live validation and release
+
+- [ ] Standalone private repository and supply-chain gate.
+- [ ] Low-cost Vast Serverless canary.
+- [ ] Actual billing reconciliation.
+- [ ] Kimi canary.
+- [ ] 100-session / 24-hour / multi-day soak and adversarial testing.
+- [ ] Complete normal Windows UX without PowerShell.
+- [ ] Threat model and security review.
+- [ ] Reproducible build, SBOM, checksums, provenance.
+- [ ] Authenticode-signed installer.
+- [ ] Clean install / upgrade / repair / rollback / uninstall validation.
+- [ ] Mentat 1.0 release gates all closed.
+
+## Target broker expansion beyond the currently frozen 1.0 scope
+
+- [ ] Vast direct-instance backend behind the common backend interface.
+- [ ] Pinned broker-only Vast Python SDK adapter.
+- [ ] Direct-instance offer normalization and lifecycle state machine.
+- [ ] Automated Mentat worker provisioning.
+- [ ] Worker lease/watchdog.
+- [ ] Stop-versus-destroy/storage economics.
+- [ ] Direct-instance host reputation and billing reconciliation.
+- [ ] Serverless-versus-direct evidence campaign.
+- [ ] Broker chooses backend using measured quality, latency, reliability, and total cost.
+
+Direct Vast instances are part of the target architecture but must **not silently move the frozen Mentat 1.0 goalposts**. Promoting them into the Mentat 1.0 release scope requires an explicit owner-approved scope change.
+
+---
+
+# Master build roadmap
+
+The roadmap is ordered. Later work may be prepared in parallel when it cannot affect the current gate, but the system should not skip unresolved safety or correctness dependencies.
+
+## Phase 0 — specification and handoff integrity
+
+**Goal:** a brand-new coding AI can enter the repository cold and determine the mission, reality, blockers, and exact next task without old chat history.
+
+- [x] Production contract.
+- [x] Frozen 1.0 scope.
+- [x] Work-item backlog.
+- [x] Execution ledger.
+- [x] Complete architecture description.
+- [ ] Merge the construction contract/roadmap/checklist/resume protocol.
+- [ ] Keep `docs/mentat/current-state.yaml` synchronized at every meaningful handoff.
+
+**Exit condition:** GitHub, README, production contract, ledger, work items, and current-state file agree on what is built and what comes next.
+
+## Phase 1 — finish the active no-spend desktop work package
+
+**Current engineering phase.**
+
+- [ ] Finish PR #12.
+- [x] Malformed upstream output is prevented from becoming positive runtime evidence in the PR work package.
+- [x] Desktop/no-spend integration work exists in the PR.
+- [ ] Diagnose Broker CI failures on Windows and Ubuntu.
+- [ ] Diagnose Runtime CI failure.
+- [ ] Repair the implementation without weakening tests/invariants.
+- [ ] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
+- [ ] Merge or deliberately supersede PR #12.
+
+**Exit condition:** the active work package is green, evidence is retained, and the ledger is updated.
+
+## Phase 2 — close Gate 1: no-spend local integration
+
+- [ ] Clean Windows install.
+- [ ] `mentat doctor` green on target PC.
+- [ ] Installed wrapper runs `mentat test no-spend` correctly.
+- [ ] Desktop can securely run/display no-spend diagnostics.
+- [ ] Actual tool execution proven inside Docker.
+- [ ] Gateway/tool environment proven free of Vast/admin credentials.
+- [ ] Broker client/admin authentication proven end to end.
+- [ ] Reject and approval-timeout behavior.
+- [ ] Malformed request/response behavior.
+- [ ] Broker/Gateway restart behavior.
+- [ ] Shutdown cleanup behavior.
+
+**Exit condition:** every Gate 1 requirement in `docs/mentat/production-contract.md` has evidence.
+
+## Phase 3 — formal broker contracts and backend boundary
+
+- [ ] Stabilize typed `TaskRequirements`.
+- [ ] Stabilize typed `ExecutionCandidate`.
+- [ ] Stabilize typed `ApprovalLease`.
+- [ ] Stabilize typed `ExecutionResult`.
+- [ ] Introduce the broker-facing `ComputeBackend` boundary without regressing Serverless behavior.
+- [ ] Make the existing Vast Serverless path conform to that boundary.
+- [ ] Turn the golden scenarios in this README into executable tests where practical.
+
+**Exit condition:** task intelligence, model intelligence, policy, and learning depend on Mentat contracts instead of raw provider structures.
+
+## Phase 4 — task, context, risk, and verification intelligence
+
+- [ ] Repository-aware scope estimation.
+- [ ] Attachment-aware scope estimation.
+- [ ] Full context prediction including messages, tools, files, and output reserve.
+- [ ] Capability requirements.
+- [ ] Tool requirements.
+- [ ] Verification availability.
+- [ ] Reversibility.
+- [ ] Blast radius.
+- [ ] Risk tier.
+
+**Exit condition:** the broker produces explainable `TaskRequirements` from observable inputs and retains prior user intent correctly.
+
+## Phase 5 — model and candidate intelligence
+
+- [ ] Versioned model profiles.
+- [ ] Experimental / approved / preferred / demoted / retired lifecycle.
+- [ ] Capability/context/runtime/hardware eligibility.
+- [ ] Candidate plan generation.
+- [ ] Quality floor enforcement.
+- [ ] Quality and successful-completion prediction.
+- [ ] Cold-start and warm-start prediction.
+- [ ] Total-cost prediction.
+- [ ] Failure/reliability penalty.
+- [ ] Reuse value.
+- [ ] Prediction confidence/sample-size handling.
+- [ ] Best / Balanced / Economy / Manual routing modes.
+- [ ] Winner, alternative, and rejection explanation.
+
+**Exit condition:** Mentat can select an eligible plan using hard constraints first and evidence-aware economics second.
+
+## Phase 6 — learning engine
+
+- [ ] Canonical benchmark corpus.
+- [ ] Deterministic/automatic grading where possible.
+- [ ] Model/version/hardware benchmark records.
+- [ ] Human rating evidence remains separate.
+- [ ] Quality confidence bounds.
+- [ ] Safe exploration limited to low-risk/verifiable work.
+- [ ] Promotion/demotion policy and audit trail.
+- [ ] Routing regret.
+- [ ] Kimi-only baseline and savings reporting.
+- [ ] Host/GPU performance history.
+
+**Exit condition:** verified outcomes improve predictions and routing without rewriting hard safety policy.
+
+## Phase 7 — Mentat 1.0 live Serverless validation
+
+This phase requires owner approval and the repository/credential gates.
+
+- [ ] Repository safe for real credentials.
+- [ ] Scoped Vast credential entered only through the protected broker boundary.
+- [ ] Low-cost Serverless canary.
+- [ ] Rejection creates nothing.
+- [ ] Approval creates one intended resource.
+- [ ] Actual price stays below approved ceiling.
+- [ ] Real inference succeeds.
+- [ ] Reuse succeeds inside approval scope.
+- [ ] Cooling reaches zero paid workers.
+- [ ] Crash/restart recovery succeeds.
+- [ ] Actual billing reconciled.
+- [ ] Kimi canary.
+- [ ] Long-context/tool/stream/cancellation/cost caps validated.
+
+**Exit condition:** Gates 2 and 3 have retained real-service evidence.
+
+## Phase 8 — reliability, security, and soak campaign
+
+- [ ] Network loss during create/warm/stream/cool.
+- [ ] Ambiguous create response.
+- [ ] Broker kill.
+- [ ] Gateway kill.
+- [ ] Windows restart and user logoff.
+- [ ] Expired approval.
+- [ ] Corrupt SQLite.
+- [ ] Disk full.
+- [ ] Context overflow.
+- [ ] Runaway tool loop.
+- [ ] Concurrent chats.
+- [ ] 100-session campaign.
+- [ ] 24-hour campaign.
+- [ ] Multi-day campaign.
+- [ ] Threat model.
+- [ ] Malicious workspace/prompt-injection tests.
+- [ ] Security review or explicit accepted-risk record.
+
+**Exit condition:** failures are bounded, recoverable, auditable, and do not leak credentials or paid resources.
+
+## Phase 9 — complete Windows product and release engineering
+
+- [ ] First-run setup wizard.
+- [ ] Chat/decision/approval/active-compute/history/models/costs/settings/diagnostics UX.
+- [ ] Normal operation requires no PowerShell.
+- [ ] Repair/update/rollback/uninstall.
+- [ ] Private standalone repository.
+- [ ] Protected `main` and required checks.
+- [ ] Dependency/secret/license scans.
+- [ ] SBOM.
+- [ ] Reproducible release.
+- [ ] Authenticode signing.
+- [ ] Checksums and provenance.
+- [ ] Operator and incident runbooks.
+- [ ] Clean release-artifact install/upgrade/repair/uninstall.
+
+**Exit condition:** all Mentat 1.0 release gates are closed and the signed artifact works on a clean Windows machine.
+
+## Phase 10 — direct Vast instance backend (target expansion)
+
+Do not begin this because it is exciting while the active release work is broken. The frozen 1.0 scope still governs unless the owner explicitly changes it.
+
+When authorized:
+
+- [ ] Add a pinned `vastai` Python SDK dependency behind a broker-owned adapter.
+- [ ] Pass the Vast credential explicitly from protected broker storage; do not rely on ambient `~/.config/vastai/vast_api_key` discovery as the production authority boundary.
+- [ ] Use `search_offers` only inside the adapter and normalize raw results into Mentat candidates.
+- [ ] Use `create_instance` only after policy + authenticated approval lease validation.
+- [ ] Persist the returned instance/contract ID immediately after successful creation.
+- [ ] Reconcile ambiguous create outcomes before any retry.
+- [ ] Implement bounded readiness polling.
+- [ ] Handle at least `loading`, `running`, `exited`, `unknown`, and `offline` explicitly.
+- [ ] Never poll forever while storage charges continue.
+- [ ] Version/integrity-check the Mentat worker bootstrap or image.
+- [ ] Start the OpenAI-compatible runtime and health-check it before routing inference.
+- [ ] Record acquisition, image pull, provisioning, model download/load, TTFT, throughput, runtime, and teardown timing.
+- [ ] Implement `stop` versus `destroy` according to measured economics and validated Vast semantics.
+- [ ] Record storage, bandwidth, and compute cost separately when available.
+- [ ] Add independent worker lease/watchdog protection.
+- [ ] Add no-spend simulator coverage before a live direct-instance canary.
+
+The Vast SDK documentation supplied during design confirms programmatic primitives for authentication, `search_offers`, `create_instance`, `show_instance`, SSH/data movement, `stop_instance`, and `destroy_instance`. Those provider primitives are **inputs to a Mentat backend adapter**, not permission to expose Vast control directly to models or tools.
+
+**Exit condition:** direct instances satisfy the same credential, approval, reconciliation, billing, evidence, and failure-safety contract as Serverless.
+
+## Phase 11 — backend comparison and fleet intelligence
+
+- [ ] Compare Serverless and direct instances on equivalent model/task workloads.
+- [ ] Measure cold/warm latency, quality, throughput, completion rate, and actual total cost.
+- [ ] Build direct-host reputation and temporary suppression.
+- [ ] Learn keep-warm / stop / destroy economics.
+- [ ] Include storage and re-provisioning costs.
+- [ ] Let the broker choose backend only from eligible, validated plans.
+
+**Exit condition:** Mentat can explain why a particular model + hardware + backend plan wins from measured evidence.
+
+## Phase 12 — continuous broker optimization
+
+- [ ] Detect prediction error and drift.
+- [ ] Recalibrate cost/latency/quality models.
+- [ ] Revalidate new model/runtime versions.
+- [ ] Demote regressions quickly.
+- [ ] Safely explore cheaper alternatives.
+- [ ] Preserve hard security/spending constraints outside the learning loop.
+- [ ] Continuously report savings, regret, reliability, and quality versus baselines.
+
+**Exit condition:** Mentat becomes more efficient over time without becoming less predictable, less safe, or less explainable.
 
 ---
 
@@ -497,7 +906,7 @@ Mentat
 
 Direct instances give Mentat finer control over the exact host, GPU, storage, runtime, provisioning path, and lifecycle.
 
-**Important:** direct Vast instance support is a target architecture capability and should not be confused with the currently validated Serverless path unless and until it is implemented and tested.
+**Important:** direct Vast instance support is a target architecture capability and should not be confused with the currently validated Serverless path unless and until it is implemented and tested. It is not silently part of the frozen Mentat 1.0 scope.
 
 ---
 
@@ -602,9 +1011,13 @@ When the future direct-instance backend chooses a raw Vast CUDA worker, Mentat s
 The target flow is:
 
 ```text
-Rent instance
+Search normalized offers
+  -> validate policy and approval lease
+  -> create exactly one intended instance
+  -> persist returned instance ID
+  -> poll bounded lifecycle state
   -> CUDA container starts
-  -> Mentat provisioning script runs
+  -> Mentat provisioning script/image runs
   -> verify runtime dependencies
   -> install vLLM/SGLang when needed
   -> acquire selected model
@@ -615,7 +1028,7 @@ Rent instance
   -> mark worker ready
 ```
 
-Vast's CUDA development environment supports a provisioning-script mechanism, which is a natural fit for this design.
+Vast's CUDA development environment supports a provisioning-script mechanism, which is a natural fit for this design. Vast's Python SDK also exposes programmatic authentication, offer search, instance creation/status, data movement, stop, and destroy operations.
 
 A worker bootstrap can receive controlled configuration such as:
 
@@ -628,6 +1041,43 @@ MENTAT_LEASE_SECONDS=<bounded lease>
 ```
 
 The provisioning path should be versioned, integrity checked, and treated as part of Mentat's supply chain.
+
+### Direct-instance SDK rules
+
+When this target backend is authorized for implementation:
+
+```text
+Vast SDK
+   |
+   v
+broker-only Vast adapter
+   |
+   v
+normalized Mentat candidates/resources
+   |
+   v
+policy + ApprovalLease
+   |
+   v
+resource lifecycle
+```
+
+The adapter must:
+
+- pin the `vastai` SDK version used by Mentat;
+- receive the API key explicitly from broker-owned protected credential storage;
+- not rely on automatic CLI-key discovery as the production security boundary;
+- normalize `search_offers` results instead of leaking raw Vast structures throughout the broker;
+- call `create_instance` only after approval;
+- persist the returned contract/instance identity before continuing lifecycle work;
+- bound the readiness wait with timeouts and explicit error states;
+- handle `loading` and `running` plus terminal/problem states such as `exited`, `unknown`, and `offline`;
+- destroy/reconcile failed resources instead of looping forever while disk charges continue;
+- distinguish storage billing from GPU-running billing;
+- model `stop_instance` and `destroy_instance` as economically different lifecycle choices;
+- reconcile actual Vast charges against Mentat estimates when billing data is available.
+
+Provider convenience must never weaken Mentat's credential, approval, reconciliation, or evidence boundaries.
 
 ---
 
@@ -1435,7 +1885,7 @@ Mentat already contains substantial pieces of the design, including:
 - fake Vast control plane for no-spend testing
 - fake OpenAI-compatible inference service
 - cross-platform no-spend broker acceptance harness
-- Windows and Ubuntu CI coverage for the no-spend path
+- Windows and Ubuntu CI coverage for the previously completed no-spend Broker milestone
 
 ## Target broker capabilities still being completed or validated
 
@@ -1447,11 +1897,8 @@ The complete design also calls for work such as:
 - richer candidate scoring with uncertainty
 - real cold-start prediction
 - real total-cost prediction
-- direct Vast instance backend
-- automatic CUDA worker provisioning
-- worker leases/watchdogs
+- stable compute-backend abstraction
 - host-specific reputation and bad-host suppression
-- warm/stop/delete optimization for direct instances
 - canonical benchmark corpus and grading harness
 - quality prediction with confidence bounds
 - safe exploration
@@ -1464,6 +1911,8 @@ The complete design also calls for work such as:
 - clean Windows target-machine validation
 - long-running soak and adversarial failure testing
 - signed reproducible release pipeline
+
+The target architecture also includes a **direct Vast instance backend**, automatic CUDA worker provisioning, worker leases/watchdogs, and warm/stop/destroy optimization. Those capabilities are planned/experimental expansion and are not part of the frozen Mentat 1.0 release claim unless the owner explicitly changes scope.
 
 A feature should not be described as production-ready merely because it appears in the design. Live-compute claims require executed integration evidence.
 
@@ -1503,15 +1952,17 @@ A change that appears to work but violates this contract is a regression.
 
 Before substantial implementation work, read and reconcile these sources in this order:
 
-1. `README.md` — product vision, architecture, economics, and this construction contract.
+1. `README.md` — product vision, architecture, roadmap, mission checklist, and this construction contract.
 2. `docs/mentat/production-contract.md` — canonical production invariants and release gates.
 3. `docs/mentat/work-items.md` — authoritative MNT work-item backlog and execution order.
-4. `docs/mentat/execution-ledger.md` — current evidence, completed work, blockers, and exact handoff state.
-5. The implementation and tests for the subsystem being changed.
+4. `docs/mentat/execution-ledger.md` — permanent evidence, completed work, blockers, and handoffs.
+5. `docs/mentat/current-state.yaml` — concise machine-readable current resume state.
+6. The implementation and tests for the subsystem being changed.
+7. Current GitHub PR/branch/CI reality.
 
 Do not begin by editing code from a vague prompt. First identify the exact product requirement and the exact MNT work item being advanced.
 
-When two documents appear to conflict, **stop and resolve the conflict explicitly**. Do not silently pick the interpretation that makes implementation easiest.
+When documents and GitHub reality conflict, **stop, determine which state is stale, and reconcile the handoff before coding**. Do not silently pick the interpretation that makes implementation easiest.
 
 ## 2. Required plan before substantial coding
 
@@ -1719,7 +2170,9 @@ ComputeBackend
   billing(resource)    # when available
 ```
 
-`VastServerlessBackend` and `VastInstanceBackend` should implement the same broker-facing concepts even when their internal lifecycle operations differ. Avoid scattering backend-specific conditionals throughout task classification, model quality logic, and policy code.
+`VastServerlessBackend` and a future `VastInstanceBackend` should implement the same broker-facing concepts even when their internal lifecycle operations differ. Avoid scattering backend-specific conditionals throughout task classification, model quality logic, and policy code.
+
+Direct-instance SDK integration, when authorized, must remain behind this boundary. The Vast Python SDK is an infrastructure adapter dependency, not a new authority boundary. Its automatic CLI-key discovery must not replace Mentat's broker-only protected credential handling.
 
 ## 9. Deterministic broker decision order
 
@@ -1861,6 +2314,14 @@ Expected: fallback independently satisfies original requirements and approved sp
 Forbidden: tiny model or second paid cluster started silently
 ```
 
+### H — direct-instance readiness failure
+
+```text
+Instance status: loading -> unknown/offline/exited, or readiness timeout
+Expected: stop waiting, reconcile/destroy according to policy, record failure, penalize host/runtime where justified
+Forbidden: infinite polling while storage charges continue
+```
+
 Golden scenarios should become automated tests whenever possible.
 
 ## 14. Requirement-to-code-to-test traceability
@@ -1915,6 +2376,8 @@ SQLite corruption
 disk full
 concurrent requests
 runaway tool loop
+direct-instance exited/unknown/offline readiness state
+bounded readiness timeout
 ```
 
 A system that works only when every dependency behaves perfectly is not production-ready Mentat.
@@ -1996,6 +2459,7 @@ A work item is not `DONE` merely because code was written.
 [ ] live validation is complete when the requirement depends on live behavior
 [ ] retained evidence exists
 [ ] execution ledger is updated
+[ ] current-state.yaml is updated when the handoff changed
 [ ] remaining limitations are explicit
 [ ] relevant CI is green
 ```
@@ -2004,10 +2468,13 @@ If a condition does not apply, say why. If one remains open, do not silently cal
 
 ## 22. Handoff discipline
 
-At every meaningful stopping point update `docs/mentat/execution-ledger.md` with:
+At every meaningful stopping point update `docs/mentat/execution-ledger.md` and `docs/mentat/current-state.yaml`.
+
+Record at least:
 
 ```text
 Date/time:
+Main commit:
 Branch/PR:
 MNT work item:
 Last completed item:
@@ -2022,7 +2489,7 @@ Exact next task:
 Do not do:
 ```
 
-The next coding agent should be able to continue without reconstructing the project from chat history.
+Then verify the handoff against GitHub. The next coding agent should be able to continue without reconstructing the project from chat history.
 
 ## 23. Implementation objective
 
@@ -2339,6 +2806,7 @@ Detailed documentation:
 
 - [Mentat production contract](docs/mentat/production-contract.md)
 - [Mentat execution ledger](docs/mentat/execution-ledger.md)
+- [Mentat machine-readable current state](docs/mentat/current-state.yaml)
 - [Mentat 1.0 work items](docs/mentat/work-items.md)
 - [Native Windows installation and desktop app](docs/mentat/windows.md)
 - [Desktop packaging](apps/mentat-desktop/README.md)
