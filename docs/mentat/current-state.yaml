@@ -1,10 +1,10 @@
 schema_version: 1
-last_verified_utc: 2026-07-24T12:47:00Z
+last_verified_utc: 2026-07-24T12:54:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
-  main_commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
+  main_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
   visibility: public
 
 merged_milestones:
@@ -20,6 +20,10 @@ merged_milestones:
     title: Add AI construction contract to Mentat README
     merge_commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
     result: construction contract roadmap checklist and resume system merged
+  - pr: 15
+    title: Harden Vast broker learning security and efficiency design
+    merge_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+    result: Vast provider contract self-learning design spending safety backlog and durable handoff hardening merged
 
 active_engineering_pr:
   pr: 12
@@ -33,27 +37,9 @@ active_engineering_pr:
     desktop: pass
     broker: fail
     runtime: fail
-  exact_next_task_after_documentation_merge: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting new broker features.
+  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting a new broker implementation feature.
 
-active_documentation_pr:
-  pr: 15
-  title: Harden Vast broker learning security and efficiency design
-  branch: docs/vast-broker-learning-hardening
-  state: open
-  status: final_review_and_ci
-  scope: documentation_and_state_only
-  reviewed_files:
-    - README.md
-    - docs/mentat/current-state.yaml
-    - docs/mentat/work-items.md
-    - docs/mentat/execution-ledger.md
-  hard_review_corrections:
-    - stale PR 14 handoff removed from authoritative state documents
-    - work-item statuses and execution order reconciled
-    - spend governor and atomic budget reservation made explicit Mentat 1.0 P0 work
-    - paid execution state machine and concurrency safety made explicit Mentat 1.0 P0 work
-    - advanced provider direct-instance and self-improvement work separated into deferred Program 7
-    - provider documentation assumptions remain distinct from live validation
+active_documentation_pr: null
 
 current_release_gate:
   number: 1
@@ -83,10 +69,10 @@ broker_safety_state:
   required_for_mentat_1_0:
     - authenticated bounded approval leases
     - worst-case spend bounds
-    - atomic budget reservation before spend-increasing actions
+    - MNT-411 spend governor and atomic budget reservation before spend-increasing actions
     - one narrow spend authority
     - global paid-compute kill switch
-    - explicit paid execution state machine
+    - MNT-412 explicit paid execution state machine
     - atomic legal state transitions where concurrency can race
     - ambiguous remote state reconciled before another paid mutation
     - failure-specific fallback and circuit breakers
@@ -119,9 +105,4 @@ resume_protocol:
   - read this file
   - verify this state against GitHub PRs branch heads and CI before coding
   - update stale handoff data before implementation
-  - resume the earliest incomplete authorized work item whose dependencies are satisfied
-
-post_merge_required_sync:
-  - after PR 15 merges update this file and the execution ledger with the actual merge commit
-  - clear active_documentation_pr
-  - leave PR 12 as the exact next engineering work package unless GitHub reality changes
+  - resume PR 12 as the exact active engineering package unless GitHub reality changes
