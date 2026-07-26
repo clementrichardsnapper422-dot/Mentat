@@ -7,7 +7,7 @@
   "author": "Mentat",
   "license": "MIT",
   "scripts": {
-    "check": "node --check src/main.cjs && node --check src/main-production.cjs && node --check src/no-spend-command.cjs",
+    "check": "node --check src/main.cjs && node --check src/main-production.cjs && node --check src/no-spend-command.cjs && node --check src/no-spend-cli.cjs",
     "test": "node --test test/*.test.cjs",
     "start": "electron .",
     "runtime:package": "node ../../scripts/mentat/package-windows-runtime.mjs",
