@@ -104,34 +104,40 @@ A state may only advance when the evidence required by the exit criteria exists.
 - State: PARTIAL
 - Dependencies: MNT-200, MNT-201.
 - Merged evidence: PR #12, merge commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`; focused Broker, Runtime, Desktop installer/smoke-install, Workflow Sanity, and CodeQL checks passed with no paid compute.
-- Complete-runtime packaging slice: implemented on PR #18 and proven from a clean Windows CI install at exact code head `748d5a069873961aa82a632d9556c2b06f14b45b`; the installed artifact contains `Mentat.exe`, bundled Node/OpenClaw, the local runtime, Broker, registry-declared endpoint configs, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding. Installed doctor, command no-spend, and desktop no-spend diagnostics passed with no paid compute.
-- Landing dependency: PR #18 is stacked on the still-open Shot 0 PR #17. Merge PR #17 first, then retarget/revalidate and merge PR #18 against `main`.
-- Remaining evidence: clean owner-PC installation plus the complete Docker isolation, credential-boundary, authentication, rejection/timeout, restart, shutdown, and recovery matrix.
+- Complete-runtime packaging slice: merged through PR #18 as commit `80d1fabb8af3f84aea5e661fd1c327c9058cca0f`; exact code head `748d5a069873961aa82a632d9556c2b06f14b45b` passed clean Windows CI installation. The installed artifact contains `Mentat.exe`, bundled Node/OpenClaw, the local runtime, Broker, registry-declared endpoint configs, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding. Installed doctor, command no-spend, and desktop no-spend diagnostics passed with no paid compute.
+- Shot 2 engineering slice: `mentat test gate1-owner` packages a fail-closed owner-PC evidence collector. It creates an isolated temporary OpenClaw state, serves inference only from a loopback fake, forces a real OpenClaw `exec` tool call, inspects the resulting Docker container, rejects weak containment or credential exposure, cleans up the sandbox, and retains JSON evidence. The ordinary no-spend suite also covers client/admin token separation, malformed upstream failure, and Broker restart recovery.
+- Remaining evidence: execute the new command after clean installation on the owner PC, retain its report, and complete the explicit app-close, user-logoff, and Windows-restart observations.
 - Exit: installed Mentat completes setup, decision, approval, inference, tool, rating, diagnostics, shutdown, and recovery entirely against local fakes, with retained machine-readable evidence.
 
 ### MNT-203 — Clean target-PC installation
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Engineering precondition: MNT-202 complete-runtime installation artifact passes clean-runner CI; PR #18 satisfies this precondition and must be landed after PR #17 before owner-PC execution.
+- Engineering precondition: satisfied by merged PR #18. The owner-PC command must still be run against the installed artifact; CI clean-runner evidence is not a substitute for this physical-machine observation.
 - Exit: install from packaged artifact on clean Windows; no source checkout or manual environment editing.
 
 ### MNT-204 — Credential-boundary proof
 
 - Priority: P0
-- State: TODO
+- State: PARTIAL
+- Engineering evidence: the Shot 2 collector strips credential-bearing variables before launching its isolated fake-backed Gateway, then fails if Docker inspection finds Vast, Broker admin/client, or upstream variables in the tool container. The no-spend Broker harness proves missing, wrong, and cross-role credentials are rejected and correct client/admin credentials are independently accepted.
+- Remaining owner evidence: run `mentat test gate1-owner` and retain the passing report; separately inspect renderer, prompt, URL, log, crash-output, and workspace surfaces before closing this item.
 - Exit: Gateway, tools, renderer, prompts, URLs, logs, crash output, workspace, and sandbox cannot access Vast/admin credentials.
 
 ### MNT-205 — Real Docker tool-isolation proof
 
 - Priority: P0
 - State: BLOCKED_OWNER
+- Engineering evidence: `mentat test gate1-owner` forces a model-requested `exec` through OpenClaw with sandbox mode `all`, then requires Docker `network=none`, read-only root, all capabilities dropped, no-new-privileges, non-root user, no Docker socket, no forbidden credential variables, and no unexpected writable host mounts.
+- Owner unblock: run the command on the clean target PC with Docker Desktop active and retain its JSON report.
 - Exit: actual OpenClaw tool runs inside Docker and fails all credential, host-path, Docker-socket, and elevated-escape attempts.
 
 ### MNT-206 — Windows shutdown/restart recovery
 
 - Priority: P0
 - State: BLOCKED_OWNER
+- Engineering evidence: the no-spend Broker now stops and restarts around the same durable application state and must recover authenticated model discovery.
+- Remaining owner evidence: app close, forced process kill, user logoff, and Windows restart must each recover safely and show no uncontrolled compute.
 - Exit: process kill, app close, user logoff, and Windows restart recover safely with no uncontrolled compute.
 
 ---
@@ -472,8 +478,9 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 ## Current execution order
 
 1. Keep MNT-002 active continuously; GitHub and handoff documents must agree.
-2. Land the proven Shot 1 packaging slice: merge PR #17, retarget/revalidate PR #18 against `main`, then merge PR #18 through the repository-native workflow.
-3. Close MNT-203 through MNT-206 on a clean owner Windows PC and retain machine-readable evidence for Docker isolation, credential boundaries, authentication, reject/timeout behavior, and restart/shutdown recovery.
+2. Land the Shot 2 owner-PC validation kit after focused CI proves the exact PR head.
+3. On a clean owner Windows PC, install the PR #18 artifact lineage, run `mentat doctor`, `mentat test no-spend`, and `mentat test gate1-owner`, and retain all reports.
+4. Complete and record the manual app-close, process-kill, user-logoff, and Windows-restart observations before marking MNT-203 through MNT-206 or Gate 1 complete.
 4. Complete MNT-100 through MNT-104 before real credentials, paid canaries, or release operations that depend on the private supply-chain boundary.
 5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-412 in dependency/evidence order; MNT-411/MNT-412 are spending/concurrency safety work, not optional optimization.
 6. Validate live Vast assumptions with MNT-500, then MNT-501/MNT-502, then MNT-503.
