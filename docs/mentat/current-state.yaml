@@ -42,14 +42,14 @@ merged_milestones:
     result: Shot 1 checkout-independent complete Windows runtime merged after clean-install proof
 
 active_engineering_pr:
-  pr: null
+  pr: 19
   title: "Shot 2 owner-PC Gate 1 validation kit"
   branch: agent/shot2-owner-gate1-evidence
   base_branch: main
   head_commit_policy: fetch_current_head_from_github_at_resume
-  state: local_implementation_pending_publication
+  state: open
   draft: true
-  status: engineering_validation_in_progress_owner_execution_still_blocked
+  status: draft_exact_head_ci_pending_owner_execution_still_blocked
   implementation:
     command: mentat test gate1-owner
     inference: loopback_fake_only
