@@ -40,6 +40,7 @@ foreach ($required in @(
     'scripts\mentat\mentat.ps1',
     'scripts\mentat\doctor.ps1',
     'scripts\mentat\testing\no_spend_acceptance.py',
+    'scripts\mentat\testing\gate1_owner_acceptance.py',
     'services\model-broker\mentat_broker\__init__.py',
     'config\model-registry.json'
 )) {
