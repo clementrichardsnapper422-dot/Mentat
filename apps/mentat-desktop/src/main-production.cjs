@@ -220,7 +220,7 @@ if (
   process.argv.includes('--diagnostics-no-spend')
   || process.env.MENTAT_DIAGNOSTICS_NO_SPEND === '1'
 ) {
-  electron.app.whenReady().then(runNonInteractiveDiagnostics).catch((error) => {
+  runNonInteractiveDiagnostics().catch((error) => {
     process.stderr.write(`${error.stack || error}\n`);
     exitNonInteractiveDiagnostics(1);
   });
