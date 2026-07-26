@@ -30,7 +30,7 @@ merged_milestones:
     title: Integrate no-spend diagnostics into Mentat desktop
     merge_commit: c374e529bb03d16606c2ae03b6b05b04c748e69a
     merged_head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
-    result: installed and desktop no-spend diagnostics merged with focused CI green and no paid compute
+    result: source-tree installed-command and Electron desktop no-spend diagnostics merged with focused CI green and no paid compute
 
 active_engineering_pr: null
 
@@ -46,10 +46,16 @@ other_open_prs:
 
 active_documentation_pr: null
 
+known_artifact_gap:
+  pr12_artifact_scope: electron_nsis_only
+  missing_from_clean_install: local_runtime_broker_required_scripts_and_mentat_wrapper
+  source_tree_dependency: install_ps1_creates_wrapper_with_checkout_path
+  owner_pc_validation_ready: false
+
 exact_next_task:
-  work_item: MNT-203
-  status: blocked_owner
-  task: Install the packaged Mentat artifact on a clean owner Windows PC, run mentat doctor and both installed no-spend diagnostic paths, then retain the remaining Gate 1 Docker isolation, credential-boundary, authentication, reject-timeout, restart, shutdown, and recovery evidence.
+  work_item: MNT-202
+  status: ready_for_engineering
+  task: Build and retain one complete Windows installation artifact containing Mentat.exe, the local runtime, Broker, required scripts, and the mentat wrapper without a source checkout or checkout-path embedding; prove on a clean CI runner that mentat doctor, mentat test no-spend, and desktop diagnostics are available before MNT-203 owner-PC validation.
 
 current_release_gate:
   number: 1
@@ -120,4 +126,4 @@ resume_protocol:
   - read this file
   - fetch the current main tip and open PR state from GitHub before trusting any recorded commit or status
   - update stale handoff data before implementation
-  - resume MNT-203 clean owner-PC Windows validation unless GitHub reality changes
+  - resume the MNT-202 complete-runtime packaging slice unless GitHub reality changes
