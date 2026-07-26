@@ -16,7 +16,7 @@ Target direct-instance and advanced broker-hardening work documented in Program 
 
 ## Current repository state
 
-Last reconciled: **2026-07-26 after PR #12 merged**, against `main` commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`.
+Last reconciled: **2026-07-26 during Shot 1 exact-head validation**, against `main` commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`.
 
 The ledger deliberately does **not** claim that hash is forever the current `main` tip. A document cannot safely embed the hash of the commit that will contain its own update. **Always fetch the current GitHub `main` tip and PR state at resume time.**
 
@@ -34,6 +34,8 @@ The ledger deliberately does **not** claim that hash is forever the current `mai
 - PR #15: merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`; provider/learning/spending design hardening complete
 - PR #12: **merged** as `c374e529bb03d16606c2ae03b6b05b04c748e69a`; installed and desktop no-spend diagnostics are on `main`
 - Last verified PR #12 focused CI: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS; CodeQL PASS; no paid compute used
+- PR #17: **open and ready for review** on `agent/post-pr12-gate1-handoff`; Shot 0 repository-truth reconciliation, exact head `94d8925eb9d8f64bf255b965827f15c07b78f30a`
+- PR #18: **open and stacked on PR #17** on `agent/mnt-202-complete-runtime-package`; Shot 1 complete-runtime packaging, exact code head `748d5a069873961aa82a632d9556c2b06f14b45b`
 - PR #9: still open, 16 commits ahead and 29 commits behind `main`; diverged and not the current execution slice; requires separate triage before reuse
 - Live Vast canary: not completed
 - Signed installer: not completed
@@ -114,7 +116,7 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [x] Repair/revalidate PR #12 Broker/Runtime failures.
 - [x] `mentat test no-spend` accepted after the source-tree `install.ps1` path in CI.
 - [x] Desktop diagnostics accepted in focused CI.
-- [ ] Complete clean-install artifact includes the local runtime, Broker, required scripts, and `mentat` wrapper without a source checkout or checkout-path embedding.
+- [x] Complete clean-install artifact includes the local runtime, Broker, required scripts, and `mentat` wrapper without a source checkout or checkout-path embedding; exact-head clean-runner proof is retained on PR #18.
 - [ ] Actual OpenClaw tool execution proven inside Docker.
 - [ ] Gateway/tools/renderer/sandbox proven unable to read broker/admin/Vast credentials.
 - [ ] Clean target-PC Windows installation.
@@ -277,28 +279,40 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - MNT-202 remains `PARTIAL`; its next engineering slice is a complete clean-install runtime artifact. Owner-PC installation, actual Docker tool execution, credential-boundary and authentication proof, reject/timeout behavior, and restart/shutdown recovery follow only after that artifact passes clean-runner CI.
 - PR #9 remains open but is diverged from `main` and is not the current execution slice; it must be separately reviewed before any of its changes are reused.
 
+### 2026-07-26 — Shot 1 complete-runtime package proven on a clean runner
+
+- PR #18 packages `Mentat.exe`, the exact Node runtime, OpenClaw, the Mentat runtime/Broker scripts, the model registry and all registry-declared endpoint configs, plus a checkout-independent `mentat` wrapper in one NSIS artifact.
+- The installer provisions the runtime transactionally under the installed desktop resources, maintains the user PATH entry, preserves user configuration/state on uninstall, and removes the source-checkout dependency from installed commands.
+- Packaged-runtime doctor no longer requires Git, npm, pnpm, or system Node. Runtime endpoint validation is derived from the guarded model registry rather than a hard-coded provider list.
+- Exact code head `748d5a069873961aa82a632d9556c2b06f14b45b` passed Mentat Desktop run `30207508634`: the installer was built, installed silently from a clean Windows runner, and verified outside the checkout; installed doctor reported 0 failures and the expected unconfigured-provider warning; installed command and desktop no-spend diagnostics both passed with `paid_compute_used: false`.
+- The exact code head also passed Mentat Runtime `30207508662`, Workflow Sanity `30207508638`, and all three Periphery lanes. The installed no-spend report (artifact `8633637438`) and Windows installer (artifact `8633638741`, SHA-256 `d029e5431dd6492704ab3b78862710d521b34e29d5c35d32698c3b05257b9911`) were retained.
+- PR #17 remains open, so PR #18 remains stacked on its Shot 0 branch. Land PR #17 first, then retarget/revalidate PR #18 against `main`; this evidence does not claim either PR is merged.
+- MNT-202 remains `PARTIAL`: its complete-runtime packaging slice is proven, while MNT-203 through MNT-206 still require clean owner-PC installation, actual Docker isolation, credential-boundary/authentication proof, reject/timeout behavior, and restart/shutdown recovery. Gate 1 remains `IN PROGRESS`.
+- No real credentials, external provider calls, or paid compute were used.
+
 ## Current handoff
 
 ```text
-Date/time: 2026-07-26T05:36:13Z
+Date/time: 2026-07-26T15:24:54Z
 State reconciled against main: c374e529bb03d16606c2ae03b6b05b04c748e69a
 Current main tip verified live: c374e529bb03d16606c2ae03b6b05b04c748e69a
-Engineering branch/PR: none
+Documentation branch/PR: agent/post-pr12-gate1-handoff / PR #17 / OPEN / READY FOR REVIEW
+Engineering branch/PR: agent/mnt-202-complete-runtime-package / PR #18 / OPEN / STACKED ON PR #17
 MNT work item: MNT-002 / MNT-202
-Last completed item: PR #12 merged with source-tree installed-command and desktop no-spend diagnostics on main
-Current item: Complete clean-install Windows runtime packaging before owner-PC validation
-Merged PR head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
-Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS; CodeQL PASS
-Local validation after review fixes: Broker 41 passed; Ruff/compile checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax and 2 async-process tests passed
-Review state at handoff: 3 actionable comments addressed; 3 threads resolved; no unresolved review threads
-Known proof gap: PR #12's retained artifact contains only the Electron installer; it does not install the complete local runtime, Broker, required scripts, or mentat wrapper. Clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence also remain for Gate 1.
-Owner action required: clean owner-PC validation after the complete artifact exists; private-repository migration remains required before real credentials or paid tests
+Last completed item: Shot 1 complete-runtime packaging slice proven on a clean Windows CI runner
+Current item: Land Shot 0, retarget/revalidate and land Shot 1, then perform owner-PC Gate 1 validation
+Shot 0 head: 94d8925eb9d8f64bf255b965827f15c07b78f30a
+Shot 1 validated code head: 748d5a069873961aa82a632d9556c2b06f14b45b
+Exact-code-head focused CI: Mentat Runtime PASS (30207508662); Mentat Desktop complete install PASS (30207508634); Workflow Sanity PASS (30207508638); Periphery PASS
+Clean-runner evidence: installer/runtime/wrapper present outside checkout; doctor 0 failures/1 expected warning; command no-spend 9/9 PASS; desktop no-spend PASS; paid compute used false
+Local validation: desktop/packaging tests 11 passed; changed JavaScript syntax checks passed; workflow YAML parsed
+Known proof gap: clean owner-PC installation, actual Docker tool isolation, credential-boundary/authentication, reject/timeout, and restart/shutdown recovery remain for Gate 1
+Owner action required: merge PR #17, then merge the retargeted/revalidated PR #18; perform MNT-203 through MNT-206 on a clean owner Windows PC; private-repository migration remains required before real credentials or paid tests
 Exact next task:
-1. Package Mentat.exe, the local runtime, Broker, required scripts, and mentat wrapper into one clean-install artifact.
-2. Remove the source-checkout and checkout-path dependency from the installed wrapper.
-3. Install that artifact on a clean Windows CI runner.
-4. Prove mentat doctor, mentat test no-spend, and desktop diagnostics are all available from the installed product.
-5. Retain the machine-readable report, then hand MNT-203 through MNT-206 to owner-PC validation.
+1. Merge PR #17 through the repository-native review/landing workflow.
+2. Retarget PR #18 from agent/post-pr12-gate1-handoff to main and verify it remains mergeable.
+3. Revalidate PR #18 against the resulting main tip, then merge it through the repository-native workflow.
+4. Run MNT-203 through MNT-206 on a clean owner Windows PC and retain the machine-readable evidence.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature that bypasses Gate 1, or deferred Program-7 work.
 ```
 
