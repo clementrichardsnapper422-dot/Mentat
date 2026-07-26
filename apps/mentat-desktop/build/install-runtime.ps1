@@ -41,10 +41,7 @@ foreach ($required in @(
     'scripts\mentat\doctor.ps1',
     'scripts\mentat\testing\no_spend_acceptance.py',
     'services\model-broker\mentat_broker\__init__.py',
-    'config\model-registry.json',
-    'infrastructure\vast\kimi-k2.7-code\endpoint.json',
-    'infrastructure\vast\qwen3-coder-30b\endpoint.json',
-    'infrastructure\vast\deepseek-coder-v2-lite\endpoint.json'
+    'config\model-registry.json'
 )) {
     if (-not (Test-Path -LiteralPath (Join-Path $PayloadRoot $required) -PathType Leaf)) {
         throw "Mentat runtime payload is incomplete: $required"
@@ -56,6 +53,23 @@ try {
         ConvertFrom-Json
     if ($manifest.schema_version -ne 1 -or $manifest.product -ne 'Mentat') {
         throw 'Mentat runtime payload manifest is unsupported.'
+    }
+    $endpointConfigs = @($manifest.endpoint_configs)
+    if ($endpointConfigs.Count -eq 0) {
+        throw 'Mentat runtime payload manifest does not declare endpoint configurations.'
+    }
+    $payloadPrefix = [IO.Path]::GetFullPath($PayloadRoot).TrimEnd('\') + '\'
+    foreach ($endpointConfig in $endpointConfigs) {
+        if (-not $endpointConfig -or [IO.Path]::IsPathRooted($endpointConfig)) {
+            throw "Mentat runtime payload has an unsafe endpoint path: $endpointConfig"
+        }
+        $endpointPath = [IO.Path]::GetFullPath((Join-Path $PayloadRoot $endpointConfig))
+        if (-not $endpointPath.StartsWith($payloadPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Mentat runtime payload has an unsafe endpoint path: $endpointConfig"
+        }
+        if (-not (Test-Path -LiteralPath $endpointPath -PathType Leaf)) {
+            throw "Mentat runtime payload is incomplete: $endpointConfig"
+        }
     }
 } catch {
     throw "Mentat runtime payload manifest is invalid: $($_.Exception.Message)"
