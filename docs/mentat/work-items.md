@@ -104,15 +104,16 @@ A state may only advance when the evidence required by the exit criteria exists.
 - State: PARTIAL
 - Dependencies: MNT-200, MNT-201.
 - Merged evidence: PR #12, merge commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`; focused Broker, Runtime, Desktop installer/smoke-install, Workflow Sanity, and CodeQL checks passed with no paid compute.
-- Exact next slice: produce one complete Windows installation artifact containing `Mentat.exe`, the local runtime, Broker, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding; prove `mentat doctor`, `mentat test no-spend`, and desktop diagnostics from a clean CI install.
-- Remaining evidence after packaging: clean owner-PC installation plus the complete Docker isolation, credential-boundary, authentication, rejection/timeout, restart, shutdown, and recovery matrix.
+- Complete-runtime packaging slice: implemented on PR #18 and proven from a clean Windows CI install at exact code head `748d5a069873961aa82a632d9556c2b06f14b45b`; the installed artifact contains `Mentat.exe`, bundled Node/OpenClaw, the local runtime, Broker, registry-declared endpoint configs, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding. Installed doctor, command no-spend, and desktop no-spend diagnostics passed with no paid compute.
+- Landing dependency: PR #18 is stacked on the still-open Shot 0 PR #17. Merge PR #17 first, then retarget/revalidate and merge PR #18 against `main`.
+- Remaining evidence: clean owner-PC installation plus the complete Docker isolation, credential-boundary, authentication, rejection/timeout, restart, shutdown, and recovery matrix.
 - Exit: installed Mentat completes setup, decision, approval, inference, tool, rating, diagnostics, shutdown, and recovery entirely against local fakes, with retained machine-readable evidence.
 
 ### MNT-203 — Clean target-PC installation
 
 - Priority: P0
 - State: BLOCKED_OWNER
-- Engineering precondition: MNT-202 complete-runtime installation artifact passes clean-runner CI; this precondition is currently incomplete.
+- Engineering precondition: MNT-202 complete-runtime installation artifact passes clean-runner CI; PR #18 satisfies this precondition and must be landed after PR #17 before owner-PC execution.
 - Exit: install from packaged artifact on clean Windows; no source checkout or manual environment editing.
 
 ### MNT-204 — Credential-boundary proof
@@ -471,8 +472,8 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 ## Current execution order
 
 1. Keep MNT-002 active continuously; GitHub and handoff documents must agree.
-2. Complete the MNT-202 clean-install packaging slice: one artifact must install the desktop, runtime, Broker, required scripts, and mentat wrapper without a source checkout, then pass doctor and both diagnostic paths on a clean Windows CI runner.
-3. After that artifact exists, close MNT-203 through MNT-206 on a clean owner Windows PC and retain machine-readable evidence for Docker isolation, credential boundaries, authentication, reject/timeout behavior, and restart/shutdown recovery.
+2. Land the proven Shot 1 packaging slice: merge PR #17, retarget/revalidate PR #18 against `main`, then merge PR #18 through the repository-native workflow.
+3. Close MNT-203 through MNT-206 on a clean owner Windows PC and retain machine-readable evidence for Docker isolation, credential boundaries, authentication, reject/timeout behavior, and restart/shutdown recovery.
 4. Complete MNT-100 through MNT-104 before real credentials, paid canaries, or release operations that depend on the private supply-chain boundary.
 5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-412 in dependency/evidence order; MNT-411/MNT-412 are spending/concurrency safety work, not optional optimization.
 6. Validate live Vast assumptions with MNT-500, then MNT-501/MNT-502, then MNT-503.
