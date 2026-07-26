@@ -101,7 +101,8 @@ if ($Packaged) {
         'scripts\mentat\launch.ps1',
         'scripts\mentat\broker.py',
         'scripts\mentat\testing\no_spend_acceptance.py',
-        'services\model-broker\mentat_broker\__init__.py'
+        'services\model-broker\mentat_broker\__init__.py',
+        'infrastructure\vast\kimi-k2.7-code\endpoint.json'
     )) {
         if (Test-Path (Join-Path $RootDir $required)) { Report OK "Runtime component: $required" }
         else { Report FAIL "Runtime component is missing: $required" }

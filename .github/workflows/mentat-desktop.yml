@@ -13,6 +13,7 @@ on:
       - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
+      - "infrastructure/vast/kimi-k2.7-code/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -30,6 +31,7 @@ on:
       - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
+      - "infrastructure/vast/kimi-k2.7-code/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -115,7 +117,8 @@ jobs:
             (Join-Path $runtimeRoot 'runtime-manifest.json'),
             (Join-Path $runtimeRoot 'node\node.exe'),
             (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
-            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py')
+            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py'),
+            (Join-Path $runtimeRoot 'infrastructure\vast\kimi-k2.7-code\endpoint.json')
           )) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
               throw "Installed runtime component was not found: $required"

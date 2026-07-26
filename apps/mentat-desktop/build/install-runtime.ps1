@@ -41,7 +41,8 @@ foreach ($required in @(
     'scripts\mentat\doctor.ps1',
     'scripts\mentat\testing\no_spend_acceptance.py',
     'services\model-broker\mentat_broker\__init__.py',
-    'config\model-registry.json'
+    'config\model-registry.json',
+    'infrastructure\vast\kimi-k2.7-code\endpoint.json'
 )) {
     if (-not (Test-Path -LiteralPath (Join-Path $PayloadRoot $required) -PathType Leaf)) {
         throw "Mentat runtime payload is incomplete: $required"

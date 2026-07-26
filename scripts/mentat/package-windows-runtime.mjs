@@ -121,6 +121,19 @@ async function main() {
     path.join(ROOT_DIR, "config", "model-registry.json"),
     path.join(STAGING_DIR, "config", "model-registry.json"),
   );
+  const endpointConfig = path.join(
+    "infrastructure",
+    "vast",
+    "kimi-k2.7-code",
+    "endpoint.json",
+  );
+  await fs.mkdir(path.join(STAGING_DIR, path.dirname(endpointConfig)), {
+    recursive: true,
+  });
+  await fs.copyFile(
+    path.join(ROOT_DIR, endpointConfig),
+    path.join(STAGING_DIR, endpointConfig),
+  );
 
   const desktopPackage = await readJson(
     path.join(ROOT_DIR, "apps", "mentat-desktop", "package.json"),
@@ -154,6 +167,7 @@ async function main() {
     "services/model-broker/mentat_broker/__init__.py",
     "services/model-broker/pyproject.toml",
     "config/model-registry.json",
+    "infrastructure/vast/kimi-k2.7-code/endpoint.json",
   ]);
 
   await fs.rm(PAYLOAD_DIR, { recursive: true, force: true });
