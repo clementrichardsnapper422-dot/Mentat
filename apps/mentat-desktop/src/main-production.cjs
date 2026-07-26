@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { runNoSpendDiagnostic } = require('./no-spend-command.cjs');
+const { runNoSpendCli } = require('./no-spend-cli.cjs');
 
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
@@ -197,18 +198,7 @@ electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(ta
 };
 
 async function runNonInteractiveDiagnostics() {
-  const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
-  const diagnostic = await runNoSpendDiagnostic(commandPath, noSpendReportPath());
-  const summary = {
-    passed: diagnostic.passed,
-    paid_compute_used: diagnostic.report?.paid_compute_used ?? null,
-    report: noSpendReportPath(),
-    process_status: diagnostic.result.status,
-    process_error: diagnostic.result.error?.message || null,
-    report_error: diagnostic.reportError?.message || null,
-  };
-  process.stdout.write(`${JSON.stringify(summary)}\n`);
-  exitNonInteractiveDiagnostics(diagnostic.passed ? 0 : 1);
+  exitNonInteractiveDiagnostics(await runNoSpendCli());
 }
 
 function exitNonInteractiveDiagnostics(code) {
