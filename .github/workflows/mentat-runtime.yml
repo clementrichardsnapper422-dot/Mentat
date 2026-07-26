@@ -62,7 +62,11 @@ jobs:
             scripts/mentat/vast_http.py \
             scripts/mentat/testing/fake_vast.py \
             scripts/mentat/testing/fake_openai.py \
-            scripts/mentat/testing/no_spend_acceptance.py
+            scripts/mentat/testing/no_spend_acceptance.py \
+            scripts/mentat/testing/gate1_owner_acceptance.py
+      - name: Test Gate 1 evidence policy
+        working-directory: scripts/mentat/testing
+        run: python -m unittest -v test_gate1_owner_acceptance.py
       - name: Validate model registry and broker configuration
         env:
           MENTAT_BROKER_CLIENT_TOKEN: check-client
@@ -154,6 +158,7 @@ jobs:
           $output = & .\scripts\mentat\mentat.ps1 help 6>&1 | Out-String
           if ($output -notmatch 'mentat vast') { throw 'Native help is missing Vast commands.' }
           if ($output -notmatch 'mentat test no-spend') { throw 'Native help is missing no-spend diagnostics.' }
+          if ($output -notmatch 'mentat test gate1-owner') { throw 'Native help is missing owner-PC Gate 1 diagnostics.' }
       - name: Verify Windows DPAPI protection
         shell: powershell
         run: |
@@ -175,7 +180,12 @@ jobs:
             scripts/mentat/vast_http.py `
             scripts/mentat/testing/fake_vast.py `
             scripts/mentat/testing/fake_openai.py `
-            scripts/mentat/testing/no_spend_acceptance.py
+            scripts/mentat/testing/no_spend_acceptance.py `
+            scripts/mentat/testing/gate1_owner_acceptance.py
+      - name: Test Gate 1 evidence policy on Windows
+        shell: powershell
+        working-directory: scripts/mentat/testing
+        run: python -m unittest -v test_gate1_owner_acceptance.py
           $env:MENTAT_BROKER_CLIENT_TOKEN = 'check-client'
           $env:MENTAT_BROKER_ADMIN_TOKEN = 'check-admin'
           python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
@@ -200,6 +210,7 @@ jobs:
           $help = & $mentat help | Out-String
           if ($help -notmatch 'native Windows control plane') { throw 'Installed command help failed.' }
           if ($help -notmatch 'mentat test no-spend') { throw 'Installed command omitted no-spend diagnostics.' }
+          if ($help -notmatch 'mentat test gate1-owner') { throw 'Installed command omitted owner-PC Gate 1 diagnostics.' }
           $version = & $mentat version | Out-String
           if ($version -notmatch '^Mentat ') { throw 'Installed command version failed.' }
       - name: Run installed no-spend acceptance command
