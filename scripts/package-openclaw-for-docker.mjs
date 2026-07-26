@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { DOCKER_SELECTED_PLUGIN_BUILD_IDS_ENV } from "./lib/bundled-plugin-build-entries.mjs";
+import { resolvePackageCommand } from "./mentat/package-command.mjs";
 import { preparePackageChangelog, restorePackageChangelog } from "./package-changelog.mjs";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -218,7 +219,7 @@ function run(command, args, cwd, options = {}) {
       DEFAULT_TIMEOUT_KILL_AFTER_MS,
     );
     const useProcessGroup = process.platform !== "win32";
-    const child = spawn(command, args, {
+    const child = spawn(resolvePackageCommand(command), args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
       env: options.env ?? process.env,

@@ -76,6 +76,10 @@ jobs:
         shell: powershell
         run: npm test
 
+      - name: Test cross-platform runtime packaging helpers
+        shell: powershell
+        run: node --test scripts/mentat/package-windows-runtime.test.mjs
+
       - name: Build Mentat NSIS installer
         working-directory: apps/mentat-desktop
         shell: powershell
