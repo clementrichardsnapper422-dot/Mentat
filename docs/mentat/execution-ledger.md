@@ -236,7 +236,7 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Reconciled the ledger's in-scope/deferred split with the final work-item backlog.
 - No runtime code, credentials, or paid compute changed.
 
-### 2026-07-25 — PR #12 Broker and Runtime repair prepared
+### 2026-07-25 — PR #12 Broker and Runtime repair published
 
 - Verified GitHub `main` at `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`, PR #12 remote head at `655634d1a4dacb8a4c077a0970e16571f6c8cb48`, and the last focused CI state as Desktop PASS, Broker FAIL, Runtime FAIL.
 - Rebased `agent/desktop-no-spend-integration` onto the verified `main`; the clean rebased branch was `731b95bb6f57d7f0ab5dcdddaef9519e1137c22d` before the repair.
@@ -244,7 +244,7 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Diagnosed the Runtime failure as a successful installed Windows diagnostic followed by an invalid artifact path. The workflow now copies the report to `RUNNER_TEMP` and uploads that stable path.
 - Local evidence: 39 Broker tests passed; focused regression tests passed; Broker Ruff passed; Python compileall passed; Broker configuration check passed; standalone no-spend acceptance passed all nine checks with `paid_compute_used: false`; Electron production main-process syntax passed.
 - Windows PowerShell parsing, installed-wrapper execution, artifact upload, and focused GitHub CI still require a remote rerun. No CI gate is being called green from local evidence.
-- Publishing is blocked in the current environment because the GitHub CLI required by the repository publish workflow is unavailable. The repair and handoff remain uncommitted locally.
+- Published the rebased implementation through the connected GitHub app as `acdc351b6a6609033d7ea39387dee3349842c851`, with parent `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`, after rechecking that PR #12's remote head had not changed.
 - No real credentials, provider behavior, paid compute, Kimi canary, or deferred Program 7 scope was used or changed.
 
 ## Current handoff
@@ -255,21 +255,19 @@ State reconciled against main: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Current main tip verified live: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
 MNT work item: MNT-002 / MNT-202
-Last completed item: Local Broker/Runtime repair and no-spend verification prepared
-Current item: Publish the repair and obtain exact-head focused CI evidence
-Last verified PR #12 engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL on head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
-Local branch before uncommitted repair: 731b95bb6f57d7f0ab5dcdddaef9519e1137c22d, rebased on current main
+Last completed item: Broker/Runtime repair published as acdc351b6a6609033d7ea39387dee3349842c851
+Current item: Obtain exact-head focused CI evidence
+Previous PR #12 engineering CI before repair: Desktop PASS; Broker FAIL; Runtime FAIL on head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
+Published implementation: acdc351b6a6609033d7ea39387dee3349842c851, based on current main
 Local validation: Broker 39 passed; Ruff/compile/config checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax passed
-Known proof gap: Windows Runtime/Desktop/Broker CI has not rerun against the local repair
-External blocker: GitHub CLI is unavailable in the current environment, so the publish workflow could not commit/push
+Known proof gap: Windows Runtime/Desktop/Broker CI has not been inspected on the published repair
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
 1. Fetch current GitHub main/PR/CI reality.
-2. Review and commit the prepared PR #12 repair and handoff.
-3. Push the rebased branch with force-with-lease after GitHub CLI authentication is available.
-4. Rerun Broker, Runtime, Desktop, and no-spend CI on the exact remote head.
-5. Inspect the latest ClawSweeper rank-up moves and all required checks.
-6. Merge or deliberately supersede PR #12 only when required evidence is green.
+2. Inspect Broker, Runtime, Desktop, and no-spend CI on the exact remote head.
+3. Repair any exact-head failure without weakening tests or invariants.
+4. Inspect the latest ClawSweeper rank-up moves and all required checks.
+5. Merge or deliberately supersede PR #12 only when required evidence is green.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 

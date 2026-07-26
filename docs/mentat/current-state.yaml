@@ -1,5 +1,5 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T03:36:47Z
+last_verified_utc: 2026-07-26T03:52:58Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -31,19 +31,20 @@ active_engineering_pr:
   pr: 12
   title: Integrate no-spend diagnostics into Mentat desktop
   branch: agent/desktop-no-spend-integration
-  head_commit: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
+  head_commit_policy: fetch_current_head_from_github_at_resume
+  state_reconciled_against_implementation_commit: acdc351b6a6609033d7ea39387dee3349842c851
   state: open
   draft: true
-  status: blocked_by_ci
-  last_verified_ci:
+  status: awaiting_exact_head_ci
+  previous_ci_before_repair:
     desktop: pass
     broker: fail
     runtime: fail
-  local_repair:
+  published_repair:
     rebased_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
-    branch_commit_before_uncommitted_repair: 731b95bb6f57d7f0ab5dcdddaef9519e1137c22d
-    worktree_status: uncommitted
-    publish_status: blocked_missing_github_cli
+    implementation_commit: acdc351b6a6609033d7ea39387dee3349842c851
+    publish_method: connected_github_app
+    publish_status: published
     local_validation:
       broker_pytest: 39_passed
       broker_lint: passed
@@ -53,7 +54,7 @@ active_engineering_pr:
       paid_compute_used: false
       desktop_main_node_check: passed
       runtime_windows_ci: not_rerun
-  exact_next_task: Commit and publish the prepared PR 12 repair after GitHub CLI authentication is available, rerun Broker Runtime Desktop and no-spend CI on the new remote head, then merge or deliberately supersede the PR before starting a new broker implementation feature.
+  exact_next_task: Inspect Broker Runtime Desktop and no-spend CI on the current remote head, repair any exact-head failures without weakening invariants, then merge or deliberately supersede PR 12 before starting a new broker implementation feature.
 
 active_documentation_pr: null
 

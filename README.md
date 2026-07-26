@@ -131,27 +131,27 @@ current verified main:
 active engineering work:
   PR #12
   branch: agent/desktop-no-spend-integration
-  remote head: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
-  status: OPEN / DRAFT / BLOCKED BY CI
+  published implementation: acdc351b6a6609033d7ea39387dee3349842c851
+  status: OPEN / DRAFT / AWAITING EXACT-HEAD CI
 
-last verified PR #12 CI:
+previous PR #12 CI before the repair:
   Mentat Desktop: PASS
   Mentat Broker:  FAIL
   Mentat Runtime: FAIL
 
-local repair prepared:
+published repair:
   rebased on current main: YES
   Broker tests: 39 PASS
   no-spend acceptance: PASS / paid compute used: NO
-  publish and Windows CI: PENDING
+  exact-head Windows CI: PENDING
 
 current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
 exact next engineering task:
-  publish the prepared PR #12 repair,
-  rerun Broker, Runtime, Desktop, and no-spend CI,
+  inspect Broker, Runtime, Desktop, and no-spend CI
+  for the published repair,
   then merge or deliberately supersede PR #12.
 ```
 
