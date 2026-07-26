@@ -146,14 +146,19 @@ jobs:
             & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath test no-spend
             if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
 
-            $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -PassThru
-            if (-not $desktopDiagnostic.WaitForExit(360000)) {
-              & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
-              throw 'Installed desktop diagnostics timed out after 360 seconds.'
-            }
-            $desktopDiagnostic.Refresh()
-            if ($desktopDiagnostic.ExitCode -ne 0) {
-              throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
+            $env:MENTAT_DIAGNOSTICS_NO_SPEND = '1'
+            try {
+              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -PassThru
+              if (-not $desktopDiagnostic.WaitForExit(360000)) {
+                & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
+                throw 'Installed desktop diagnostics timed out after 360 seconds.'
+              }
+              $desktopDiagnostic.Refresh()
+              if ($desktopDiagnostic.ExitCode -ne 0) {
+                throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
+              }
+            } finally {
+              Remove-Item Env:MENTAT_DIAGNOSTICS_NO_SPEND -ErrorAction SilentlyContinue
             }
           } finally {
             Pop-Location
