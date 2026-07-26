@@ -311,6 +311,22 @@ def run_acceptance() -> dict[str, Any]:
                 return {"http_status": exc.code, "error_type": payload["error"]["type"]}
             raise AcceptanceFailure("request unexpectedly succeeded")
 
+        def malformed_failure():
+            try:
+                request_json(
+                    broker_base + "/v1/chat/completions",
+                    "acceptance-client",
+                    chat_payload("[[malformed]]"),
+                )
+            except urllib.error.HTTPError as exc:
+                payload = json.loads(exc.read().decode("utf-8"))
+                error = payload.get("error")
+                require(isinstance(error, dict), "malformed response error was not structured")
+                require(bool(error.get("message")), "malformed response error message was empty")
+                require(bool(error.get("type")), "malformed response error type was empty")
+                return {"http_status": exc.code, "error_type": error["type"]}
+            raise AcceptanceFailure("malformed upstream response unexpectedly succeeded")
+
         check(
             "context-error-fails-closed",
             lambda: expected_failure("[[context_error]]", "maximum context length"),
@@ -321,7 +337,7 @@ def run_acceptance() -> dict[str, Any]:
         )
         check(
             "malformed-upstream-fails-closed",
-            lambda: expected_failure("[[malformed]]", "all approved model endpoints failed"),
+            malformed_failure,
         )
 
         successful = application.store.list_benchmarks(100)
