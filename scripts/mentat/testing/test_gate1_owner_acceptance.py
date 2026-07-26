@@ -1,5 +1,5 @@
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from gate1_owner_acceptance import GateFailure, validate_container_inspect
 
