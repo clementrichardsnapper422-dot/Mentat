@@ -1,11 +1,11 @@
 schema_version: 2
-last_verified_utc: 2026-07-24T12:59:00Z
+last_verified_utc: 2026-07-26T04:19:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
   visibility: public
-  state_reconciled_against_main_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+  state_reconciled_against_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
   main_commit_policy: always_verify_current_tip_from_github_at_resume
   note: This file deliberately does not claim its own containing commit is the current main tip; that would become stale at the instant a state-sync commit merges.
 
@@ -31,15 +31,62 @@ active_engineering_pr:
   pr: 12
   title: Integrate no-spend diagnostics into Mentat desktop
   branch: agent/desktop-no-spend-integration
-  head_commit: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
+  head_commit_policy: fetch_current_head_from_github_at_resume
+  state_reconciled_against_implementation_commit: 793e253be0930f1a4011d4c691ac129f80386119
   state: open
-  draft: true
-  status: blocked_by_ci
-  last_verified_ci:
+  draft: false
+  mergeable: true
+  status: focused_ci_green_review_threads_resolved_pending_repository_landing
+  previous_ci_before_repair:
     desktop: pass
     broker: fail
     runtime: fail
-  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting a new broker implementation feature.
+  published_repair:
+    rebased_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
+    implementation_commit: acdc351b6a6609033d7ea39387dee3349842c851
+    publish_method: connected_github_app
+    publish_status: published
+    local_validation:
+      broker_pytest: 41_passed
+      broker_lint: passed
+      python_compileall: passed
+      broker_config_check: passed
+      no_spend_acceptance: passed
+      paid_compute_used: false
+      desktop_main_node_check: passed
+      runtime_windows_ci: passed
+  exact_head_ci:
+    verified_commit: 793e253be0930f1a4011d4c691ac129f80386119
+    mentat_broker:
+      status: success
+      run: 30187463254
+    mentat_runtime:
+      status: success
+      run: 30187463264
+    mentat_desktop:
+      status: success
+      run: 30187463286
+      installer_build: passed
+      installer_smoke_install: passed
+      installed_no_spend_report: retained
+    workflow_sanity:
+      status: success
+      run: 30187463275
+    codeql:
+      status: success
+      run: 30187463279
+    paid_compute_used: false
+  review_state:
+    comments: 3_addressed
+    reviews: 1_commented
+    unresolved_threads: 0
+    resolved_threads: 3
+    clawsweeper_rank_up_moves: none
+    fixes:
+      malformed_tool_calls: implemented_and_locally_tested
+      invalid_usage_telemetry: implemented_and_locally_tested
+      asynchronous_desktop_diagnostics: implemented_and_locally_tested
+  exact_next_task: Complete PR 12 through the repository-native landing workflow, then continue Gate 1 with clean owner-PC Windows installation, Docker tool-isolation proof, credential-boundary proof, and restart/shutdown recovery evidence.
 
 active_documentation_pr: null
 

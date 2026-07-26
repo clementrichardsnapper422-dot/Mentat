@@ -19,8 +19,8 @@ def compose_production_broker_for_production_tests(
 
     The real entry point installs these bindings before constructing the
     application. Keep base-unit tests untouched while ensuring production and
-    no-spend integration modules exercise the hardened store and session
-    manager rather than the unhooked development defaults.
+    no-spend integration modules exercise the hardened store, session manager,
+    and endpoint overrides. ProductionBrokerApplication owns response integrity.
     """
 
     filename = Path(str(request.node.path)).name

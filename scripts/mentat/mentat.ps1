@@ -13,10 +13,12 @@ $BrokerPidPath = Join-Path $BrokerDir 'broker.pid'
 $BrokerAdminTokenPath = Join-Path $StateDir 'broker-admin.token'
 $OutLog = Join-Path $StateDir 'gateway.out.log'
 $ErrorLog = Join-Path $StateDir 'gateway.error.log'
+$NoSpendReportPath = Join-Path $StateDir 'no-spend-acceptance.json'
 $LaunchScript = Join-Path $RootDir 'scripts\mentat\launch.ps1'
 $DoctorScript = Join-Path $RootDir 'scripts\mentat\doctor.ps1'
 $VastScript = Join-Path $RootDir 'scripts\mentat\vast_endpoint.py'
 $BrokerShutdownScript = Join-Path $RootDir 'scripts\mentat\broker_shutdown.py'
+$NoSpendScript = Join-Path $RootDir 'scripts\mentat\testing\no_spend_acceptance.py'
 
 New-Item -ItemType Directory -Force -Path $ConfigDir, $StateDir, $BrokerDir | Out-Null
 
@@ -60,7 +62,7 @@ function Resolve-Python {
         & $python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" 2>$null
         if ($LASTEXITCODE -eq 0) { return @($python) }
     }
-    throw 'Python 3.11 or newer is required for Vast endpoint commands.'
+    throw 'Python 3.11 or newer is required for Mentat broker and diagnostics commands.'
 }
 
 function Invoke-Python([string[]]$ArgsList) {
@@ -313,6 +315,27 @@ function Command-Vast([string[]]$CommandArgs) {
     }
 }
 
+function Command-Test([string[]]$CommandArgs) {
+    $testName = if ($CommandArgs.Count -gt 0) { $CommandArgs[0].ToLowerInvariant() } else { '' }
+    if ($testName -ne 'no-spend') {
+        throw 'Usage: mentat test no-spend'
+    }
+    if (-not (Test-Path $NoSpendScript)) {
+        throw "No-spend acceptance script was not found: $NoSpendScript"
+    }
+    Remove-Item $NoSpendReportPath -Force -ErrorAction SilentlyContinue
+    Write-Host 'Running Mentat no-spend acceptance checks. No real Vast compute will be started.' -ForegroundColor Cyan
+    Invoke-Python @($NoSpendScript, '--report', $NoSpendReportPath)
+    if (-not (Test-Path $NoSpendReportPath)) {
+        throw 'The no-spend acceptance report was not created.'
+    }
+    $report = Get-Content -LiteralPath $NoSpendReportPath -Raw | ConvertFrom-Json
+    if (-not $report.passed) { throw 'Mentat no-spend acceptance failed. Review the JSON report.' }
+    if ($report.paid_compute_used) { throw 'Safety violation: no-spend report claims paid compute was used.' }
+    Write-Host 'Mentat no-spend acceptance passed.' -ForegroundColor Green
+    Write-Host "Report: $NoSpendReportPath"
+}
+
 function Command-Config([string[]]$CommandArgs) {
     $action = if ($CommandArgs.Count -gt 0) { $CommandArgs[0] } else { 'path' }
     switch ($action) {
@@ -380,6 +403,7 @@ Usage:
 
 First run:
   mentat doctor
+  mentat test no-spend
   mentat setup [vast|ollama-cloud]
   mentat start
   mentat chat
@@ -393,6 +417,7 @@ Everyday commands:
   mentat logs [--no-follow]
   mentat config [path|show|edit|reset]
   mentat doctor
+  mentat test no-spend
   mentat update
 
 Vast endpoint commands:
@@ -425,6 +450,7 @@ try {
         'chat' { Command-Chat $commandArgs }
         'logs' { Command-Logs $commandArgs }
         'vast' { Command-Vast $commandArgs }
+        'test' { Command-Test $commandArgs }
         'config' { Command-Config $commandArgs }
         'doctor' { & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $DoctorScript; exit $LASTEXITCODE }
         'update' { Command-Update }

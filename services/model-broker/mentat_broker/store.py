@@ -292,7 +292,10 @@ class BrokerStore:
             rows = self._connection.execute(
                 "SELECT * FROM benchmarks ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
-        return [dict(row) for row in rows]
+        result = [dict(row) for row in rows]
+        for record in result:
+            record["success"] = bool(record["success"])
+        return result
 
     def upsert_session(
         self,

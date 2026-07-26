@@ -117,32 +117,44 @@ The README may describe target behavior discovered from current Vast documentati
 
 This is a human-readable orientation snapshot, not a substitute for checking GitHub. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
 
-Last documentation reconciliation: **2026-07-24**.
+Last documentation reconciliation: **2026-07-25**.
 
 ```text
 latest merged documentation milestone:
-  PR #14 — construction contract, roadmap, checklist, and resume system
-  merge commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
+  PR #15 — provider, learning, spending, and concurrency design hardening
+  merge commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+
+current verified main:
+  897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
+  result: post-PR-15 handoff synchronization
 
 active engineering work:
   PR #12
   branch: agent/desktop-no-spend-integration
-  head: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
-  status: OPEN / DRAFT / BLOCKED BY CI
+  published implementation: acdc351b6a6609033d7ea39387dee3349842c851
+  review-fix evidence head: 793e253be0930f1a4011d4c691ac129f80386119
+  status: OPEN / READY FOR REVIEW / FOCUSED CI GREEN / THREADS RESOLVED
 
-last verified PR #12 CI:
-  Mentat Desktop: PASS
-  Mentat Broker:  FAIL
-  Mentat Runtime: FAIL
+verified repair:
+  rebased on current main: YES
+  Broker tests: 41 PASS
+  no-spend acceptance: PASS / paid compute used: NO
+  malformed tool-call evidence: FAILS CLOSED
+  invalid usage telemetry: SAFELY IGNORED
+  desktop diagnostic process: ASYNC / MENU DISABLED WHILE RUNNING
+  Mentat Broker: PASS
+  Mentat Runtime: PASS
+  Mentat Desktop installer and smoke-install: PASS
+  Workflow Sanity and CodeQL: PASS
+  review threads: 3 ADDRESSED / 3 RESOLVED
 
 current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
 exact next engineering task:
-  diagnose and repair PR #12 Broker/Runtime failures,
-  rerun focused CI and no-spend acceptance,
-  then merge or deliberately supersede PR #12.
+  complete PR #12 through the repository-native landing workflow,
+  then continue Gate 1 on a clean owner Windows PC.
 ```
 
 Until the documented gates change:
@@ -182,7 +194,7 @@ This checklist is the bird's-eye mission status. Detailed sub-items and dependen
 - [x] Fake Vast control plane exists.
 - [x] Fake OpenAI-compatible inference service exists.
 - [x] Cross-platform no-spend Broker acceptance harness exists.
-- [ ] PR #12 focused Broker/Runtime CI failures repaired.
+- [x] PR #12 focused Broker/Runtime CI failures repaired.
 - [ ] Installed `mentat test no-spend` path fully accepted.
 - [ ] Desktop no-spend diagnostics fully accepted.
 - [ ] Clean Windows installation completed.
@@ -284,10 +296,10 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [ ] Finish PR #12.
 - [x] Malformed upstream output is prevented from becoming positive runtime evidence in the PR work package.
 - [x] Desktop/no-spend integration work exists in the PR.
-- [ ] Diagnose Broker CI failures on Windows and Ubuntu.
-- [ ] Diagnose Runtime CI failure.
-- [ ] Repair the implementation without weakening tests/invariants.
-- [ ] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
+- [x] Diagnose Broker CI failures on Windows and Ubuntu.
+- [x] Diagnose Runtime CI failure.
+- [x] Repair the implementation without weakening tests/invariants.
+- [x] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
 - [ ] Merge or deliberately supersede PR #12.
 
 **Exit condition:** the active work package is green, evidence is retained, and the ledger is updated.

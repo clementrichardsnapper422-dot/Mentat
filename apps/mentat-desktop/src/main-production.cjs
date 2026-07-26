@@ -2,10 +2,18 @@ const electron = require('electron');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { runNoSpendCommand } = require('./no-spend-command.cjs');
+
+let noSpendRunInProgress = false;
+let noSpendMenuItem = null;
 
 function installRoot() {
   const localAppData = process.env.LOCALAPPDATA || electron.app.getPath('appData');
   return path.join(localAppData, 'Mentat');
+}
+
+function noSpendReportPath() {
+  return path.join(installRoot(), 'state', 'no-spend-acceptance.json');
 }
 
 function brokerPort() {
@@ -37,6 +45,131 @@ function isBrokerUrl(value) {
     return false;
   }
 }
+
+function parseNoSpendReport() {
+  const reportPath = noSpendReportPath();
+  const raw = fs.readFileSync(reportPath, 'utf8').replace(/^\uFEFF/, '');
+  const report = JSON.parse(raw);
+  if (!report || typeof report !== 'object') {
+    throw new Error('The no-spend report is not a JSON object.');
+  }
+  return report;
+}
+
+async function runNoSpendAcceptance() {
+  const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
+  if (!fs.existsSync(commandPath)) {
+    await electron.dialog.showMessageBox({
+      type: 'error',
+      title: 'Mentat diagnostics',
+      message: 'The installed Mentat command was not found.',
+      detail: 'Run install.cmd from the Mentat repository to repair the installation.',
+    });
+    return;
+  }
+
+  const confirmation = await electron.dialog.showMessageBox({
+    type: 'info',
+    title: 'Run no-spend diagnostics',
+    message: 'Run Mentat’s isolated no-spend acceptance test?',
+    detail: 'This uses local fake Vast and model services. It does not read your saved Vast key or start paid compute.',
+    buttons: ['Run test', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (confirmation.response !== 0) {
+    return;
+  }
+
+  if (noSpendRunInProgress) {
+    return;
+  }
+  noSpendRunInProgress = true;
+  if (noSpendMenuItem) {
+    noSpendMenuItem.enabled = false;
+  }
+
+  try {
+    const result = await runNoSpendCommand(commandPath);
+    let report = null;
+    try {
+      report = parseNoSpendReport();
+    } catch {
+      // The process error below includes the actionable command output.
+    }
+    const passed = result.status === 0
+      && report
+      && report.passed === true
+      && report.paid_compute_used === false;
+    const checks = report && Array.isArray(report.checks) ? report.checks : [];
+    const passedChecks = checks.filter((item) => item && item.status === 'passed').length;
+    const failedChecks = checks.filter((item) => item && item.status === 'failed');
+
+    if (passed) {
+      await electron.dialog.showMessageBox({
+        type: 'info',
+        title: 'Mentat diagnostics passed',
+        message: `No-spend acceptance passed (${passedChecks}/${checks.length} checks).`,
+        detail: `Paid compute used: no\nReport: ${noSpendReportPath()}`,
+        buttons: ['OK', 'Open report'],
+        defaultId: 0,
+        noLink: true,
+      }).then(async ({ response }) => {
+        if (response === 1) {
+          const error = await electron.shell.openPath(noSpendReportPath());
+          if (error) {
+            electron.dialog.showErrorBox('Could not open report', error);
+          }
+        }
+      });
+      return;
+    }
+
+    const commandOutput = String(result.stderr || result.stdout || '').trim().slice(-3000);
+    const failureDetail = failedChecks.length
+      ? failedChecks.map((item) => `${item.name}: ${item.error || 'failed'}`).join('\n')
+      : commandOutput || result.error?.message || 'The diagnostic process did not produce a valid passing report.';
+    await electron.dialog.showMessageBox({
+      type: 'error',
+      title: 'Mentat diagnostics failed',
+      message: 'No-spend acceptance did not pass.',
+      detail: `${failureDetail}\n\nReport: ${noSpendReportPath()}`,
+    });
+  } finally {
+    noSpendRunInProgress = false;
+    if (noSpendMenuItem) {
+      noSpendMenuItem.enabled = true;
+    }
+  }
+}
+
+const originalBuildFromTemplate = electron.Menu.buildFromTemplate.bind(electron.Menu);
+electron.Menu.buildFromTemplate = function buildMentatProductionMenu(template) {
+  const actualTemplate = Array.isArray(template) ? template.map((item) => ({ ...item })) : template;
+  if (Array.isArray(actualTemplate)) {
+    let target = actualTemplate.find((item) => item && item.label === 'Mentat');
+    if (!target) {
+      target = { label: 'Diagnostics', submenu: [] };
+      actualTemplate.push(target);
+    }
+    const submenu = Array.isArray(target.submenu) ? [...target.submenu] : [];
+    submenu.push(
+      { type: 'separator' },
+      {
+        id: 'mentat-no-spend-diagnostics',
+        label: 'Run No-Spend Diagnostics…',
+        accelerator: 'CmdOrCtrl+Shift+D',
+        enabled: !noSpendRunInProgress,
+        click: () => { void runNoSpendAcceptance(); },
+      },
+    );
+    target.submenu = submenu;
+  }
+  const menu = originalBuildFromTemplate(actualTemplate);
+  noSpendMenuItem = menu.getMenuItemById('mentat-no-spend-diagnostics') || noSpendMenuItem;
+  return menu;
+};
 
 const originalGet = http.get;
 http.get = function authenticatedLocalGet(input, options, callback) {

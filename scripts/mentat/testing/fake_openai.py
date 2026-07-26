@@ -75,7 +75,7 @@ def _json_completion(payload: dict[str, Any], text: str) -> dict[str, Any]:
         content = "OK" if int(payload.get("max_tokens") or 0) == 1 else "Mentat no-spend inference online"
         message = {"role": "assistant", "content": content}
         finish_reason = "stop"
-    return {
+    completion = {
         "id": "chatcmpl-" + uuid.uuid4().hex,
         "object": "chat.completion",
         "created": int(time.time()),
@@ -93,6 +93,16 @@ def _json_completion(payload: dict[str, Any], text: str) -> dict[str, Any]:
             "total_tokens": 16,
         },
     }
+    if _directive(text, "malformed_tool"):
+        completion["choices"][0]["message"] = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [None],
+        }
+        completion["choices"][0]["finish_reason"] = "tool_calls"
+    if _directive(text, "invalid_usage"):
+        completion["usage"]["completion_tokens"] = "not-a-number"
+    return completion
 
 
 class FakeOpenAIHandler(BaseHTTPRequestHandler):
