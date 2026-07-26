@@ -118,6 +118,7 @@ jobs:
             (Join-Path $runtimeRoot 'runtime-manifest.json'),
             (Join-Path $runtimeRoot 'node\node.exe'),
             (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
+            (Join-Path $runtimeRoot 'scripts\mentat\testing\gate1_owner_acceptance.py'),
             (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py')
           )) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
