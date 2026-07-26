@@ -112,8 +112,9 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [x] Fake OpenAI-compatible inference foundation exists.
 - [x] Cross-platform no-spend Broker acceptance harness exists and has prior retained green evidence.
 - [x] Repair/revalidate PR #12 Broker/Runtime failures.
-- [x] Installed `mentat test no-spend` path accepted in packaged CI.
-- [x] Desktop diagnostics path accepted in focused CI.
+- [x] `mentat test no-spend` accepted after the source-tree `install.ps1` path in CI.
+- [x] Desktop diagnostics accepted in focused CI.
+- [ ] Complete clean-install artifact includes the local runtime, Broker, required scripts, and `mentat` wrapper without a source checkout or checkout-path embedding.
 - [ ] Actual OpenClaw tool execution proven inside Docker.
 - [ ] Gateway/tools/renderer/sandbox proven unable to read broker/admin/Vast credentials.
 - [ ] Clean target-PC Windows installation.
@@ -267,12 +268,13 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Exact-head GitHub evidence passed on `793e253be0930f1a4011d4c691ac129f80386119`: Mentat Broker `30187463254`, Mentat Runtime `30187463264`, Mentat Desktop `30187463286`, Workflow Sanity `30187463275`, and CodeQL `30187463279`.
 - Replied to each review finding with its commit and regression evidence, then resolved all three threads. No real credentials or paid compute were used.
 
-### 2026-07-26 — PR #12 merged and Gate 1 handed to owner-PC validation
+### 2026-07-26 — PR #12 merged and clean-install packaging gap identified
 
 - PR #12 merged into `main` as `c374e529bb03d16606c2ae03b6b05b04c748e69a` from verified head `546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228`.
-- The installed `mentat test no-spend` path, desktop asynchronous diagnostics, response-integrity fixes, installer build/smoke-install, and retained no-spend evidence are now on `main`.
+- The source-tree installed `mentat test no-spend` path, desktop asynchronous diagnostics, response-integrity fixes, installer build/smoke-install, and retained no-spend evidence are now on `main`.
 - Focused Broker, Runtime, Desktop, Workflow Sanity, and CodeQL evidence remained green; no real credentials or paid compute were used.
-- MNT-202 remains `PARTIAL` because its full exit criteria include clean owner-PC installation, actual Docker tool execution, credential-boundary and authentication proof, reject/timeout behavior, and restart/shutdown recovery.
+- Review of the retained Desktop artifact found that it contains the Electron NSIS installer only. The source-tree `install.ps1` creates the `mentat` wrapper and embeds the checkout path, so the artifact cannot yet support `mentat doctor` or command diagnostics on a truly clean PC.
+- MNT-202 remains `PARTIAL`; its next engineering slice is a complete clean-install runtime artifact. Owner-PC installation, actual Docker tool execution, credential-boundary and authentication proof, reject/timeout behavior, and restart/shutdown recovery follow only after that artifact passes clean-runner CI.
 - PR #9 remains open but is diverged from `main` and is not the current execution slice; it must be separately reviewed before any of its changes are reused.
 
 ## Current handoff
@@ -282,21 +284,21 @@ Date/time: 2026-07-26T05:36:13Z
 State reconciled against main: c374e529bb03d16606c2ae03b6b05b04c748e69a
 Current main tip verified live: c374e529bb03d16606c2ae03b6b05b04c748e69a
 Engineering branch/PR: none
-MNT work item: MNT-002 / MNT-202 / MNT-203
-Last completed item: PR #12 merged with installed and desktop no-spend diagnostics on main
-Current item: Clean owner-PC Windows installation and retained Gate 1 evidence
+MNT work item: MNT-002 / MNT-202
+Last completed item: PR #12 merged with source-tree installed-command and desktop no-spend diagnostics on main
+Current item: Complete clean-install Windows runtime packaging before owner-PC validation
 Merged PR head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
 Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS; CodeQL PASS
 Local validation after review fixes: Broker 41 passed; Ruff/compile checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax and 2 async-process tests passed
 Review state at handoff: 3 actionable comments addressed; 3 threads resolved; no unresolved review threads
-Known proof gap: clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence remain for Gate 1
-Owner action required: private-repository migration remains required before real credentials or paid tests
+Known proof gap: PR #12's retained artifact contains only the Electron installer; it does not install the complete local runtime, Broker, required scripts, or mentat wrapper. Clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence also remain for Gate 1.
+Owner action required: clean owner-PC validation after the complete artifact exists; private-repository migration remains required before real credentials or paid tests
 Exact next task:
-1. Install the packaged Mentat artifact on a clean owner Windows PC without a source checkout or manual environment editing.
-2. Run mentat doctor, the installed command no-spend diagnostic, and the desktop no-spend diagnostic.
-3. Retain machine-readable evidence for the full chat/tool loop, authentication, rejection/timeout, and malformed-response paths.
-4. Prove actual Docker tool isolation and the credential boundary.
-5. Prove broker/Gateway restart plus app-close, logoff, Windows-restart, and shutdown cleanup behavior.
+1. Package Mentat.exe, the local runtime, Broker, required scripts, and mentat wrapper into one clean-install artifact.
+2. Remove the source-checkout and checkout-path dependency from the installed wrapper.
+3. Install that artifact on a clean Windows CI runner.
+4. Prove mentat doctor, mentat test no-spend, and desktop diagnostics are all available from the installed product.
+5. Retain the machine-readable report, then hand MNT-203 through MNT-206 to owner-PC validation.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature that bypasses Gate 1, or deferred Program-7 work.
 ```
 
