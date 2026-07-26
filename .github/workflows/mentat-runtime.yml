@@ -182,13 +182,13 @@ jobs:
             scripts/mentat/testing/fake_openai.py `
             scripts/mentat/testing/no_spend_acceptance.py `
             scripts/mentat/testing/gate1_owner_acceptance.py
+          $env:MENTAT_BROKER_CLIENT_TOKEN = 'check-client'
+          $env:MENTAT_BROKER_ADMIN_TOKEN = 'check-admin'
+          python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
       - name: Test Gate 1 evidence policy on Windows
         shell: powershell
         working-directory: scripts/mentat/testing
         run: python -m unittest -v test_gate1_owner_acceptance.py
-          $env:MENTAT_BROKER_CLIENT_TOKEN = 'check-client'
-          $env:MENTAT_BROKER_ADMIN_TOKEN = 'check-admin'
-          python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
       - name: Verify native production security boundary
         shell: powershell
         run: |
