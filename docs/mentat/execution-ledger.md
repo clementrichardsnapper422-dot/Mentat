@@ -16,7 +16,7 @@ Target direct-instance and advanced broker-hardening work documented in Program 
 
 ## Current repository state
 
-Last reconciled: **2026-07-25 during PR #12 review readiness**, against `main` commit `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`.
+Last reconciled: **2026-07-26 after PR #12 merged**, against `main` commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`.
 
 The ledger deliberately does **not** claim that hash is forever the current `main` tip. A document cannot safely embed the hash of the commit that will contain its own update. **Always fetch the current GitHub `main` tip and PR state at resume time.**
 
@@ -32,8 +32,9 @@ The ledger deliberately does **not** claim that hash is forever the current `mai
 - PR #13: merged; complete target broker architecture documented
 - PR #14: merged; construction contract, roadmap, checklist, and resume system established
 - PR #15: merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`; provider/learning/spending design hardening complete
-- PR #12: **open, ready for review, and exact active engineering work package** on `agent/desktop-no-spend-integration`; current head must be fetched from GitHub at resume time
-- Last verified PR #12 focused CI on `793e253be0930f1a4011d4c691ac129f80386119`: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS; CodeQL PASS
+- PR #12: **merged** as `c374e529bb03d16606c2ae03b6b05b04c748e69a`; installed and desktop no-spend diagnostics are on `main`
+- Last verified PR #12 focused CI: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS; CodeQL PASS; no paid compute used
+- PR #9: still open, 16 commits ahead and 29 commits behind `main`; diverged and not the current execution slice; requires separate triage before reuse
 - Live Vast canary: not completed
 - Signed installer: not completed
 
@@ -76,7 +77,7 @@ DO NOT start paid Vast compute from ordinary development or CI.
 DO NOT begin the Kimi canary.
 DO NOT claim Gate 1 complete.
 DO NOT claim direct Vast instances are production-validated.
-DO NOT begin a new broker implementation feature while PR #12 remains unresolved.
+DO NOT bypass the remaining Gate 1 evidence work to begin a new broker implementation feature.
 DO NOT start deferred Program 7 work merely because it is more interesting than the current release blocker.
 ```
 
@@ -110,9 +111,9 @@ DO NOT start deferred Program 7 work merely because it is more interesting than 
 - [x] Fake Vast control-plane foundation exists.
 - [x] Fake OpenAI-compatible inference foundation exists.
 - [x] Cross-platform no-spend Broker acceptance harness exists and has prior retained green evidence.
-- [ ] Repair/revalidate PR #12 Broker/Runtime failures.
-- [ ] Installed `mentat test no-spend` path accepted.
-- [ ] Desktop diagnostics path accepted.
+- [x] Repair/revalidate PR #12 Broker/Runtime failures.
+- [x] Installed `mentat test no-spend` path accepted in packaged CI.
+- [x] Desktop diagnostics path accepted in focused CI.
 - [ ] Actual OpenClaw tool execution proven inside Docker.
 - [ ] Gateway/tools/renderer/sandbox proven unable to read broker/admin/Vast credentials.
 - [ ] Clean target-PC Windows installation.
@@ -266,28 +267,37 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Exact-head GitHub evidence passed on `793e253be0930f1a4011d4c691ac129f80386119`: Mentat Broker `30187463254`, Mentat Runtime `30187463264`, Mentat Desktop `30187463286`, Workflow Sanity `30187463275`, and CodeQL `30187463279`.
 - Replied to each review finding with its commit and regression evidence, then resolved all three threads. No real credentials or paid compute were used.
 
+### 2026-07-26 — PR #12 merged and Gate 1 handed to owner-PC validation
+
+- PR #12 merged into `main` as `c374e529bb03d16606c2ae03b6b05b04c748e69a` from verified head `546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228`.
+- The installed `mentat test no-spend` path, desktop asynchronous diagnostics, response-integrity fixes, installer build/smoke-install, and retained no-spend evidence are now on `main`.
+- Focused Broker, Runtime, Desktop, Workflow Sanity, and CodeQL evidence remained green; no real credentials or paid compute were used.
+- MNT-202 remains `PARTIAL` because its full exit criteria include clean owner-PC installation, actual Docker tool execution, credential-boundary and authentication proof, reject/timeout behavior, and restart/shutdown recovery.
+- PR #9 remains open but is diverged from `main` and is not the current execution slice; it must be separately reviewed before any of its changes are reused.
+
 ## Current handoff
 
 ```text
-Date/time: 2026-07-26T04:19:00Z
-State reconciled against main: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
-Current main tip verified live: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
-Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
-MNT work item: MNT-002 / MNT-202
-Last completed item: Three ready-review findings fixed, verified, replied to, and resolved
-Current item: Complete the repository-native landing workflow for PR #12
-Verified review-fix evidence head: 793e253be0930f1a4011d4c691ac129f80386119
+Date/time: 2026-07-26T05:36:13Z
+State reconciled against main: c374e529bb03d16606c2ae03b6b05b04c748e69a
+Current main tip verified live: c374e529bb03d16606c2ae03b6b05b04c748e69a
+Engineering branch/PR: none
+MNT work item: MNT-002 / MNT-202 / MNT-203
+Last completed item: PR #12 merged with installed and desktop no-spend diagnostics on main
+Current item: Clean owner-PC Windows installation and retained Gate 1 evidence
+Merged PR head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
 Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS; CodeQL PASS
 Local validation after review fixes: Broker 41 passed; Ruff/compile checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax and 2 async-process tests passed
 Review state at handoff: 3 actionable comments addressed; 3 threads resolved; no unresolved review threads
 Known proof gap: clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence remain for Gate 1
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
-1. Fetch current GitHub main/PR/CI reality.
-2. Inspect any new checks, comments, reviews, and ClawSweeper rank-up moves.
-3. Complete PR #12 through the repository-native scripts/pr landing workflow.
-4. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
-Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
+1. Install the packaged Mentat artifact on a clean owner Windows PC without a source checkout or manual environment editing.
+2. Run mentat doctor, the installed command no-spend diagnostic, and the desktop no-spend diagnostic.
+3. Retain machine-readable evidence for the full chat/tool loop, authentication, rejection/timeout, and malformed-response paths.
+4. Prove actual Docker tool isolation and the credential boundary.
+5. Prove broker/Gateway restart plus app-close, logoff, Windows-restart, and shutdown cleanup behavior.
+Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature that bypasses Gate 1, or deferred Program-7 work.
 ```
 
 ## Handoff template

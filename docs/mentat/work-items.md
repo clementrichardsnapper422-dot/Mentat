@@ -101,9 +101,10 @@ A state may only advance when the evidence required by the exit criteria exists.
 ### MNT-202 — Full Windows no-spend acceptance harness
 
 - Priority: P0
-- State: ACTIVE
+- State: PARTIAL
 - Dependencies: MNT-200, MNT-201.
-- Active work: PR #12 `agent/desktop-no-spend-integration`.
+- Merged evidence: PR #12, merge commit `c374e529bb03d16606c2ae03b6b05b04c748e69a`; focused Broker, Runtime, Desktop installer/smoke-install, Workflow Sanity, and CodeQL checks passed with no paid compute.
+- Remaining evidence: clean owner-PC installation plus the complete Docker isolation, credential-boundary, authentication, rejection/timeout, restart, shutdown, and recovery matrix.
 - Exit: installed Mentat completes setup, decision, approval, inference, tool, rating, diagnostics, shutdown, and recovery entirely against local fakes, with retained machine-readable evidence.
 
 ### MNT-203 — Clean target-PC installation
@@ -468,8 +469,8 @@ These are part of the documented long-term Mentat architecture. They are **DEFER
 ## Current execution order
 
 1. Keep MNT-002 active continuously; GitHub and handoff documents must agree.
-2. Finish the existing PR #12 work package advancing MNT-201/MNT-202; diagnose Broker/Runtime CI without weakening invariants.
-3. Close the remaining no-spend Gate 1 work in MNT-202 through MNT-206 as dependencies/owner actions permit.
+2. Close the remaining no-spend Gate 1 work in MNT-202 through MNT-206, beginning with MNT-203 on a clean owner Windows PC.
+3. Retain machine-readable evidence for installed diagnostics, Docker isolation, credential boundaries, authentication, reject/timeout behavior, and restart/shutdown recovery.
 4. Complete MNT-100 through MNT-104 before real credentials, paid canaries, or release operations that depend on the private supply-chain boundary.
 5. Complete MNT-300 through MNT-306 and MNT-400 through MNT-412 in dependency/evidence order; MNT-411/MNT-412 are spending/concurrency safety work, not optional optimization.
 6. Validate live Vast assumptions with MNT-500, then MNT-501/MNT-502, then MNT-503.
