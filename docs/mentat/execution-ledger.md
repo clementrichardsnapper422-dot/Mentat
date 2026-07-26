@@ -50,15 +50,15 @@ The ledger deliberately does **not** claim that hash is forever the current `mai
 
 ## Master gate status
 
-| Gate | Status | Evidence required to close |
-|---|---|---|
-| 0. Private repository and supply chain | BLOCKED: OWNER | standalone private repository, protected `main`, secret/history audit, required checks, reproducible signed release path |
-| 1. No-spend Windows integration | IN PROGRESS | PR #12 repaired/accepted, clean target-PC install, Docker tool isolation, credential-boundary proof, restart/shutdown behavior |
-| 2. Low-cost Vast canary | NOT STARTED | current API/permission assumptions validated, reject/no-spend, one intended create, real inference, reuse/cooling, recovery, actual billing reconciliation |
-| 3. Kimi canary | NOT STARTED | exact Kimi profile, tools, long context, stream/cancellation, caps, recovery, actual latency/throughput/billing |
-| 4. Broker intelligence/learning | IN PROGRESS BY DESIGN | benchmark corpus, calibrated quality/success/cost/latency predictions, safe exploration, promotion/demotion, regret/savings, explainability, spending/concurrency safeguards |
-| 5. Soak/adversarial validation | NOT STARTED | race/failure injection, security attacks, 100-session/24-hour/multi-day campaign, no leaks or stale paid resources |
-| 6. Signed Mentat 1.0 release | NOT STARTED | all in-scope P0 gates closed, signed/checksummed/provenanced artifact installed on clean Windows |
+| Gate                                   | Status                | Evidence required to close                                                                                                                                                   |
+| -------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Private repository and supply chain | BLOCKED: OWNER        | standalone private repository, protected `main`, secret/history audit, required checks, reproducible signed release path                                                     |
+| 1. No-spend Windows integration        | IN PROGRESS           | PR #12 repaired/accepted, clean target-PC install, Docker tool isolation, credential-boundary proof, restart/shutdown behavior                                               |
+| 2. Low-cost Vast canary                | NOT STARTED           | current API/permission assumptions validated, reject/no-spend, one intended create, real inference, reuse/cooling, recovery, actual billing reconciliation                   |
+| 3. Kimi canary                         | NOT STARTED           | exact Kimi profile, tools, long context, stream/cancellation, caps, recovery, actual latency/throughput/billing                                                              |
+| 4. Broker intelligence/learning        | IN PROGRESS BY DESIGN | benchmark corpus, calibrated quality/success/cost/latency predictions, safe exploration, promotion/demotion, regret/savings, explainability, spending/concurrency safeguards |
+| 5. Soak/adversarial validation         | NOT STARTED           | race/failure injection, security attacks, 100-session/24-hour/multi-day campaign, no leaks or stale paid resources                                                           |
+| 6. Signed Mentat 1.0 release           | NOT STARTED           | all in-scope P0 gates closed, signed/checksummed/provenanced artifact installed on clean Windows                                                                             |
 
 ## Owner-only gates
 
