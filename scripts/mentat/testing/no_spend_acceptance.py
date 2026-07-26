@@ -340,12 +340,24 @@ def run_acceptance() -> dict[str, Any]:
             malformed_failure,
         )
 
-        successful = application.store.list_benchmarks(100)
+        benchmarks = application.store.list_benchmarks(100)
+        successful = [item for item in benchmarks if item.get("success")]
+        failed = [item for item in benchmarks if not item.get("success")]
         check(
             "telemetry-integrity",
             lambda: (
                 require(len(successful) == 3, f"expected 3 successful samples, found {len(successful)}"),
                 {"successful_runtime_samples": len(successful)},
+            )[1],
+        )
+        check(
+            "malformed-response-negative-evidence",
+            lambda: (
+                require(
+                    any("malformed completion JSON" in str(item.get("notes")) for item in failed),
+                    "malformed response was not retained as failed evidence",
+                ),
+                {"failed_runtime_samples": len(failed)},
             )[1],
         )
         check(
