@@ -147,13 +147,20 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
 
             $env:MENTAT_DIAGNOSTICS_NO_SPEND = '1'
+            $desktopStdout = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.out.log'
+            $desktopStderr = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.err.log'
             try {
-              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -PassThru
+              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' `
+                -RedirectStandardOutput $desktopStdout -RedirectStandardError $desktopStderr -PassThru
               if (-not $desktopDiagnostic.WaitForExit(360000)) {
                 & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
+                if (Test-Path -LiteralPath $desktopStdout) { Get-Content -LiteralPath $desktopStdout }
+                if (Test-Path -LiteralPath $desktopStderr) { Get-Content -LiteralPath $desktopStderr }
                 throw 'Installed desktop diagnostics timed out after 360 seconds.'
               }
               $desktopDiagnostic.Refresh()
+              if (Test-Path -LiteralPath $desktopStdout) { Get-Content -LiteralPath $desktopStdout }
+              if (Test-Path -LiteralPath $desktopStderr) { Get-Content -LiteralPath $desktopStderr }
               if ($desktopDiagnostic.ExitCode -ne 0) {
                 throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
               }
