@@ -1,11 +1,11 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T04:19:00Z
+last_verified_utc: 2026-07-26T05:36:13Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
   visibility: public
-  state_reconciled_against_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
+  state_reconciled_against_main_commit: c374e529bb03d16606c2ae03b6b05b04c748e69a
   main_commit_policy: always_verify_current_tip_from_github_at_resume
   note: This file deliberately does not claim its own containing commit is the current main tip; that would become stale at the instant a state-sync commit merges.
 
@@ -26,69 +26,36 @@ merged_milestones:
     title: Harden Vast broker learning security and efficiency design
     merge_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
     result: Vast provider contract self-learning design spending safety backlog and durable handoff hardening merged
+  - pr: 12
+    title: Integrate no-spend diagnostics into Mentat desktop
+    merge_commit: c374e529bb03d16606c2ae03b6b05b04c748e69a
+    merged_head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
+    result: source-tree installed-command and Electron desktop no-spend diagnostics merged with focused CI green and no paid compute
 
-active_engineering_pr:
-  pr: 12
-  title: Integrate no-spend diagnostics into Mentat desktop
-  branch: agent/desktop-no-spend-integration
-  head_commit_policy: fetch_current_head_from_github_at_resume
-  state_reconciled_against_implementation_commit: 793e253be0930f1a4011d4c691ac129f80386119
-  state: open
-  draft: false
-  mergeable: true
-  status: focused_ci_green_review_threads_resolved_pending_repository_landing
-  previous_ci_before_repair:
-    desktop: pass
-    broker: fail
-    runtime: fail
-  published_repair:
-    rebased_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
-    implementation_commit: acdc351b6a6609033d7ea39387dee3349842c851
-    publish_method: connected_github_app
-    publish_status: published
-    local_validation:
-      broker_pytest: 41_passed
-      broker_lint: passed
-      python_compileall: passed
-      broker_config_check: passed
-      no_spend_acceptance: passed
-      paid_compute_used: false
-      desktop_main_node_check: passed
-      runtime_windows_ci: passed
-  exact_head_ci:
-    verified_commit: 793e253be0930f1a4011d4c691ac129f80386119
-    mentat_broker:
-      status: success
-      run: 30187463254
-    mentat_runtime:
-      status: success
-      run: 30187463264
-    mentat_desktop:
-      status: success
-      run: 30187463286
-      installer_build: passed
-      installer_smoke_install: passed
-      installed_no_spend_report: retained
-    workflow_sanity:
-      status: success
-      run: 30187463275
-    codeql:
-      status: success
-      run: 30187463279
-    paid_compute_used: false
-  review_state:
-    comments: 3_addressed
-    reviews: 1_commented
-    unresolved_threads: 0
-    resolved_threads: 3
-    clawsweeper_rank_up_moves: none
-    fixes:
-      malformed_tool_calls: implemented_and_locally_tested
-      invalid_usage_telemetry: implemented_and_locally_tested
-      asynchronous_desktop_diagnostics: implemented_and_locally_tested
-  exact_next_task: Complete PR 12 through the repository-native landing workflow, then continue Gate 1 with clean owner-PC Windows installation, Docker tool-isolation proof, credential-boundary proof, and restart/shutdown recovery evidence.
+active_engineering_pr: null
+
+other_open_prs:
+  - pr: 9
+    title: Finish Mentat production hardening
+    branch: agent/finalize-production-hardening
+    state: open
+    relationship_to_main: diverged
+    ahead_by: 16
+    behind_by: 29
+    execution_status: not_current_slice_requires_separate_triage_before_reuse
 
 active_documentation_pr: null
+
+known_artifact_gap:
+  pr12_artifact_scope: electron_nsis_only
+  missing_from_clean_install: local_runtime_broker_required_scripts_and_mentat_wrapper
+  source_tree_dependency: install_ps1_creates_wrapper_with_checkout_path
+  owner_pc_validation_ready: false
+
+exact_next_task:
+  work_item: MNT-202
+  status: ready_for_engineering
+  task: Build and retain one complete Windows installation artifact containing Mentat.exe, the local runtime, Broker, required scripts, and the mentat wrapper without a source checkout or checkout-path embedding; prove on a clean CI runner that mentat doctor, mentat test no-spend, and desktop diagnostics are available before MNT-203 owner-PC validation.
 
 current_release_gate:
   number: 1
@@ -147,7 +114,7 @@ forbidden_until_gates_change:
   - do not begin the Kimi canary
   - do not claim Gate 1 complete
   - do not describe direct Vast instances as production-validated
-  - do not start a new broker implementation feature while PR 12 remains unresolved
+  - do not bypass the remaining Gate 1 evidence work to start a new broker implementation feature
   - do not start deferred Program 7 work unless Mentat 1.0 is complete or the owner explicitly changes scope
 
 resume_protocol:
@@ -159,4 +126,4 @@ resume_protocol:
   - read this file
   - fetch the current main tip and open PR state from GitHub before trusting any recorded commit or status
   - update stale handoff data before implementation
-  - resume PR 12 as the exact active engineering package unless GitHub reality changes
+  - resume the MNT-202 complete-runtime packaging slice unless GitHub reality changes

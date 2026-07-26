@@ -117,26 +117,23 @@ The README may describe target behavior discovered from current Vast documentati
 
 This is a human-readable orientation snapshot, not a substitute for checking GitHub. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
 
-Last documentation reconciliation: **2026-07-25**.
+Last documentation reconciliation: **2026-07-26**.
 
 ```text
-latest merged documentation milestone:
-  PR #15 — provider, learning, spending, and concurrency design hardening
-  merge commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+latest merged Mentat milestone:
+  PR #12 — installed and desktop no-spend diagnostics
+  merge commit: c374e529bb03d16606c2ae03b6b05b04c748e69a
 
 current verified main:
-  897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
-  result: post-PR-15 handoff synchronization
+  c374e529bb03d16606c2ae03b6b05b04c748e69a
+  result: PR #12 merged
 
 active engineering work:
-  PR #12
-  branch: agent/desktop-no-spend-integration
-  published implementation: acdc351b6a6609033d7ea39387dee3349842c851
-  review-fix evidence head: 793e253be0930f1a4011d4c691ac129f80386119
-  status: OPEN / READY FOR REVIEW / FOCUSED CI GREEN / THREADS RESOLVED
+  next slice: MNT-202 complete-runtime packaging
+  status: ENGINEERING REQUIRED BEFORE OWNER-PC VALIDATION
 
-verified repair:
-  rebased on current main: YES
+verified PR #12 result:
+  merged head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
   Broker tests: 41 PASS
   no-spend acceptance: PASS / paid compute used: NO
   malformed tool-call evidence: FAILS CLOSED
@@ -145,6 +142,7 @@ verified repair:
   Mentat Broker: PASS
   Mentat Runtime: PASS
   Mentat Desktop installer and smoke-install: PASS
+  retained artifact scope: ELECTRON INSTALLER ONLY / COMPLETE RUNTIME NOT YET PACKAGED
   Workflow Sanity and CodeQL: PASS
   review threads: 3 ADDRESSED / 3 RESOLVED
 
@@ -153,8 +151,15 @@ current release gate:
   status: IN PROGRESS
 
 exact next engineering task:
-  complete PR #12 through the repository-native landing workflow,
-  then continue Gate 1 on a clean owner Windows PC.
+  build and retain one complete Windows installation artifact that includes
+  Mentat.exe, the local runtime, Broker, required scripts, and the mentat wrapper
+  without a source checkout or checkout-path embedding; prove on a clean CI runner
+  that doctor and both installed no-spend diagnostic paths are available,
+  then continue owner-PC Gate 1 validation.
+
+other open pull request:
+  PR #9 — old production-hardening branch
+  status: DIVERGED / NOT THE CURRENT EXECUTION SLICE / REQUIRES SEPARATE TRIAGE
 ```
 
 Until the documented gates change:
@@ -165,7 +170,7 @@ DO NOT start paid Vast compute from ordinary development or CI.
 DO NOT begin the Kimi canary.
 DO NOT claim Gate 1 complete.
 DO NOT describe the direct Vast instance backend as production-validated.
-DO NOT begin a new broker feature while the current PR #12 work package is unresolved.
+DO NOT bypass the remaining Gate 1 evidence work to begin a new broker feature.
 ```
 
 The permanent detailed evidence and handoff live in `docs/mentat/execution-ledger.md`.
@@ -291,21 +296,22 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 
 ## Phase 1 — finish the active no-spend desktop work package
 
-**Current engineering phase.**
+**Completed engineering phase.**
 
-- [ ] Finish PR #12.
+- [x] Finish PR #12.
 - [x] Malformed upstream output is prevented from becoming positive runtime evidence in the PR work package.
 - [x] Desktop/no-spend integration work exists in the PR.
 - [x] Diagnose Broker CI failures on Windows and Ubuntu.
 - [x] Diagnose Runtime CI failure.
 - [x] Repair the implementation without weakening tests/invariants.
 - [x] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
-- [ ] Merge or deliberately supersede PR #12.
+- [x] Merge or deliberately supersede PR #12.
 
 **Exit condition:** the active work package is green, evidence is retained, and the ledger is updated.
 
 ## Phase 2 — close Gate 1: no-spend local integration
 
+- [ ] Complete packaged artifact installs `Mentat.exe`, the local runtime, Broker, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding.
 - [ ] Clean Windows install.
 - [ ] `mentat doctor` green on target PC.
 - [ ] Installed wrapper runs `mentat test no-spend` correctly.
@@ -2783,6 +2789,7 @@ That is the central Mentat design principle.
 ---
 
 <!-- MENTAT_AI_CONSTRUCTION_CONTRACT_START -->
+
 # AI construction contract — how to turn the Mentat design into code
 
 This section is the implementation contract for any human or coding AI changing Mentat. The architecture above describes **what Mentat must become**. The rules below describe **how that design is permitted to become production code without drifting away from the mission**.
