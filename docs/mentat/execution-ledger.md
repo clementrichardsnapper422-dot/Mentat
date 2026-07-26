@@ -306,7 +306,7 @@ Date/time: 2026-07-26T17:00:00Z
 State reconciled against main: 80d1fabb8af3f84aea5e661fd1c327c9058cca0f
 Current main tip verified live: 80d1fabb8af3f84aea5e661fd1c327c9058cca0f
 Documentation branch/PR: none
-Engineering branch/PR: agent/shot2-owner-gate1-evidence / pending publication
+Engineering branch/PR: agent/shot2-owner-gate1-evidence / PR #19 / OPEN DRAFT
 MNT work item: MNT-202 / MNT-203 / MNT-204 / MNT-205 / MNT-206
 Last completed item: PR #17 and PR #18 merged; Shot 2 owner-PC validation kit implemented locally
 Current item: Publish and validate Shot 2, then run it on the clean owner Windows PC
