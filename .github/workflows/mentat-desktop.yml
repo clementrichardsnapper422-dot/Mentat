@@ -110,7 +110,7 @@ jobs:
             throw "Installed Mentat.exe was not found at $installedExe"
           }
           $installRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
-          $runtimeRoot = Join-Path $installRoot 'runtime'
+          $runtimeRoot = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\resources\mentat-runtime'
           $commandPath = Join-Path $installRoot 'bin\mentat.ps1'
           foreach ($required in @(
             $commandPath,
@@ -118,7 +118,9 @@ jobs:
             (Join-Path $runtimeRoot 'node\node.exe'),
             (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
             (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py'),
-            (Join-Path $runtimeRoot 'infrastructure\vast\kimi-k2.7-code\endpoint.json')
+            (Join-Path $runtimeRoot 'infrastructure\vast\kimi-k2.7-code\endpoint.json'),
+            (Join-Path $runtimeRoot 'infrastructure\vast\qwen3-coder-30b\endpoint.json'),
+            (Join-Path $runtimeRoot 'infrastructure\vast\deepseek-coder-v2-lite\endpoint.json')
           )) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
               throw "Installed runtime component was not found: $required"

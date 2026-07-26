@@ -7,8 +7,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
-$RuntimeRoot = Join-Path $InstallRoot 'runtime'
 $BinDir = Join-Path $InstallRoot 'bin'
+$LegacyRuntimeRoot = Join-Path $InstallRoot 'runtime'
 
 function Set-UserPath([string]$PathValue, [bool]$Present) {
     $current = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -23,7 +23,7 @@ function Set-UserPath([string]$PathValue, [bool]$Present) {
 }
 
 if ($Uninstall) {
-    Remove-Item -LiteralPath $RuntimeRoot, $BinDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $BinDir, $LegacyRuntimeRoot -Recurse -Force -ErrorAction SilentlyContinue
     Set-UserPath $BinDir $false
     exit 0
 }
@@ -42,7 +42,9 @@ foreach ($required in @(
     'scripts\mentat\testing\no_spend_acceptance.py',
     'services\model-broker\mentat_broker\__init__.py',
     'config\model-registry.json',
-    'infrastructure\vast\kimi-k2.7-code\endpoint.json'
+    'infrastructure\vast\kimi-k2.7-code\endpoint.json',
+    'infrastructure\vast\qwen3-coder-30b\endpoint.json',
+    'infrastructure\vast\deepseek-coder-v2-lite\endpoint.json'
 )) {
     if (-not (Test-Path -LiteralPath (Join-Path $PayloadRoot $required) -PathType Leaf)) {
         throw "Mentat runtime payload is incomplete: $required"
@@ -61,41 +63,37 @@ try {
 
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 $nonce = [Guid]::NewGuid().ToString('N')
-$stagedRuntime = Join-Path $InstallRoot "runtime-staging-$nonce"
-$backupRuntime = Join-Path $InstallRoot "runtime-backup-$nonce"
-$runtimeBackedUp = $false
+$stagedBin = Join-Path $InstallRoot "bin-staging-$nonce"
+$backupBin = Join-Path $InstallRoot "bin-backup-$nonce"
+$binBackedUp = $false
 
 try {
-    New-Item -ItemType Directory -Force -Path $stagedRuntime | Out-Null
-    Get-ChildItem -LiteralPath $PayloadRoot -Force | Copy-Item -Destination $stagedRuntime -Recurse -Force
-    if (Test-Path -LiteralPath $RuntimeRoot) {
-        Move-Item -LiteralPath $RuntimeRoot -Destination $backupRuntime
-        $runtimeBackedUp = $true
-    }
-    Move-Item -LiteralPath $stagedRuntime -Destination $RuntimeRoot
-
-    New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $stagedBin | Out-Null
     $powerShellWrapper = @'
-$runtimeRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime'
+$runtimeRoot = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\resources\mentat-runtime'
 $env:MENTAT_HOME = $runtimeRoot
 & (Join-Path $runtimeRoot 'scripts\mentat\mentat.ps1') @args
 exit $LASTEXITCODE
 '@
-    Set-Content -LiteralPath (Join-Path $BinDir 'mentat.ps1') -Value $powerShellWrapper -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $stagedBin 'mentat.ps1') -Value $powerShellWrapper -Encoding UTF8
     $cmdWrapper = @'
 @echo off
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0mentat.ps1" %*
 exit /b %ERRORLEVEL%
 '@
-    Set-Content -LiteralPath (Join-Path $BinDir 'mentat.cmd') -Value $cmdWrapper -Encoding ASCII
-    Set-UserPath $BinDir $true
+    Set-Content -LiteralPath (Join-Path $stagedBin 'mentat.cmd') -Value $cmdWrapper -Encoding ASCII
 
-    Remove-Item -LiteralPath $backupRuntime -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $BinDir) {
+        Move-Item -LiteralPath $BinDir -Destination $backupBin
+        $binBackedUp = $true
+    }
+    Move-Item -LiteralPath $stagedBin -Destination $BinDir
+    Set-UserPath $BinDir $true
+    Remove-Item -LiteralPath $backupBin, $LegacyRuntimeRoot -Recurse -Force -ErrorAction SilentlyContinue
 } catch {
-    Remove-Item -LiteralPath $stagedRuntime -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $RuntimeRoot -Recurse -Force -ErrorAction SilentlyContinue
-    if ($runtimeBackedUp -and (Test-Path -LiteralPath $backupRuntime)) {
-        Move-Item -LiteralPath $backupRuntime -Destination $RuntimeRoot
+    Remove-Item -LiteralPath $stagedBin, $BinDir -Recurse -Force -ErrorAction SilentlyContinue
+    if ($binBackedUp -and (Test-Path -LiteralPath $backupBin)) {
+        Move-Item -LiteralPath $backupBin -Destination $BinDir
     }
     throw
 }

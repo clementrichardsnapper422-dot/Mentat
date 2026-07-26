@@ -121,18 +121,9 @@ async function main() {
     path.join(ROOT_DIR, "config", "model-registry.json"),
     path.join(STAGING_DIR, "config", "model-registry.json"),
   );
-  const endpointConfig = path.join(
-    "infrastructure",
-    "vast",
-    "kimi-k2.7-code",
-    "endpoint.json",
-  );
-  await fs.mkdir(path.join(STAGING_DIR, path.dirname(endpointConfig)), {
-    recursive: true,
-  });
-  await fs.copyFile(
-    path.join(ROOT_DIR, endpointConfig),
-    path.join(STAGING_DIR, endpointConfig),
+  await copyDirectory(
+    path.join(ROOT_DIR, "infrastructure", "vast"),
+    path.join(STAGING_DIR, "infrastructure", "vast"),
   );
 
   const desktopPackage = await readJson(
@@ -168,6 +159,8 @@ async function main() {
     "services/model-broker/pyproject.toml",
     "config/model-registry.json",
     "infrastructure/vast/kimi-k2.7-code/endpoint.json",
+    "infrastructure/vast/qwen3-coder-30b/endpoint.json",
+    "infrastructure/vast/deepseek-coder-v2-lite/endpoint.json",
   ]);
 
   await fs.rm(PAYLOAD_DIR, { recursive: true, force: true });
