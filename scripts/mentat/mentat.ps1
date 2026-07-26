@@ -19,6 +19,10 @@ $DoctorScript = Join-Path $RootDir 'scripts\mentat\doctor.ps1'
 $VastScript = Join-Path $RootDir 'scripts\mentat\vast_endpoint.py'
 $BrokerShutdownScript = Join-Path $RootDir 'scripts\mentat\broker_shutdown.py'
 $NoSpendScript = Join-Path $RootDir 'scripts\mentat\testing\no_spend_acceptance.py'
+$RuntimeHelpers = Join-Path $PSScriptRoot 'runtime.ps1'
+
+if (-not (Test-Path $RuntimeHelpers)) { throw "Mentat runtime helpers were not found: $RuntimeHelpers" }
+. $RuntimeHelpers
 
 New-Item -ItemType Directory -Force -Path $ConfigDir, $StateDir, $BrokerDir | Out-Null
 
@@ -28,27 +32,6 @@ function Get-CommandPath([string[]]$Names) {
         if ($command) { return $command.Source }
     }
     return $null
-}
-
-function Get-PnpmPath {
-    $path = Get-CommandPath @('pnpm.cmd', 'pnpm.exe', 'pnpm')
-    if (-not $path) { throw 'pnpm is not installed or not on PATH. Rerun .\install.cmd.' }
-    return $path
-}
-
-function Invoke-Pnpm([string[]]$ArgsList, [switch]$AllowFailure) {
-    $pnpm = Get-PnpmPath
-    Push-Location $RootDir
-    try {
-        & $pnpm @ArgsList
-        $code = $LASTEXITCODE
-        if ($code -ne 0 -and -not $AllowFailure) {
-            throw "pnpm command failed with exit code ${code}: $($ArgsList -join ' ')"
-        }
-        return $code
-    } finally {
-        Pop-Location
-    }
 }
 
 function Resolve-Python {
@@ -250,7 +233,7 @@ function Command-Start([string[]]$CommandArgs) {
 
 function Command-Stop {
     $brokerStopped = Stop-BrokerGracefully
-    Invoke-Pnpm @('openclaw', 'gateway', 'stop') -AllowFailure | Out-Null
+    Invoke-MentatOpenClaw $RootDir @('gateway', 'stop') -AllowFailure | Out-Null
     if (Test-Path $PidPath) {
         $processId = (Get-Content -LiteralPath $PidPath -Raw).Trim()
         if ($processId -and (Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue)) {
@@ -282,14 +265,14 @@ function Command-Status {
     $gatewayPort = if ($config -and $config.gatewayPort) { $config.gatewayPort } else { 18789 }
     Write-Host "Provider: $providerName"
     Write-Host "Gateway port: $gatewayPort"
-    Invoke-Pnpm @('openclaw', 'gateway', 'status') -AllowFailure | Out-Null
+    Invoke-MentatOpenClaw $RootDir @('gateway', 'status') -AllowFailure | Out-Null
 }
 
 function Command-Chat([string[]]$CommandArgs) {
     if ($CommandArgs.Count -gt 0) {
-        Invoke-Pnpm @('openclaw', 'agent', '--message', ($CommandArgs -join ' '), '--thinking', 'high') | Out-Null
+        Invoke-MentatOpenClaw $RootDir @('agent', '--message', ($CommandArgs -join ' '), '--thinking', 'high') | Out-Null
     } else {
-        Invoke-Pnpm @('tui') | Out-Null
+        Invoke-MentatOpenClaw $RootDir @('tui') | Out-Null
     }
 }
 
@@ -359,12 +342,18 @@ function Command-Config([string[]]$CommandArgs) {
 }
 
 function Command-Update {
+    if (Test-MentatPackagedRuntime $RootDir) {
+        throw 'Install a newer Mentat setup artifact to update this packaged installation.'
+    }
     $changes = & git.exe -C $RootDir status --porcelain
     if ($changes) { throw 'The Mentat checkout has uncommitted changes. Commit or stash them before updating.' }
     & git.exe -C $RootDir pull --ff-only
     if ($LASTEXITCODE -ne 0) { throw 'git pull failed.' }
-    Invoke-Pnpm @('install') | Out-Null
-    Invoke-Pnpm @('ui:build') | Out-Null
+    $pnpm = Get-MentatPnpmPath
+    & $pnpm install
+    if ($LASTEXITCODE -ne 0) { throw 'pnpm install failed.' }
+    & $pnpm ui:build
+    if ($LASTEXITCODE -ne 0) { throw 'pnpm ui:build failed.' }
     Write-Host 'Mentat is updated. Run mentat doctor to verify it.' -ForegroundColor Green
 }
 
@@ -385,10 +374,19 @@ function Command-Uninstall([string[]]$CommandArgs) {
     } else {
         Write-Host "Mentat command removed. Configuration was kept at $ConfigDir"
     }
-    Write-Host "The source checkout was not deleted: $RootDir"
+    if (Test-MentatPackagedRuntime $RootDir) {
+        Write-Host 'Use Windows Settings > Installed apps to remove the Mentat desktop and packaged runtime.'
+    } else {
+        Write-Host "The source checkout was not deleted: $RootDir"
+    }
 }
 
 function Command-Version {
+    if (Test-MentatPackagedRuntime $RootDir) {
+        $manifest = Get-MentatRuntimeManifest $RootDir
+        Write-Host "Mentat $($manifest.version) ($($manifest.source_commit.Substring(0, 12)))"
+        return
+    }
     $package = Get-Content -LiteralPath (Join-Path $RootDir 'package.json') -Raw | ConvertFrom-Json
     $commit = (& git.exe -C $RootDir rev-parse --short HEAD 2>$null)
     Write-Host "Mentat $($package.version) ($commit)"

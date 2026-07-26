@@ -7,11 +7,12 @@
   "author": "Mentat",
   "license": "MIT",
   "scripts": {
-    "check": "node --check src/main.cjs && node --check src/main-production.cjs && node --check src/no-spend-command.cjs",
+    "check": "node --check src/main.cjs && node --check src/main-production.cjs && node --check src/no-spend-command.cjs && node --check src/no-spend-cli.cjs",
     "test": "node --test test/*.test.cjs",
     "start": "electron .",
-    "pack": "electron-builder --win dir --publish never",
-    "dist": "electron-builder --win nsis --publish never"
+    "runtime:package": "node ../../scripts/mentat/package-windows-runtime.mjs",
+    "pack": "npm run runtime:package && electron-builder --win dir --publish never",
+    "dist": "npm run runtime:package && electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "electron": "43.1.1",
@@ -29,6 +30,16 @@
     "files": [
       "src/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../.artifacts/mentat-windows-runtime/payload",
+        "to": "mentat-runtime"
+      },
+      {
+        "from": "build/install-runtime.ps1",
+        "to": "mentat-installer/install-runtime.ps1"
+      }
     ],
     "win": {
       "target": [
@@ -51,7 +62,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Mentat",
       "runAfterFinish": false,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     }
   }
 }

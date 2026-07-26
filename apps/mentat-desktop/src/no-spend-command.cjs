@@ -1,4 +1,5 @@
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 
 const MAX_CAPTURE_CHARS = 64 * 1024;
 
@@ -79,4 +80,42 @@ function runNoSpendCommand(commandPath, options = {}) {
   });
 }
 
-module.exports = { runNoSpendCommand };
+function readNoSpendReport(reportPath, options = {}) {
+  const readFile = options.readFile || fs.readFileSync;
+  const raw = readFile(reportPath, 'utf8').replace(/^\uFEFF/, '');
+  const report = JSON.parse(raw);
+  if (!report || typeof report !== 'object' || Array.isArray(report)) {
+    throw new Error('The no-spend report is not a JSON object.');
+  }
+  return report;
+}
+
+function evaluateNoSpendResult(result, report) {
+  return result.status === 0
+    && report?.passed === true
+    && report?.paid_compute_used === false;
+}
+
+async function runNoSpendDiagnostic(commandPath, reportPath, options = {}) {
+  const result = await runNoSpendCommand(commandPath, options);
+  let report = null;
+  let reportError = null;
+  try {
+    report = readNoSpendReport(reportPath, options);
+  } catch (error) {
+    reportError = error;
+  }
+  return {
+    result,
+    report,
+    reportError,
+    passed: evaluateNoSpendResult(result, report),
+  };
+}
+
+module.exports = {
+  evaluateNoSpendResult,
+  readNoSpendReport,
+  runNoSpendCommand,
+  runNoSpendDiagnostic,
+};

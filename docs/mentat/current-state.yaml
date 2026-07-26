@@ -1,5 +1,5 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T05:36:13Z
+last_verified_utc: 2026-07-26T15:24:54Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -32,7 +32,57 @@ merged_milestones:
     merged_head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
     result: source-tree installed-command and Electron desktop no-spend diagnostics merged with focused CI green and no paid compute
 
-active_engineering_pr: null
+active_engineering_pr:
+  pr: 18
+  title: "feat(mentat): ship complete Windows runtime"
+  branch: agent/mnt-202-complete-runtime-package
+  base_branch: agent/post-pr12-gate1-handoff
+  head_commit_policy: fetch_current_head_from_github_at_resume
+  state_reconciled_against_implementation_commit: 748d5a069873961aa82a632d9556c2b06f14b45b
+  state: open
+  draft: false
+  mergeable: true
+  status: complete_runtime_packaging_proven_pending_shot0_landing_retarget_and_merge
+  stack_dependency:
+    pr: 17
+    branch: agent/post-pr12-gate1-handoff
+    required_action: merge_shot0_then_retarget_and_revalidate_shot1_against_main
+  implementation:
+    installer_scope: electron_desktop_bundled_node_openclaw_mentat_runtime_broker_registry_endpoints_and_wrapper
+    runtime_location: "%LOCALAPPDATA%\\Programs\\Mentat\\resources\\mentat-runtime"
+    wrapper_location: "%LOCALAPPDATA%\\Mentat\\bin"
+    source_checkout_required: false
+    ambient_node_npm_pnpm_or_git_required: false
+    registry_driven_endpoint_validation: true
+  local_validation:
+    desktop_and_packaging_tests: 11_passed
+    changed_javascript_syntax: passed
+    workflow_yaml: parsed
+  exact_head_ci:
+    verified_commit: 748d5a069873961aa82a632d9556c2b06f14b45b
+    mentat_runtime:
+      status: success
+      run: 30207508662
+    mentat_desktop:
+      status: success
+      run: 30207508634
+      installer_build: passed
+      clean_runner_install: passed
+      checkout_path_embedded: false
+      installed_doctor: 0_failures_1_expected_unconfigured_provider_warning
+      installed_command_no_spend: 9_of_9_passed
+      installed_desktop_no_spend: passed
+      installed_no_spend_report_artifact: 8633637438
+      windows_installer_artifact: 8633638741
+      windows_installer_sha256: d029e5431dd6492704ab3b78862710d521b34e29d5c35d32698c3b05257b9911
+    workflow_sanity:
+      status: success
+      run: 30207508638
+    periphery:
+      shared_openclawkit: success
+      ios: success
+      macos: success
+    paid_compute_used: false
 
 other_open_prs:
   - pr: 9
@@ -44,18 +94,28 @@ other_open_prs:
     behind_by: 29
     execution_status: not_current_slice_requires_separate_triage_before_reuse
 
-active_documentation_pr: null
+active_documentation_pr:
+  pr: 17
+  title: "docs(mentat): reconcile PR #12 and clean-install packaging gate"
+  branch: agent/post-pr12-gate1-handoff
+  head: 94d8925eb9d8f64bf255b965827f15c07b78f30a
+  state: open
+  draft: false
+  mergeable: true
+  status: ready_for_review_must_land_before_stacked_pr18
 
 known_artifact_gap:
   pr12_artifact_scope: electron_nsis_only
   missing_from_clean_install: local_runtime_broker_required_scripts_and_mentat_wrapper
   source_tree_dependency: install_ps1_creates_wrapper_with_checkout_path
-  owner_pc_validation_ready: false
+  resolved_by_pr: 18
+  clean_runner_proof: passed
+  owner_pc_validation_ready: true
 
 exact_next_task:
   work_item: MNT-202
-  status: ready_for_engineering
-  task: Build and retain one complete Windows installation artifact containing Mentat.exe, the local runtime, Broker, required scripts, and the mentat wrapper without a source checkout or checkout-path embedding; prove on a clean CI runner that mentat doctor, mentat test no-spend, and desktop diagnostics are available before MNT-203 owner-PC validation.
+  status: engineering_slice_proven_pending_landing_then_blocked_owner
+  task: Merge PR 17; retarget and revalidate PR 18 against main; merge PR 18; then execute MNT-203 through MNT-206 on a clean owner Windows PC with retained evidence for installation, Docker isolation, credential boundaries, authentication, reject and timeout behavior, and restart and shutdown recovery.
 
 current_release_gate:
   number: 1
@@ -126,4 +186,5 @@ resume_protocol:
   - read this file
   - fetch the current main tip and open PR state from GitHub before trusting any recorded commit or status
   - update stale handoff data before implementation
-  - resume the MNT-202 complete-runtime packaging slice unless GitHub reality changes
+  - land PR 17 then retarget revalidate and land PR 18 unless GitHub reality changes
+  - after PR 18 lands resume MNT-203 through MNT-206 owner-PC Gate 1 validation

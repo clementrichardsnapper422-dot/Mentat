@@ -4,8 +4,16 @@ on:
   pull_request:
     paths:
       - "apps/mentat-desktop/**"
+      - "config/model-registry.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/mentat/**"
+      - "scripts/package-openclaw-for-docker.mjs"
+      - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
+      - "infrastructure/vast/**/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -14,8 +22,16 @@ on:
     branches: [main]
     paths:
       - "apps/mentat-desktop/**"
+      - "config/model-registry.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/mentat/**"
+      - "scripts/package-openclaw-for-docker.mjs"
+      - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
+      - "infrastructure/vast/**/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -32,9 +48,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24.18.0"
+          cache: "pnpm"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OpenClaw packaging dependencies
+        shell: powershell
+        run: pnpm install --frozen-lockfile
 
       - name: Install desktop packaging dependencies
         working-directory: apps/mentat-desktop
@@ -50,6 +77,10 @@ jobs:
         working-directory: apps/mentat-desktop
         shell: powershell
         run: npm test
+
+      - name: Test cross-platform runtime packaging helpers
+        shell: powershell
+        run: node --test scripts/mentat/package-windows-runtime.test.mjs
 
       - name: Build Mentat NSIS installer
         working-directory: apps/mentat-desktop
@@ -67,6 +98,7 @@ jobs:
           Write-Host "Built $($installer.FullName)"
 
       - name: Smoke-install generated Mentat setup
+        timeout-minutes: 20
         shell: powershell
         run: |
           $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
@@ -78,7 +110,99 @@ jobs:
           if (-not (Test-Path $installedExe)) {
             throw "Installed Mentat.exe was not found at $installedExe"
           }
-          Write-Host "Installed $installedExe"
+          $installRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
+          $runtimeRoot = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\resources\mentat-runtime'
+          $commandPath = Join-Path $installRoot 'bin\mentat.ps1'
+          foreach ($required in @(
+            $commandPath,
+            (Join-Path $runtimeRoot 'runtime-manifest.json'),
+            (Join-Path $runtimeRoot 'node\node.exe'),
+            (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
+            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py')
+          )) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Installed runtime component was not found: $required"
+            }
+          }
+          $manifest = Get-Content -LiteralPath (Join-Path $runtimeRoot 'runtime-manifest.json') -Raw |
+            ConvertFrom-Json
+          foreach ($endpointConfig in @($manifest.endpoint_configs)) {
+            $endpointPath = Join-Path $runtimeRoot $endpointConfig
+            if (-not (Test-Path -LiteralPath $endpointPath -PathType Leaf)) {
+              throw "Installed endpoint config was not found: $endpointConfig"
+            }
+          }
+          $wrapper = Get-Content -LiteralPath $commandPath -Raw
+          if ($wrapper.Contains($env:GITHUB_WORKSPACE)) {
+            throw 'Installed mentat wrapper embeds the source checkout path.'
+          }
+
+          Remove-Item Env:MENTAT_HOME -ErrorAction SilentlyContinue
+          Push-Location $env:RUNNER_TEMP
+          try {
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath doctor
+            if ($LASTEXITCODE -ne 0) { throw 'Installed mentat doctor failed.' }
+
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath test no-spend
+            if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
+
+            $env:ELECTRON_RUN_AS_NODE = '1'
+            $desktopStdout = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.out.log'
+            $desktopStderr = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.err.log'
+            $desktopDiagnosticScript = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\resources\app.asar\src\no-spend-cli.cjs'
+            try {
+              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList $desktopDiagnosticScript `
+                -RedirectStandardOutput $desktopStdout -RedirectStandardError $desktopStderr -PassThru
+              if (-not $desktopDiagnostic.WaitForExit(360000)) {
+                & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
+                if (Test-Path -LiteralPath $desktopStdout) { Get-Content -LiteralPath $desktopStdout }
+                if (Test-Path -LiteralPath $desktopStderr) { Get-Content -LiteralPath $desktopStderr }
+                throw 'Installed desktop diagnostics timed out after 360 seconds.'
+              }
+              $desktopDiagnostic.Refresh()
+              $desktopOutput = if (Test-Path -LiteralPath $desktopStdout) {
+                Get-Content -LiteralPath $desktopStdout -Raw
+              } else {
+                ''
+              }
+              if ($desktopOutput) { Write-Host $desktopOutput.Trim() }
+              if (Test-Path -LiteralPath $desktopStderr) { Get-Content -LiteralPath $desktopStderr }
+              $desktopSummaryLine = @($desktopOutput -split '\r?\n' | Where-Object { $_.Trim() })[-1]
+              try {
+                $desktopSummary = $desktopSummaryLine | ConvertFrom-Json
+              } catch {
+                throw "Installed desktop diagnostics did not emit a valid JSON summary: $($_.Exception.Message)"
+              }
+              if (-not $desktopSummary.passed -or $desktopSummary.paid_compute_used) {
+                throw "Installed desktop diagnostics reported failure or paid compute: $desktopSummaryLine"
+              }
+              if ($null -ne $desktopDiagnostic.ExitCode -and $desktopDiagnostic.ExitCode -ne 0) {
+                throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
+              }
+            } finally {
+              Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+            }
+          } finally {
+            Pop-Location
+          }
+          Write-Host "Verified complete installed runtime at $runtimeRoot"
+
+      - name: Stage installed no-spend evidence
+        if: always()
+        shell: powershell
+        run: |
+          $report = Join-Path $env:LOCALAPPDATA 'Mentat\state\no-spend-acceptance.json'
+          if (Test-Path -LiteralPath $report) {
+            Copy-Item -LiteralPath $report -Destination (Join-Path $env:RUNNER_TEMP 'mentat-no-spend-acceptance.json')
+          }
+
+      - name: Upload installed no-spend evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-installed-no-spend-report
+          path: ${{ runner.temp }}/mentat-no-spend-acceptance.json
+          if-no-files-found: warn
 
       - name: Upload Mentat Windows installer
         uses: actions/upload-artifact@v4

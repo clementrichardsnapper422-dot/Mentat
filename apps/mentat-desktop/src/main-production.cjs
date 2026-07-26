@@ -2,7 +2,8 @@ const electron = require('electron');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
-const { runNoSpendCommand } = require('./no-spend-command.cjs');
+const { runNoSpendDiagnostic } = require('./no-spend-command.cjs');
+const { runNoSpendCli } = require('./no-spend-cli.cjs');
 
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
@@ -46,16 +47,6 @@ function isBrokerUrl(value) {
   }
 }
 
-function parseNoSpendReport() {
-  const reportPath = noSpendReportPath();
-  const raw = fs.readFileSync(reportPath, 'utf8').replace(/^\uFEFF/, '');
-  const report = JSON.parse(raw);
-  if (!report || typeof report !== 'object') {
-    throw new Error('The no-spend report is not a JSON object.');
-  }
-  return report;
-}
-
 async function runNoSpendAcceptance() {
   const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
   if (!fs.existsSync(commandPath)) {
@@ -91,17 +82,8 @@ async function runNoSpendAcceptance() {
   }
 
   try {
-    const result = await runNoSpendCommand(commandPath);
-    let report = null;
-    try {
-      report = parseNoSpendReport();
-    } catch {
-      // The process error below includes the actionable command output.
-    }
-    const passed = result.status === 0
-      && report
-      && report.passed === true
-      && report.paid_compute_used === false;
+    const diagnostic = await runNoSpendDiagnostic(commandPath, noSpendReportPath());
+    const { passed, report, result } = diagnostic;
     const checks = report && Array.isArray(report.checks) ? report.checks : [];
     const passedChecks = checks.filter((item) => item && item.status === 'passed').length;
     const failedChecks = checks.filter((item) => item && item.status === 'failed');
@@ -215,4 +197,24 @@ electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(ta
   return originalLoadURL.call(this, target, actualOptions);
 };
 
-require('./main.cjs');
+async function runNonInteractiveDiagnostics() {
+  exitNonInteractiveDiagnostics(await runNoSpendCli());
+}
+
+function exitNonInteractiveDiagnostics(code) {
+  setTimeout(() => process.exit(code), 1000);
+  electron.app.exit(code);
+}
+
+if (
+  process.argv.includes('--diagnostics-no-spend')
+  || electron.app.commandLine.hasSwitch('diagnostics-no-spend')
+  || process.env.MENTAT_DIAGNOSTICS_NO_SPEND === '1'
+) {
+  runNonInteractiveDiagnostics().catch((error) => {
+    process.stderr.write(`${error.stack || error}\n`);
+    exitNonInteractiveDiagnostics(1);
+  });
+} else {
+  require('./main.cjs');
+}

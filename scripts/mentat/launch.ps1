@@ -11,23 +11,10 @@ $BrokerDataDir = Join-Path $InstallRoot 'broker'
 $BrokerOutLog = Join-Path $StateDir 'broker.out.log'
 $BrokerErrorLog = Join-Path $StateDir 'broker.error.log'
 $BrokerAdminTokenPath = Join-Path $StateDir 'broker-admin.token'
+$RuntimeHelpers = Join-Path $PSScriptRoot 'runtime.ps1'
 
-function Get-PnpmPath {
-    foreach ($name in @('pnpm.cmd', 'pnpm.exe', 'pnpm')) {
-        $command = Get-Command $name -ErrorAction SilentlyContinue
-        if ($command) { return $command.Source }
-    }
-    throw 'pnpm is not installed or not on PATH. Rerun .\install.cmd.'
-}
-
-function Invoke-Pnpm([string[]]$ArgsList) {
-    $pnpm = Get-PnpmPath
-    Push-Location $RootDir
-    try {
-        & $pnpm @ArgsList
-        if ($LASTEXITCODE -ne 0) { throw "pnpm command failed with exit code ${LASTEXITCODE}: $($ArgsList -join ' ')" }
-    } finally { Pop-Location }
-}
+if (-not (Test-Path $RuntimeHelpers)) { throw "Mentat runtime helpers were not found: $RuntimeHelpers" }
+. $RuntimeHelpers
 
 function Resolve-Python {
     foreach ($candidate in @(
@@ -154,9 +141,9 @@ function Configure-ProductionSandbox {
         workspaceAccess = 'rw'
         prune = [ordered]@{ idleHours = 24; maxAgeDays = 7 }
     } | ConvertTo-Json -Depth 6 -Compress
-    Invoke-Pnpm @('openclaw', 'config', 'set', 'agents.defaults.sandbox', $sandbox, '--strict-json')
-    Invoke-Pnpm @('openclaw', 'config', 'set', 'tools.elevated.enabled', 'false', '--strict-json')
-    Invoke-Pnpm @('openclaw', 'config', 'set', 'gateway.bind', ('loopback' | ConvertTo-Json -Compress), '--strict-json')
+    Invoke-MentatOpenClaw $RootDir @('config', 'set', 'agents.defaults.sandbox', $sandbox, '--strict-json')
+    Invoke-MentatOpenClaw $RootDir @('config', 'set', 'tools.elevated.enabled', 'false', '--strict-json')
+    Invoke-MentatOpenClaw $RootDir @('config', 'set', 'gateway.bind', ('loopback' | ConvertTo-Json -Compress), '--strict-json')
 }
 
 function Assert-SandboxRuntime {
@@ -208,12 +195,12 @@ switch ($provider) {
         $allowlist[$modelRef] = [ordered]@{ alias = 'Mentat Auto' }
 
         Write-Host 'Configuring local Mentat/OpenClaw to use the production model broker.' -ForegroundColor Cyan
-        Invoke-Pnpm @('openclaw', 'config', 'set', 'models.providers.vllm', $providerJson, '--strict-json', '--merge')
-        Invoke-Pnpm @('openclaw', 'config', 'set', 'agents.defaults.models', ($allowlist | ConvertTo-Json -Depth 4 -Compress), '--strict-json', '--merge')
-        Invoke-Pnpm @('openclaw', 'config', 'set', 'agents.defaults.model.primary', ($modelRef | ConvertTo-Json -Compress), '--strict-json')
+        Invoke-MentatOpenClaw $RootDir @('config', 'set', 'models.providers.vllm', $providerJson, '--strict-json', '--merge')
+        Invoke-MentatOpenClaw $RootDir @('config', 'set', 'agents.defaults.models', ($allowlist | ConvertTo-Json -Depth 4 -Compress), '--strict-json', '--merge')
+        Invoke-MentatOpenClaw $RootDir @('config', 'set', 'agents.defaults.model.primary', ($modelRef | ConvertTo-Json -Compress), '--strict-json')
         Configure-ProductionSandbox
-        Invoke-Pnpm @('openclaw', 'config', 'validate')
-        Invoke-Pnpm @('openclaw', 'models', 'status')
+        Invoke-MentatOpenClaw $RootDir @('config', 'validate')
+        Invoke-MentatOpenClaw $RootDir @('models', 'status')
 
         if ($ConfigOnly) {
             Remove-Item $BrokerAdminTokenPath -Force -ErrorAction SilentlyContinue
@@ -227,7 +214,7 @@ switch ($provider) {
         Remove-Item Env:VAST_API_KEY, Env:VAST_TEMPLATE_HASH, Env:MENTAT_PRIMARY_UPSTREAM_URL, Env:MENTAT_BROKER_ADMIN_TOKEN, Env:MENTAT_BROKER_CLIENT_TOKEN -ErrorAction SilentlyContinue
         $env:VLLM_API_KEY = $clientToken
         try {
-            Invoke-Pnpm @('openclaw', 'gateway', '--port', [string]$gatewayPort, '--verbose')
+            Invoke-MentatOpenClaw $RootDir @('gateway', '--port', [string]$gatewayPort, '--verbose')
         } finally {
             Remove-Item $BrokerAdminTokenPath -Force -ErrorAction SilentlyContinue
         }
