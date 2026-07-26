@@ -13,7 +13,7 @@ on:
       - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
-      - "infrastructure/vast/kimi-k2.7-code/endpoint.json"
+      - "infrastructure/vast/**/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -31,7 +31,7 @@ on:
       - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
-      - "infrastructure/vast/kimi-k2.7-code/endpoint.json"
+      - "infrastructure/vast/**/endpoint.json"
       - "README.md"
       - "docs/mentat/windows.md"
       - ".github/workflows/mentat-desktop.yml"
@@ -117,13 +117,18 @@ jobs:
             (Join-Path $runtimeRoot 'runtime-manifest.json'),
             (Join-Path $runtimeRoot 'node\node.exe'),
             (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
-            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py'),
-            (Join-Path $runtimeRoot 'infrastructure\vast\kimi-k2.7-code\endpoint.json'),
-            (Join-Path $runtimeRoot 'infrastructure\vast\qwen3-coder-30b\endpoint.json'),
-            (Join-Path $runtimeRoot 'infrastructure\vast\deepseek-coder-v2-lite\endpoint.json')
+            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py')
           )) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
               throw "Installed runtime component was not found: $required"
+            }
+          }
+          $manifest = Get-Content -LiteralPath (Join-Path $runtimeRoot 'runtime-manifest.json') -Raw |
+            ConvertFrom-Json
+          foreach ($endpointConfig in @($manifest.endpoint_configs)) {
+            $endpointPath = Join-Path $runtimeRoot $endpointConfig
+            if (-not (Test-Path -LiteralPath $endpointPath -PathType Leaf)) {
+              throw "Installed endpoint config was not found: $endpointConfig"
             }
           }
           $wrapper = Get-Content -LiteralPath $commandPath -Raw
