@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { endpointConfigPaths } from "./runtime-package-layout.mjs";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ARTIFACT_DIR = path.join(ROOT_DIR, ".artifacts", "mentat-windows-runtime");
@@ -117,14 +118,23 @@ async function main() {
     path.join(STAGING_DIR, "services", "model-broker", "pyproject.toml"),
   );
   await fs.mkdir(path.join(STAGING_DIR, "config"), { recursive: true });
+  const modelRegistry = await readJson(
+    path.join(ROOT_DIR, "config", "model-registry.json"),
+  );
   await fs.copyFile(
     path.join(ROOT_DIR, "config", "model-registry.json"),
     path.join(STAGING_DIR, "config", "model-registry.json"),
   );
-  await copyDirectory(
-    path.join(ROOT_DIR, "infrastructure", "vast"),
-    path.join(STAGING_DIR, "infrastructure", "vast"),
-  );
+  const endpointConfigs = endpointConfigPaths(modelRegistry);
+  for (const endpointConfig of endpointConfigs) {
+    await fs.mkdir(path.join(STAGING_DIR, path.dirname(endpointConfig)), {
+      recursive: true,
+    });
+    await fs.copyFile(
+      path.join(ROOT_DIR, endpointConfig),
+      path.join(STAGING_DIR, endpointConfig),
+    );
+  }
 
   const desktopPackage = await readJson(
     path.join(ROOT_DIR, "apps", "mentat-desktop", "package.json"),
@@ -138,6 +148,7 @@ async function main() {
     node_version: process.version,
     source_commit: await gitCommit(),
     openclaw_entry: "openclaw/node_modules/openclaw/openclaw.mjs",
+    endpoint_configs: endpointConfigs,
   };
   await fs.writeFile(
     path.join(STAGING_DIR, "runtime-manifest.json"),
@@ -158,9 +169,7 @@ async function main() {
     "services/model-broker/mentat_broker/__init__.py",
     "services/model-broker/pyproject.toml",
     "config/model-registry.json",
-    "infrastructure/vast/kimi-k2.7-code/endpoint.json",
-    "infrastructure/vast/qwen3-coder-30b/endpoint.json",
-    "infrastructure/vast/deepseek-coder-v2-lite/endpoint.json",
+    ...endpointConfigs,
   ]);
 
   await fs.rm(PAYLOAD_DIR, { recursive: true, force: true });
