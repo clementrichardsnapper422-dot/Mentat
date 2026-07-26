@@ -218,6 +218,7 @@ function exitNonInteractiveDiagnostics(code) {
 
 if (
   process.argv.includes('--diagnostics-no-spend')
+  || electron.app.commandLine.hasSwitch('diagnostics-no-spend')
   || process.env.MENTAT_DIAGNOSTICS_NO_SPEND === '1'
 ) {
   runNonInteractiveDiagnostics().catch((error) => {
