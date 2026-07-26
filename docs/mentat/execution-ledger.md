@@ -16,7 +16,7 @@ Target direct-instance and advanced broker-hardening work documented in Program 
 
 ## Current repository state
 
-Last reconciled: **2026-07-24 after PR #15 merge**, against `main` commit `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941` before the post-merge state-sync commit itself.
+Last reconciled: **2026-07-25 during PR #12 review readiness**, against `main` commit `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`.
 
 The ledger deliberately does **not** claim that hash is forever the current `main` tip. A document cannot safely embed the hash of the commit that will contain its own update. **Always fetch the current GitHub `main` tip and PR state at resume time.**
 
@@ -32,8 +32,8 @@ The ledger deliberately does **not** claim that hash is forever the current `mai
 - PR #13: merged; complete target broker architecture documented
 - PR #14: merged; construction contract, roadmap, checklist, and resume system established
 - PR #15: merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`; provider/learning/spending design hardening complete
-- PR #12: **open draft and exact active engineering work package** on `agent/desktop-no-spend-integration`, head `655634d1a4dacb8a4c077a0970e16571f6c8cb48`
-- Last verified PR #12 engineering CI: Desktop PASS; Broker FAIL; Runtime FAIL
+- PR #12: **open, ready for review, and exact active engineering work package** on `agent/desktop-no-spend-integration`; current head must be fetched from GitHub at resume time
+- Last verified PR #12 focused CI on `ee475eab893206d151eaf3e2341c81e60a142685`: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS
 - Live Vast canary: not completed
 - Signed installer: not completed
 
@@ -247,27 +247,36 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Published the rebased implementation through the connected GitHub app as `acdc351b6a6609033d7ea39387dee3349842c851`, with parent `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`, after rechecking that PR #12's remote head had not changed.
 - No real credentials, provider behavior, paid compute, Kimi canary, or deferred Program 7 scope was used or changed.
 
+### 2026-07-25 — PR #12 focused CI green and ready for review
+
+- Verified PR #12 head `ee475eab893206d151eaf3e2341c81e60a142685` as open and mergeable against `main` commit `897220aa68a3b9d6a85d192cfb2018b2d3ceae2c`.
+- Exact-head focused GitHub evidence passed: Mentat Broker run `30186887152`, Mentat Runtime run `30186887132`, Mentat Desktop run `30186887114`, and Workflow Sanity run `30186887142`.
+- The Desktop workflow built the NSIS installer, verified the executable and installer, smoke-installed the package, ran the installed no-spend command, and retained its report. No paid compute was used.
+- Updated the PR body with the problem, repair, user impact, safety invariants, exact evidence, and remaining Gate 1 scope.
+- Inspected top-level comments, submitted reviews, and inline review threads; none were present, so there were no ClawSweeper rank-up moves to apply.
+- Marked PR #12 ready for review. This does not claim Gate 1 complete and does not bypass the repository-native landing workflow.
+
 ## Current handoff
 
 ```text
-Date/time: 2026-07-25T22:36:47-05:00
+Date/time: 2026-07-26T04:00:21Z
 State reconciled against main: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Current main tip verified live: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
 MNT work item: MNT-002 / MNT-202
-Last completed item: Broker/Runtime repair published as acdc351b6a6609033d7ea39387dee3349842c851
-Current item: Obtain exact-head focused CI evidence
-Previous PR #12 engineering CI before repair: Desktop PASS; Broker FAIL; Runtime FAIL on head 655634d1a4dacb8a4c077a0970e16571f6c8cb48
-Published implementation: acdc351b6a6609033d7ea39387dee3349842c851, based on current main
+Last completed item: PR #12 focused CI passed and PR marked ready for review
+Current item: Complete the repository-native landing workflow for PR #12
+Verified evidence head: ee475eab893206d151eaf3e2341c81e60a142685
+Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS
 Local validation: Broker 39 passed; Ruff/compile/config checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax passed
-Known proof gap: Windows Runtime/Desktop/Broker CI has not been inspected on the published repair
+Review state at handoff: no comments, reviews, unresolved threads, or ClawSweeper rank-up moves
+Known proof gap: clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence remain for Gate 1
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
 1. Fetch current GitHub main/PR/CI reality.
-2. Inspect Broker, Runtime, Desktop, and no-spend CI on the exact remote head.
-3. Repair any exact-head failure without weakening tests or invariants.
-4. Inspect the latest ClawSweeper rank-up moves and all required checks.
-5. Merge or deliberately supersede PR #12 only when required evidence is green.
+2. Inspect any new ready-for-review checks, comments, reviews, and ClawSweeper rank-up moves.
+3. Complete PR #12 through the repository-native scripts/pr landing workflow.
+4. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 

@@ -132,27 +132,26 @@ active engineering work:
   PR #12
   branch: agent/desktop-no-spend-integration
   published implementation: acdc351b6a6609033d7ea39387dee3349842c851
-  status: OPEN / DRAFT / AWAITING EXACT-HEAD CI
+  verified remote head: ee475eab893206d151eaf3e2341c81e60a142685
+  status: OPEN / READY FOR REVIEW / FOCUSED CI GREEN
 
-previous PR #12 CI before the repair:
-  Mentat Desktop: PASS
-  Mentat Broker:  FAIL
-  Mentat Runtime: FAIL
-
-published repair:
+verified repair:
   rebased on current main: YES
   Broker tests: 39 PASS
   no-spend acceptance: PASS / paid compute used: NO
-  exact-head Windows CI: PENDING
+  Mentat Broker: PASS
+  Mentat Runtime: PASS
+  Mentat Desktop installer and smoke-install: PASS
+  Workflow Sanity: PASS
+  review comments/threads: NONE
 
 current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
 exact next engineering task:
-  inspect Broker, Runtime, Desktop, and no-spend CI
-  for the published repair,
-  then merge or deliberately supersede PR #12.
+  complete PR #12 through the repository-native landing workflow,
+  then continue Gate 1 on a clean owner Windows PC.
 ```
 
 Until the documented gates change:
@@ -192,7 +191,7 @@ This checklist is the bird's-eye mission status. Detailed sub-items and dependen
 - [x] Fake Vast control plane exists.
 - [x] Fake OpenAI-compatible inference service exists.
 - [x] Cross-platform no-spend Broker acceptance harness exists.
-- [ ] PR #12 focused Broker/Runtime CI failures repaired.
+- [x] PR #12 focused Broker/Runtime CI failures repaired.
 - [ ] Installed `mentat test no-spend` path fully accepted.
 - [ ] Desktop no-spend diagnostics fully accepted.
 - [ ] Clean Windows installation completed.
@@ -294,10 +293,10 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 - [ ] Finish PR #12.
 - [x] Malformed upstream output is prevented from becoming positive runtime evidence in the PR work package.
 - [x] Desktop/no-spend integration work exists in the PR.
-- [ ] Diagnose Broker CI failures on Windows and Ubuntu.
-- [ ] Diagnose Runtime CI failure.
-- [ ] Repair the implementation without weakening tests/invariants.
-- [ ] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
+- [x] Diagnose Broker CI failures on Windows and Ubuntu.
+- [x] Diagnose Runtime CI failure.
+- [x] Repair the implementation without weakening tests/invariants.
+- [x] Re-run Broker, Runtime, Desktop, and no-spend acceptance checks.
 - [ ] Merge or deliberately supersede PR #12.
 
 **Exit condition:** the active work package is green, evidence is retained, and the ledger is updated.

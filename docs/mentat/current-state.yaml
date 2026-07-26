@@ -1,5 +1,5 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T03:52:58Z
+last_verified_utc: 2026-07-26T04:00:21Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -32,10 +32,11 @@ active_engineering_pr:
   title: Integrate no-spend diagnostics into Mentat desktop
   branch: agent/desktop-no-spend-integration
   head_commit_policy: fetch_current_head_from_github_at_resume
-  state_reconciled_against_implementation_commit: acdc351b6a6609033d7ea39387dee3349842c851
+  state_reconciled_against_implementation_commit: ee475eab893206d151eaf3e2341c81e60a142685
   state: open
-  draft: true
-  status: awaiting_exact_head_ci
+  draft: false
+  mergeable: true
+  status: ready_for_review_focused_ci_green
   previous_ci_before_repair:
     desktop: pass
     broker: fail
@@ -53,8 +54,31 @@ active_engineering_pr:
       no_spend_acceptance: passed
       paid_compute_used: false
       desktop_main_node_check: passed
-      runtime_windows_ci: not_rerun
-  exact_next_task: Inspect Broker Runtime Desktop and no-spend CI on the current remote head, repair any exact-head failures without weakening invariants, then merge or deliberately supersede PR 12 before starting a new broker implementation feature.
+      runtime_windows_ci: passed
+  exact_head_ci:
+    verified_commit: ee475eab893206d151eaf3e2341c81e60a142685
+    mentat_broker:
+      status: success
+      run: 30186887152
+    mentat_runtime:
+      status: success
+      run: 30186887132
+    mentat_desktop:
+      status: success
+      run: 30186887114
+      installer_build: passed
+      installer_smoke_install: passed
+      installed_no_spend_report: retained
+    workflow_sanity:
+      status: success
+      run: 30186887142
+    paid_compute_used: false
+  review_state:
+    comments: none
+    reviews: none
+    unresolved_threads: none
+    clawsweeper_rank_up_moves: none
+  exact_next_task: Complete PR 12 through the repository-native landing workflow, then continue Gate 1 with clean owner-PC Windows installation, Docker tool-isolation proof, credential-boundary proof, and restart/shutdown recovery evidence.
 
 active_documentation_pr: null
 
