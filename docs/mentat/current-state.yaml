@@ -1,5 +1,5 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T04:12:03Z
+last_verified_utc: 2026-07-26T04:19:00Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -32,11 +32,11 @@ active_engineering_pr:
   title: Integrate no-spend diagnostics into Mentat desktop
   branch: agent/desktop-no-spend-integration
   head_commit_policy: fetch_current_head_from_github_at_resume
-  state_reconciled_against_implementation_commit: ee475eab893206d151eaf3e2341c81e60a142685
+  state_reconciled_against_implementation_commit: 793e253be0930f1a4011d4c691ac129f80386119
   state: open
   draft: false
   mergeable: true
-  status: review_fixes_implemented_awaiting_exact_head_ci
+  status: focused_ci_green_review_threads_resolved_pending_repository_landing
   previous_ci_before_repair:
     desktop: pass
     broker: fail
@@ -56,33 +56,37 @@ active_engineering_pr:
       desktop_main_node_check: passed
       runtime_windows_ci: passed
   exact_head_ci:
-    verified_commit: ee475eab893206d151eaf3e2341c81e60a142685
+    verified_commit: 793e253be0930f1a4011d4c691ac129f80386119
     mentat_broker:
       status: success
-      run: 30186887152
+      run: 30187463254
     mentat_runtime:
       status: success
-      run: 30186887132
+      run: 30187463264
     mentat_desktop:
       status: success
-      run: 30186887114
+      run: 30187463286
       installer_build: passed
       installer_smoke_install: passed
       installed_no_spend_report: retained
     workflow_sanity:
       status: success
-      run: 30186887142
+      run: 30187463275
+    codeql:
+      status: success
+      run: 30187463279
     paid_compute_used: false
   review_state:
-    comments: 3_actionable
+    comments: 3_addressed
     reviews: 1_commented
-    unresolved_threads: 3
+    unresolved_threads: 0
+    resolved_threads: 3
     clawsweeper_rank_up_moves: none
     fixes:
       malformed_tool_calls: implemented_and_locally_tested
       invalid_usage_telemetry: implemented_and_locally_tested
       asynchronous_desktop_diagnostics: implemented_and_locally_tested
-  exact_next_task: Publish the three review fixes, verify focused CI on the exact new head, reply to and resolve the addressed review threads, then complete PR 12 through the repository-native landing workflow.
+  exact_next_task: Complete PR 12 through the repository-native landing workflow, then continue Gate 1 with clean owner-PC Windows installation, Docker tool-isolation proof, credential-boundary proof, and restart/shutdown recovery evidence.
 
 active_documentation_pr: null
 

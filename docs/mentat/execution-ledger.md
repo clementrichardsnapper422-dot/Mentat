@@ -33,7 +33,7 @@ The ledger deliberately does **not** claim that hash is forever the current `mai
 - PR #14: merged; construction contract, roadmap, checklist, and resume system established
 - PR #15: merged as `46f8f71b99f7bfecb0f6d16dc6fc33483ca92941`; provider/learning/spending design hardening complete
 - PR #12: **open, ready for review, and exact active engineering work package** on `agent/desktop-no-spend-integration`; current head must be fetched from GitHub at resume time
-- Last verified PR #12 focused CI on `ee475eab893206d151eaf3e2341c81e60a142685`: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS
+- Last verified PR #12 focused CI on `793e253be0930f1a4011d4c691ac129f80386119`: Desktop PASS; Broker PASS; Runtime PASS; Workflow Sanity PASS; CodeQL PASS
 - Live Vast canary: not completed
 - Signed installer: not completed
 
@@ -263,31 +263,30 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Optional `usage.completion_tokens` telemetry is accepted only when it is finite, positive, and numeric; malformed telemetry is ignored before response headers or body are sent.
 - Desktop diagnostics now run through an asynchronous child process. The menu action is disabled while a run is active, output capture is bounded, credentials remain cleared, and timeout termination is covered by Node tests.
 - Local evidence after the fixes: 41 Broker tests passed; Broker Ruff passed; desktop syntax and two process-handling tests passed; standalone no-spend acceptance passed all nine checks with `paid_compute_used: false`; Python compileall, workflow YAML parsing, and diff checks passed.
-- Exact-head GitHub CI and thread resolution remain pending. No real credentials or paid compute were used.
+- Exact-head GitHub evidence passed on `793e253be0930f1a4011d4c691ac129f80386119`: Mentat Broker `30187463254`, Mentat Runtime `30187463264`, Mentat Desktop `30187463286`, Workflow Sanity `30187463275`, and CodeQL `30187463279`.
+- Replied to each review finding with its commit and regression evidence, then resolved all three threads. No real credentials or paid compute were used.
 
 ## Current handoff
 
 ```text
-Date/time: 2026-07-26T04:12:03Z
+Date/time: 2026-07-26T04:19:00Z
 State reconciled against main: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Current main tip verified live: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
 MNT work item: MNT-002 / MNT-202
-Last completed item: Three ready-review findings repaired locally with regression coverage
-Current item: Publish and verify the review-fix head
-Verified evidence head: ee475eab893206d151eaf3e2341c81e60a142685
-Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS
+Last completed item: Three ready-review findings fixed, verified, replied to, and resolved
+Current item: Complete the repository-native landing workflow for PR #12
+Verified review-fix evidence head: 793e253be0930f1a4011d4c691ac129f80386119
+Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS; CodeQL PASS
 Local validation after review fixes: Broker 41 passed; Ruff/compile checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax and 2 async-process tests passed
-Review state at handoff: 3 actionable comments and 3 unresolved threads; all 3 fixes implemented locally
+Review state at handoff: 3 actionable comments addressed; 3 threads resolved; no unresolved review threads
 Known proof gap: clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence remain for Gate 1
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
 1. Fetch current GitHub main/PR/CI reality.
-2. Publish the review fixes without overwriting a changed remote head.
-3. Verify Broker, Runtime, Desktop, and Workflow Sanity on the exact new head.
-4. Reply to and resolve all three addressed review threads.
-5. Complete PR #12 through the repository-native scripts/pr landing workflow.
-6. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
+2. Inspect any new checks, comments, reviews, and ClawSweeper rank-up moves.
+3. Complete PR #12 through the repository-native scripts/pr landing workflow.
+4. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 
