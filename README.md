@@ -129,8 +129,8 @@ current verified main:
   result: PR #12 merged
 
 active engineering work:
-  none
-  status: GATE 1 OWNER-PC EVIDENCE REQUIRED
+  next slice: MNT-202 complete-runtime packaging
+  status: ENGINEERING REQUIRED BEFORE OWNER-PC VALIDATION
 
 verified PR #12 result:
   merged head: 546e2e1a34a1a06e19f0e4ca0984baa2c8e5d228
@@ -142,6 +142,7 @@ verified PR #12 result:
   Mentat Broker: PASS
   Mentat Runtime: PASS
   Mentat Desktop installer and smoke-install: PASS
+  retained artifact scope: ELECTRON INSTALLER ONLY / COMPLETE RUNTIME NOT YET PACKAGED
   Workflow Sanity and CodeQL: PASS
   review threads: 3 ADDRESSED / 3 RESOLVED
 
@@ -150,10 +151,11 @@ current release gate:
   status: IN PROGRESS
 
 exact next engineering task:
-  install the packaged Mentat artifact on a clean owner Windows PC,
-  run doctor and both installed no-spend diagnostic paths,
-  then retain Docker isolation, credential-boundary, authentication,
-  reject/timeout, restart, and shutdown evidence required by Gate 1.
+  build and retain one complete Windows installation artifact that includes
+  Mentat.exe, the local runtime, Broker, required scripts, and the mentat wrapper
+  without a source checkout or checkout-path embedding; prove on a clean CI runner
+  that doctor and both installed no-spend diagnostic paths are available,
+  then continue owner-PC Gate 1 validation.
 
 other open pull request:
   PR #9 — old production-hardening branch
@@ -309,6 +311,7 @@ The roadmap is ordered. Later work may be prepared in parallel when it cannot af
 
 ## Phase 2 — close Gate 1: no-spend local integration
 
+- [ ] Complete packaged artifact installs `Mentat.exe`, the local runtime, Broker, required scripts, and `%LOCALAPPDATA%\Mentat\bin\mentat` without a source checkout or checkout-path embedding.
 - [ ] Clean Windows install.
 - [ ] `mentat doctor` green on target PC.
 - [ ] Installed wrapper runs `mentat test no-spend` correctly.
