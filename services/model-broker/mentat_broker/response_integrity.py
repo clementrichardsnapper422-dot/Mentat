@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 import urllib.error
@@ -14,6 +15,42 @@ from .store import utc_now
 
 MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024
 MAX_CAPTURE_BYTES = 2 * 1024 * 1024
+
+
+def _validate_tool_calls(tool_calls: list[Any]) -> None:
+    for tool_call in tool_calls:
+        if not isinstance(tool_call, dict):
+            raise SessionError("upstream assistant tool call is invalid")
+        if not isinstance(tool_call.get("id"), str) or not tool_call["id"].strip():
+            raise SessionError("upstream assistant tool call did not contain an id")
+        if tool_call.get("type") != "function":
+            raise SessionError("upstream assistant tool call type is unsupported")
+        function = tool_call.get("function")
+        if not isinstance(function, dict):
+            raise SessionError("upstream assistant tool call did not contain a function")
+        if not isinstance(function.get("name"), str) or not function["name"].strip():
+            raise SessionError("upstream assistant tool call did not contain a function name")
+        arguments = function.get("arguments")
+        if not isinstance(arguments, str):
+            raise SessionError("upstream assistant tool call arguments must be JSON text")
+        try:
+            parsed_arguments = json.loads(arguments)
+        except json.JSONDecodeError as exc:
+            raise SessionError("upstream assistant tool call arguments were malformed JSON") from exc
+        if not isinstance(parsed_arguments, dict):
+            raise SessionError("upstream assistant tool call arguments must be a JSON object")
+
+
+def _completion_tokens(usage: Any) -> float | None:
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get("completion_tokens")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    tokens = float(value)
+    if not math.isfinite(tokens) or tokens <= 0:
+        return None
+    return tokens
 
 
 def _validate_json_completion(raw: bytes) -> dict[str, Any]:
@@ -32,8 +69,13 @@ def _validate_json_completion(raw: bytes) -> dict[str, Any]:
     message = first.get("message")
     if not isinstance(message, dict):
         raise SessionError("upstream completion did not contain an assistant message")
-    has_content = isinstance(message.get("content"), str)
-    has_tools = isinstance(message.get("tool_calls"), list) and bool(message["tool_calls"])
+    has_content = isinstance(message.get("content"), str) and bool(message["content"])
+    tool_calls = message.get("tool_calls")
+    has_tools = isinstance(tool_calls, list) and bool(tool_calls)
+    if tool_calls is not None and not isinstance(tool_calls, list):
+        raise SessionError("upstream assistant tool calls must be a list")
+    if has_tools:
+        _validate_tool_calls(tool_calls)
     if not has_content and not has_tools:
         raise SessionError("upstream assistant message contained neither content nor tool calls")
     return parsed
@@ -111,7 +153,10 @@ def hardened_proxy_to_model(
             if len(raw) > MAX_JSON_RESPONSE_BYTES:
                 raise SessionError("upstream JSON completion exceeded the response-size limit")
             parsed = _validate_json_completion(raw)
-            usage = parsed.get("usage")
+            latency_ms = (time.monotonic() - started) * 1000
+            completion_tokens = _completion_tokens(parsed.get("usage"))
+            if completion_tokens is not None and latency_ms > 0:
+                tokens_per_second = completion_tokens / (latency_ms / 1000)
             handler.send_response(response.status)
             handler.send_header("Content-Type", content_type)
             handler.send_header("Cache-Control", "no-cache")
@@ -123,11 +168,6 @@ def hardened_proxy_to_model(
             # the decision and runtime evidence below have been durably recorded.
             handler.wfile.write(raw)
             handler.wfile.flush()
-            latency_ms = (time.monotonic() - started) * 1000
-            if isinstance(usage, dict):
-                completion_tokens = float(usage.get("completion_tokens") or 0)
-                if completion_tokens and latency_ms > 0:
-                    tokens_per_second = completion_tokens / (latency_ms / 1000)
         elif "text/event-stream" in content_type:
             handler.send_response(response.status)
             handler.send_header("Content-Type", content_type)

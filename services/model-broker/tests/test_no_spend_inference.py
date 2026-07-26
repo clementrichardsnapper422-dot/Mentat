@@ -227,3 +227,45 @@ def test_malformed_http_200_is_failed_evidence_not_success(
         assert decision is not None and decision.status == "failed"
     finally:
         stop_servers(application, broker, broker_thread, upstream, upstream_thread)
+
+
+def test_malformed_tool_call_is_failed_evidence_not_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    components = start_production_broker(tmp_path, monkeypatch)
+    application, broker, broker_thread, upstream, upstream_thread, base = components
+    try:
+        with pytest.raises(urllib.error.HTTPError) as failure:
+            broker_chat(base, "[[malformed_tool]]")
+        assert failure.value.code == 409
+        payload = json.loads(failure.value.read().decode("utf-8"))
+        assert "tool call is invalid" in payload["error"]["message"]
+        benchmarks = application.store.list_benchmarks(10)
+        assert len(benchmarks) == 1
+        assert benchmarks[0]["success"] is False
+        decision = application.store.get_decision(payload["error"]["decision_id"])
+        assert decision is not None and decision.status == "failed"
+    finally:
+        stop_servers(application, broker, broker_thread, upstream, upstream_thread)
+
+
+def test_invalid_usage_telemetry_is_ignored_before_success_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    components = start_production_broker(tmp_path, monkeypatch)
+    application, broker, broker_thread, upstream, upstream_thread, base = components
+    try:
+        with broker_chat(base, "[[invalid_usage]]") as response:
+            result = json.loads(response.read().decode("utf-8"))
+            decision_id = response.headers["X-Mentat-Decision-Id"]
+        assert result["choices"][0]["message"]["content"] == "Mentat no-spend inference online"
+        decision = application.store.get_decision(decision_id)
+        assert decision is not None and decision.status == "completed"
+        benchmarks = application.store.list_benchmarks(10)
+        assert len(benchmarks) == 1
+        assert benchmarks[0]["success"] is True
+        assert benchmarks[0]["tokens_per_second"] is None
+    finally:
+        stop_servers(application, broker, broker_thread, upstream, upstream_thread)

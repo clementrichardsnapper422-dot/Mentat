@@ -132,26 +132,26 @@ active engineering work:
   PR #12
   branch: agent/desktop-no-spend-integration
   published implementation: acdc351b6a6609033d7ea39387dee3349842c851
-  verified remote head: ee475eab893206d151eaf3e2341c81e60a142685
-  status: OPEN / READY FOR REVIEW / FOCUSED CI GREEN
+  focused evidence head: ee475eab893206d151eaf3e2341c81e60a142685
+  status: OPEN / READY FOR REVIEW / REVIEW FIXES AWAITING EXACT-HEAD CI
 
 verified repair:
   rebased on current main: YES
-  Broker tests: 39 PASS
+  Broker tests: 41 PASS
   no-spend acceptance: PASS / paid compute used: NO
-  Mentat Broker: PASS
-  Mentat Runtime: PASS
-  Mentat Desktop installer and smoke-install: PASS
-  Workflow Sanity: PASS
-  review comments/threads: NONE
+  malformed tool-call evidence: FAILS CLOSED
+  invalid usage telemetry: SAFELY IGNORED
+  desktop diagnostic process: ASYNC / MENU DISABLED WHILE RUNNING
+  exact-head CI after review fixes: PENDING
 
 current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
 exact next engineering task:
-  complete PR #12 through the repository-native landing workflow,
-  then continue Gate 1 on a clean owner Windows PC.
+  verify the review-fix head in focused CI,
+  resolve the three addressed review threads,
+  then complete the repository-native landing workflow.
 ```
 
 Until the documented gates change:

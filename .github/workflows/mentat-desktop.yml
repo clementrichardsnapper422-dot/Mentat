@@ -46,6 +46,11 @@ jobs:
         shell: powershell
         run: npm run check
 
+      - name: Test desktop diagnostics process handling
+        working-directory: apps/mentat-desktop
+        shell: powershell
+        run: npm test
+
       - name: Build Mentat NSIS installer
         working-directory: apps/mentat-desktop
         shell: powershell

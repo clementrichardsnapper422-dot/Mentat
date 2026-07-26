@@ -1,5 +1,5 @@
 schema_version: 2
-last_verified_utc: 2026-07-26T04:00:21Z
+last_verified_utc: 2026-07-26T04:12:03Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
@@ -36,7 +36,7 @@ active_engineering_pr:
   state: open
   draft: false
   mergeable: true
-  status: ready_for_review_focused_ci_green
+  status: review_fixes_implemented_awaiting_exact_head_ci
   previous_ci_before_repair:
     desktop: pass
     broker: fail
@@ -47,7 +47,7 @@ active_engineering_pr:
     publish_method: connected_github_app
     publish_status: published
     local_validation:
-      broker_pytest: 39_passed
+      broker_pytest: 41_passed
       broker_lint: passed
       python_compileall: passed
       broker_config_check: passed
@@ -74,11 +74,15 @@ active_engineering_pr:
       run: 30186887142
     paid_compute_used: false
   review_state:
-    comments: none
-    reviews: none
-    unresolved_threads: none
+    comments: 3_actionable
+    reviews: 1_commented
+    unresolved_threads: 3
     clawsweeper_rank_up_moves: none
-  exact_next_task: Complete PR 12 through the repository-native landing workflow, then continue Gate 1 with clean owner-PC Windows installation, Docker tool-isolation proof, credential-boundary proof, and restart/shutdown recovery evidence.
+    fixes:
+      malformed_tool_calls: implemented_and_locally_tested
+      invalid_usage_telemetry: implemented_and_locally_tested
+      asynchronous_desktop_diagnostics: implemented_and_locally_tested
+  exact_next_task: Publish the three review fixes, verify focused CI on the exact new head, reply to and resolve the addressed review threads, then complete PR 12 through the repository-native landing workflow.
 
 active_documentation_pr: null
 

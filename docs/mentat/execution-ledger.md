@@ -256,27 +256,38 @@ Focused PR #15 checks passed: Mentat Runtime, Mentat Desktop, Workflow Sanity, S
 - Inspected top-level comments, submitted reviews, and inline review threads; none were present, so there were no ClawSweeper rank-up moves to apply.
 - Marked PR #12 ready for review. This does not claim Gate 1 complete and does not bypass the repository-native landing workflow.
 
+### 2026-07-25 — PR #12 ready-review findings repaired locally
+
+- The ready-for-review Codex pass found three actionable issues: malformed tool-call entries could become successful evidence, invalid usage telemetry could raise after a 200 response began, and desktop diagnostics blocked Electron's main thread.
+- JSON completions now validate every nonempty tool call, including its id, function type, function name, and JSON-object arguments, before the response can count as successful evidence.
+- Optional `usage.completion_tokens` telemetry is accepted only when it is finite, positive, and numeric; malformed telemetry is ignored before response headers or body are sent.
+- Desktop diagnostics now run through an asynchronous child process. The menu action is disabled while a run is active, output capture is bounded, credentials remain cleared, and timeout termination is covered by Node tests.
+- Local evidence after the fixes: 41 Broker tests passed; Broker Ruff passed; desktop syntax and two process-handling tests passed; standalone no-spend acceptance passed all nine checks with `paid_compute_used: false`; Python compileall, workflow YAML parsing, and diff checks passed.
+- Exact-head GitHub CI and thread resolution remain pending. No real credentials or paid compute were used.
+
 ## Current handoff
 
 ```text
-Date/time: 2026-07-26T04:00:21Z
+Date/time: 2026-07-26T04:12:03Z
 State reconciled against main: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Current main tip verified live: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
 Engineering branch/PR: agent/desktop-no-spend-integration / PR #12
 MNT work item: MNT-002 / MNT-202
-Last completed item: PR #12 focused CI passed and PR marked ready for review
-Current item: Complete the repository-native landing workflow for PR #12
+Last completed item: Three ready-review findings repaired locally with regression coverage
+Current item: Publish and verify the review-fix head
 Verified evidence head: ee475eab893206d151eaf3e2341c81e60a142685
 Focused CI: Mentat Broker PASS; Mentat Runtime PASS; Mentat Desktop installer/smoke-install PASS; Workflow Sanity PASS
-Local validation: Broker 39 passed; Ruff/compile/config checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax passed
-Review state at handoff: no comments, reviews, unresolved threads, or ClawSweeper rank-up moves
+Local validation after review fixes: Broker 41 passed; Ruff/compile checks passed; no-spend 9/9 passed; paid compute used false; Electron syntax and 2 async-process tests passed
+Review state at handoff: 3 actionable comments and 3 unresolved threads; all 3 fixes implemented locally
 Known proof gap: clean owner-PC Windows install, Docker isolation, credential-boundary, and restart/shutdown evidence remain for Gate 1
 Owner action required: private-repository migration remains required before real credentials or paid tests
 Exact next task:
 1. Fetch current GitHub main/PR/CI reality.
-2. Inspect any new ready-for-review checks, comments, reviews, and ClawSweeper rank-up moves.
-3. Complete PR #12 through the repository-native scripts/pr landing workflow.
-4. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
+2. Publish the review fixes without overwriting a changed remote head.
+3. Verify Broker, Runtime, Desktop, and Workflow Sanity on the exact new head.
+4. Reply to and resolve all three addressed review threads.
+5. Complete PR #12 through the repository-native scripts/pr landing workflow.
+6. Continue Gate 1 on a clean owner Windows PC after PR #12 lands.
 Do not do: real credentials, paid compute, Kimi canary, Gate-1 completion claims, a new broker implementation feature, or deferred Program-7 work while PR #12 remains unresolved.
 ```
 
