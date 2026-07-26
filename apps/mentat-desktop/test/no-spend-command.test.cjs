@@ -9,6 +9,7 @@ const {
   runNoSpendCommand,
   runNoSpendDiagnostic,
 } = require('../src/no-spend-command.cjs');
+const { installRoot, runNoSpendCli } = require('../src/no-spend-cli.cjs');
 
 function fakeChild() {
   const child = new EventEmitter();
@@ -112,4 +113,40 @@ test('runs and evaluates the installed diagnostic in one operation', async () =>
   const diagnostic = await promise;
   assert.equal(diagnostic.passed, true);
   assert.equal(diagnostic.reportError, null);
+});
+
+test('runs the packaged desktop CLI against the installed command', async () => {
+  let invocation = null;
+  let output = '';
+  const code = await runNoSpendCli({
+    installRoot: 'C:\\Users\\test\\AppData\\Local\\Mentat',
+    output: { write: (value) => { output += value; } },
+    runDiagnostic: async (commandPath, reportPath) => {
+      invocation = { commandPath, reportPath };
+      return {
+        passed: true,
+        report: { paid_compute_used: false },
+        reportError: null,
+        result: { status: 0, error: null },
+      };
+    },
+  });
+
+  assert.equal(code, 0);
+  assert.deepEqual(invocation, {
+    commandPath: 'C:\\Users\\test\\AppData\\Local\\Mentat/bin/mentat.ps1',
+    reportPath: 'C:\\Users\\test\\AppData\\Local\\Mentat/state/no-spend-acceptance.json',
+  });
+  assert.deepEqual(JSON.parse(output), {
+    passed: true,
+    paid_compute_used: false,
+    report: 'C:\\Users\\test\\AppData\\Local\\Mentat/state/no-spend-acceptance.json',
+    process_status: 0,
+    process_error: null,
+    report_error: null,
+  });
+});
+
+test('requires the installed Windows data root', () => {
+  assert.throws(() => installRoot({}), /LOCALAPPDATA is required/);
 });
