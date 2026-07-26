@@ -166,6 +166,7 @@ async function main() {
     "scripts/mentat/launch.ps1",
     "scripts/mentat/broker.py",
     "scripts/mentat/testing/no_spend_acceptance.py",
+    "scripts/mentat/testing/gate1_owner_acceptance.py",
     "services/model-broker/mentat_broker/__init__.py",
     "services/model-broker/pyproject.toml",
     "config/model-registry.json",
