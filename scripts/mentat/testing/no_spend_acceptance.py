@@ -59,6 +59,25 @@ def request_json(url: str, token: str, payload: dict[str, Any] | None = None):
     return urllib.request.urlopen(request, timeout=10)
 
 
+def expect_http_status(
+    url: str,
+    expected: int,
+    *,
+    token: str | None = None,
+) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {token}"} if token is not None else {}
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            status = response.status
+            response.read()
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        exc.read()
+    require(status == expected, f"expected HTTP {expected}, received {status}")
+    return {"http_status": status}
+
+
 def chat_payload(content: str, **extra: Any) -> dict[str, Any]:
     return {
         "model": "mentat-auto",
@@ -176,6 +195,42 @@ def run_acceptance() -> dict[str, Any]:
             return payload
 
         check("broker-model-discovery", model_discovery)
+        check(
+            "client-auth-missing-rejected",
+            lambda: expect_http_status(broker_base + "/v1/models", 401),
+        )
+        check(
+            "client-auth-wrong-rejected",
+            lambda: expect_http_status(
+                broker_base + "/v1/models",
+                401,
+                token="wrong-client",
+            ),
+        )
+        check(
+            "admin-token-cannot-use-client-api",
+            lambda: expect_http_status(
+                broker_base + "/v1/models",
+                401,
+                token="acceptance-admin",
+            ),
+        )
+        check(
+            "client-token-cannot-use-admin-api",
+            lambda: expect_http_status(
+                broker_base + "/v1/decisions",
+                401,
+                token="acceptance-client",
+            ),
+        )
+        check(
+            "admin-auth-accepted",
+            lambda: expect_http_status(
+                broker_base + "/v1/decisions",
+                200,
+                token="acceptance-admin",
+            ),
+        )
 
         def offer_discovery():
             offers = application.offers_for(model, refresh=True)
@@ -264,6 +319,10 @@ def run_acceptance() -> dict[str, Any]:
             "upstream-outage-fails-closed",
             lambda: expected_failure("[[server_error]]", "all approved model endpoints failed"),
         )
+        check(
+            "malformed-upstream-fails-closed",
+            lambda: expected_failure("[[malformed]]", "all approved model endpoints failed"),
+        )
 
         successful = application.store.list_benchmarks(100)
         check(
@@ -283,6 +342,23 @@ def run_acceptance() -> dict[str, Any]:
                 {"fake_vast_calls": len(fake_vast.state.calls)},
             )[1],
         )
+
+        def broker_restart():
+            nonlocal broker, broker_thread, broker_base
+            broker.shutdown()
+            broker.server_close()
+            broker_thread.join(timeout=2)
+            require(not broker_thread.is_alive(), "broker thread did not stop")
+            broker = LoopbackThreadingHTTPServer(("127.0.0.1", 0), handler)
+            broker_thread = threading.Thread(target=broker.serve_forever, daemon=True)
+            broker_thread.start()
+            broker_base = f"http://127.0.0.1:{broker.server_address[1]}"
+            with request_json(broker_base + "/v1/models", "acceptance-client") as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            require(payload["data"][0]["id"] == "mentat-auto", "broker did not recover")
+            return {"recovered": True, "port": broker.server_address[1]}
+
+        check("broker-restart-recovery", broker_restart)
     finally:
         if broker is not None:
             broker.shutdown()
