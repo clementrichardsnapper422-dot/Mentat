@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const path = require('node:path');
 const { PassThrough } = require('node:stream');
 const test = require('node:test');
 
@@ -116,10 +117,11 @@ test('runs and evaluates the installed diagnostic in one operation', async () =>
 });
 
 test('runs the packaged desktop CLI against the installed command', async () => {
+  const root = 'C:\\Users\\test\\AppData\\Local\\Mentat';
   let invocation = null;
   let output = '';
   const code = await runNoSpendCli({
-    installRoot: 'C:\\Users\\test\\AppData\\Local\\Mentat',
+    installRoot: root,
     output: { write: (value) => { output += value; } },
     runDiagnostic: async (commandPath, reportPath) => {
       invocation = { commandPath, reportPath };
@@ -134,13 +136,13 @@ test('runs the packaged desktop CLI against the installed command', async () => 
 
   assert.equal(code, 0);
   assert.deepEqual(invocation, {
-    commandPath: 'C:\\Users\\test\\AppData\\Local\\Mentat/bin/mentat.ps1',
-    reportPath: 'C:\\Users\\test\\AppData\\Local\\Mentat/state/no-spend-acceptance.json',
+    commandPath: path.join(root, 'bin', 'mentat.ps1'),
+    reportPath: path.join(root, 'state', 'no-spend-acceptance.json'),
   });
   assert.deepEqual(JSON.parse(output), {
     passed: true,
     paid_compute_used: false,
-    report: 'C:\\Users\\test\\AppData\\Local\\Mentat/state/no-spend-acceptance.json',
+    report: path.join(root, 'state', 'no-spend-acceptance.json'),
     process_status: 0,
     process_error: null,
     report_error: null,
