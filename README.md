@@ -2789,6 +2789,7 @@ That is the central Mentat design principle.
 ---
 
 <!-- MENTAT_AI_CONSTRUCTION_CONTRACT_START -->
+
 # AI construction contract — how to turn the Mentat design into code
 
 This section is the implementation contract for any human or coding AI changing Mentat. The architecture above describes **what Mentat must become**. The rules below describe **how that design is permitted to become production code without drifting away from the mission**.
