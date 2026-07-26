@@ -101,10 +101,7 @@ if ($Packaged) {
         'scripts\mentat\launch.ps1',
         'scripts\mentat\broker.py',
         'scripts\mentat\testing\no_spend_acceptance.py',
-        'services\model-broker\mentat_broker\__init__.py',
-        'infrastructure\vast\kimi-k2.7-code\endpoint.json',
-        'infrastructure\vast\qwen3-coder-30b\endpoint.json',
-        'infrastructure\vast\deepseek-coder-v2-lite\endpoint.json'
+        'services\model-broker\mentat_broker\__init__.py'
     )) {
         if (Test-Path (Join-Path $RootDir $required)) { Report OK "Runtime component: $required" }
         else { Report FAIL "Runtime component is missing: $required" }
@@ -139,6 +136,24 @@ if (Test-Path $RegistryPath) {
         if ($registry.policy.require_manual_approval -and $registry.policy.require_live_offer) {
             Report OK 'Production model registry requires live offers and manual approval.'
         } else { Report FAIL 'Model registry production approval gates are disabled.' }
+        if ($Packaged) {
+            $declaredEndpoints = @($registry.models | ForEach-Object { $_.endpoint_config })
+            if ($declaredEndpoints.Count -eq 0) {
+                Report FAIL 'Model registry does not declare endpoint configurations.'
+            }
+            foreach ($endpointConfig in $declaredEndpoints) {
+                if (-not $endpointConfig -or [IO.Path]::IsPathRooted($endpointConfig) -or
+                    $endpointConfig -match '(^|[\\/])\.\.([\\/]|$)') {
+                    Report FAIL "Model registry has an unsafe endpoint path: $endpointConfig"
+                    continue
+                }
+                if (Test-Path -LiteralPath (Join-Path $RootDir $endpointConfig) -PathType Leaf) {
+                    Report OK "Runtime endpoint config: $endpointConfig"
+                } else {
+                    Report FAIL "Runtime endpoint config is missing: $endpointConfig"
+                }
+            }
+        }
     } catch { Report FAIL "Model registry is invalid JSON: $($_.Exception.Message)" }
 } else { Report FAIL 'config\model-registry.json is missing.' }
 
