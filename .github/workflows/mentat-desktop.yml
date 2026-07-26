@@ -98,6 +98,7 @@ jobs:
           Write-Host "Built $($installer.FullName)"
 
       - name: Smoke-install generated Mentat setup
+        timeout-minutes: 20
         shell: powershell
         run: |
           $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
@@ -145,7 +146,12 @@ jobs:
             & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath test no-spend
             if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
 
-            $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -Wait -PassThru
+            $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -PassThru
+            if (-not $desktopDiagnostic.WaitForExit(360000)) {
+              & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
+              throw 'Installed desktop diagnostics timed out after 360 seconds.'
+            }
+            $desktopDiagnostic.Refresh()
             if ($desktopDiagnostic.ExitCode -ne 0) {
               throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
             }
