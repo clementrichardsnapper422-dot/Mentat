@@ -160,9 +160,23 @@ jobs:
                 throw 'Installed desktop diagnostics timed out after 360 seconds.'
               }
               $desktopDiagnostic.Refresh()
-              if (Test-Path -LiteralPath $desktopStdout) { Get-Content -LiteralPath $desktopStdout }
+              $desktopOutput = if (Test-Path -LiteralPath $desktopStdout) {
+                Get-Content -LiteralPath $desktopStdout -Raw
+              } else {
+                ''
+              }
+              if ($desktopOutput) { Write-Host $desktopOutput.Trim() }
               if (Test-Path -LiteralPath $desktopStderr) { Get-Content -LiteralPath $desktopStderr }
-              if ($desktopDiagnostic.ExitCode -ne 0) {
+              $desktopSummaryLine = @($desktopOutput -split '\r?\n' | Where-Object { $_.Trim() })[-1]
+              try {
+                $desktopSummary = $desktopSummaryLine | ConvertFrom-Json
+              } catch {
+                throw "Installed desktop diagnostics did not emit a valid JSON summary: $($_.Exception.Message)"
+              }
+              if (-not $desktopSummary.passed -or $desktopSummary.paid_compute_used) {
+                throw "Installed desktop diagnostics reported failure or paid compute: $desktopSummaryLine"
+              }
+              if ($null -ne $desktopDiagnostic.ExitCode -and $desktopDiagnostic.ExitCode -ne 0) {
                 throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
               }
             } finally {
