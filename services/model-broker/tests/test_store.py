@@ -24,6 +24,7 @@ def test_benchmark_summary_and_session_persistence(tmp_path: Path) -> None:
     summary = store.benchmark_summary("qwen3-coder-30b", "code")
     assert summary["samples"] == 3
     assert round(summary["quality_score"], 2) == 0.9
+    assert all(record["success"] is True for record in store.list_benchmarks())
 
     store.upsert_session(
         "qwen3-coder-30b",

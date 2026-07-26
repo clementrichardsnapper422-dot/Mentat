@@ -1,11 +1,11 @@
 schema_version: 2
-last_verified_utc: 2026-07-24T12:59:00Z
+last_verified_utc: 2026-07-26T03:36:47Z
 
 repository:
   name: clementrichardsnapper422-dot/Mentat
   default_branch: main
   visibility: public
-  state_reconciled_against_main_commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+  state_reconciled_against_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
   main_commit_policy: always_verify_current_tip_from_github_at_resume
   note: This file deliberately does not claim its own containing commit is the current main tip; that would become stale at the instant a state-sync commit merges.
 
@@ -39,7 +39,21 @@ active_engineering_pr:
     desktop: pass
     broker: fail
     runtime: fail
-  exact_next_task: Diagnose and repair the Mentat Broker and Mentat Runtime failures on PR 12, rerun focused CI and no-spend acceptance, then merge or deliberately supersede the PR before starting a new broker implementation feature.
+  local_repair:
+    rebased_main_commit: 897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
+    branch_commit_before_uncommitted_repair: 731b95bb6f57d7f0ab5dcdddaef9519e1137c22d
+    worktree_status: uncommitted
+    publish_status: blocked_missing_github_cli
+    local_validation:
+      broker_pytest: 39_passed
+      broker_lint: passed
+      python_compileall: passed
+      broker_config_check: passed
+      no_spend_acceptance: passed
+      paid_compute_used: false
+      desktop_main_node_check: passed
+      runtime_windows_ci: not_rerun
+  exact_next_task: Commit and publish the prepared PR 12 repair after GitHub CLI authentication is available, rerun Broker Runtime Desktop and no-spend CI on the new remote head, then merge or deliberately supersede the PR before starting a new broker implementation feature.
 
 active_documentation_pr: null
 

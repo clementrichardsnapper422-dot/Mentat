@@ -117,17 +117,21 @@ The README may describe target behavior discovered from current Vast documentati
 
 This is a human-readable orientation snapshot, not a substitute for checking GitHub. The machine-readable companion is `docs/mentat/current-state.yaml`. **Always verify both against GitHub before coding.**
 
-Last documentation reconciliation: **2026-07-24**.
+Last documentation reconciliation: **2026-07-25**.
 
 ```text
 latest merged documentation milestone:
-  PR #14 — construction contract, roadmap, checklist, and resume system
-  merge commit: ce7a42fadd721b6c5bcb11ffb4356d17751c1eaa
+  PR #15 — provider, learning, spending, and concurrency design hardening
+  merge commit: 46f8f71b99f7bfecb0f6d16dc6fc33483ca92941
+
+current verified main:
+  897220aa68a3b9d6a85d192cfb2018b2d3ceae2c
+  result: post-PR-15 handoff synchronization
 
 active engineering work:
   PR #12
   branch: agent/desktop-no-spend-integration
-  head: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
+  remote head: 655634d1a4dacb8a4c077a0970e16571f6c8cb48
   status: OPEN / DRAFT / BLOCKED BY CI
 
 last verified PR #12 CI:
@@ -135,13 +139,19 @@ last verified PR #12 CI:
   Mentat Broker:  FAIL
   Mentat Runtime: FAIL
 
+local repair prepared:
+  rebased on current main: YES
+  Broker tests: 39 PASS
+  no-spend acceptance: PASS / paid compute used: NO
+  publish and Windows CI: PENDING
+
 current release gate:
   Gate 1 — no-spend local integration
   status: IN PROGRESS
 
 exact next engineering task:
-  diagnose and repair PR #12 Broker/Runtime failures,
-  rerun focused CI and no-spend acceptance,
+  publish the prepared PR #12 repair,
+  rerun Broker, Runtime, Desktop, and no-spend CI,
   then merge or deliberately supersede PR #12.
 ```
 

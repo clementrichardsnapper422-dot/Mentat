@@ -10,6 +10,7 @@ from typing import Any
 
 from .models import Decision, ModelSpec, Offer
 from .registry import ModelRegistry
+from .response_integrity import hardened_proxy_to_model
 from .router import RoutingError, build_decision, classify_task
 from .runtime_policy import ContextAwareBrokerApplication
 from .sessions import SessionError
@@ -284,7 +285,7 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
 
         handler.send_response = tracked  # type: ignore[method-assign]
         try:
-            super()._proxy_to_model(handler, *args, **kwargs)
+            hardened_proxy_to_model(self, handler, *args, **kwargs)
         finally:
             handler.send_response = original  # type: ignore[method-assign]
 

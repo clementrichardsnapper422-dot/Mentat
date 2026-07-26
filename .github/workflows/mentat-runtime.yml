@@ -59,7 +59,10 @@ jobs:
             scripts/mentat/vast_endpoint.py \
             scripts/mentat/vast_endpoint_production.py \
             scripts/mentat/vast_endpoint_hardening.py \
-            scripts/mentat/vast_http.py
+            scripts/mentat/vast_http.py \
+            scripts/mentat/testing/fake_vast.py \
+            scripts/mentat/testing/fake_openai.py \
+            scripts/mentat/testing/no_spend_acceptance.py
       - name: Validate model registry and broker configuration
         env:
           MENTAT_BROKER_CLIENT_TOKEN: check-client
@@ -150,6 +153,7 @@ jobs:
           $env:MENTAT_HOME = $PWD.Path
           $output = & .\scripts\mentat\mentat.ps1 help 6>&1 | Out-String
           if ($output -notmatch 'mentat vast') { throw 'Native help is missing Vast commands.' }
+          if ($output -notmatch 'mentat test no-spend') { throw 'Native help is missing no-spend diagnostics.' }
       - name: Verify Windows DPAPI protection
         shell: powershell
         run: |
@@ -160,7 +164,7 @@ jobs:
           try { $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
           finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
           if ($plain -ne 'mentat-ci-secret') { throw 'DPAPI round-trip failed.' }
-      - name: Compile endpoint and broker tools on Windows
+      - name: Compile endpoint, broker, and diagnostic tools on Windows
         shell: powershell
         run: |
           python -m py_compile `
@@ -168,7 +172,10 @@ jobs:
             scripts/mentat/vast_endpoint.py `
             scripts/mentat/vast_endpoint_production.py `
             scripts/mentat/vast_endpoint_hardening.py `
-            scripts/mentat/vast_http.py
+            scripts/mentat/vast_http.py `
+            scripts/mentat/testing/fake_vast.py `
+            scripts/mentat/testing/fake_openai.py `
+            scripts/mentat/testing/no_spend_acceptance.py
           $env:MENTAT_BROKER_CLIENT_TOKEN = 'check-client'
           $env:MENTAT_BROKER_ADMIN_TOKEN = 'check-admin'
           python scripts/mentat/broker.py --root . --data-dir "$env:RUNNER_TEMP\broker" --check | Out-Null
@@ -192,5 +199,30 @@ jobs:
           if (-not (Test-Path $mentat)) { throw 'The native mentat.cmd wrapper was not installed.' }
           $help = & $mentat help | Out-String
           if ($help -notmatch 'native Windows control plane') { throw 'Installed command help failed.' }
+          if ($help -notmatch 'mentat test no-spend') { throw 'Installed command omitted no-spend diagnostics.' }
           $version = & $mentat version | Out-String
           if ($version -notmatch '^Mentat ') { throw 'Installed command version failed.' }
+      - name: Run installed no-spend acceptance command
+        shell: powershell
+        run: |
+          $mentat = Join-Path $env:LOCALAPPDATA 'Mentat\bin\mentat.cmd'
+          & $mentat test no-spend
+          $commandExit = $LASTEXITCODE
+          $reportPath = Join-Path $env:LOCALAPPDATA 'Mentat\state\no-spend-acceptance.json'
+          $artifactPath = Join-Path $env:RUNNER_TEMP 'mentat-installed-no-spend-windows.json'
+          if (Test-Path $reportPath) {
+            Copy-Item -LiteralPath $reportPath -Destination $artifactPath -Force
+          }
+          if ($commandExit -ne 0) { throw "Installed no-spend command failed with exit code $commandExit." }
+          if (-not (Test-Path $reportPath)) { throw 'Installed no-spend command did not create its report.' }
+          $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+          if (-not $report.passed) { throw 'Installed no-spend report did not pass.' }
+          if ($report.paid_compute_used) { throw 'No-spend report claimed paid compute was used.' }
+      - name: Upload installed no-spend Windows report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-installed-no-spend-windows
+          path: ${{ runner.temp }}/mentat-installed-no-spend-windows.json
+          if-no-files-found: error
+          retention-days: 30
