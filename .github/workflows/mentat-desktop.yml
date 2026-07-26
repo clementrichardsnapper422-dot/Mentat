@@ -146,11 +146,12 @@ jobs:
             & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath test no-spend
             if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
 
-            $env:MENTAT_DIAGNOSTICS_NO_SPEND = '1'
+            $env:ELECTRON_RUN_AS_NODE = '1'
             $desktopStdout = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.out.log'
             $desktopStderr = Join-Path $env:RUNNER_TEMP 'mentat-desktop-diagnostics.err.log'
+            $desktopDiagnosticScript = Join-Path $env:LOCALAPPDATA 'Programs\Mentat\resources\app.asar\src\no-spend-cli.cjs'
             try {
-              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' `
+              $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList $desktopDiagnosticScript `
                 -RedirectStandardOutput $desktopStdout -RedirectStandardError $desktopStderr -PassThru
               if (-not $desktopDiagnostic.WaitForExit(360000)) {
                 & taskkill.exe /PID $desktopDiagnostic.Id /T /F | Out-Null
@@ -165,7 +166,7 @@ jobs:
                 throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
               }
             } finally {
-              Remove-Item Env:MENTAT_DIAGNOSTICS_NO_SPEND -ErrorAction SilentlyContinue
+              Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
             }
           } finally {
             Pop-Location
