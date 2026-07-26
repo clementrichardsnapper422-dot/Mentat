@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import platform
@@ -50,8 +51,7 @@ def run(
         text=True,
         encoding="utf-8",
         errors="replace",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=timeout,
         check=False,
         creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
@@ -135,7 +135,7 @@ class ProbeState:
 
 
 class ProbeHandler(BaseHTTPRequestHandler):
-    server: "ProbeServer"
+    server: ProbeServer
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
@@ -402,13 +402,11 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
         fake.shutdown()
         fake.server_close()
         fake_thread.join(timeout=2)
-        try:
+        with contextlib.suppress(Exception):
             run(
                 cli + ["sandbox", "recreate", "--session", session_key, "--force"],
                 env=env,
             )
-        except Exception:
-            pass
 
     return {
         "schema_version": 1,
