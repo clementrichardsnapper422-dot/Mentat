@@ -3,7 +3,12 @@ const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
 const test = require('node:test');
 
-const { runNoSpendCommand } = require('../src/no-spend-command.cjs');
+const {
+  evaluateNoSpendResult,
+  readNoSpendReport,
+  runNoSpendCommand,
+  runNoSpendDiagnostic,
+} = require('../src/no-spend-command.cjs');
 
 function fakeChild() {
   const child = new EventEmitter();
@@ -60,4 +65,51 @@ test('terminates and reports a timed-out diagnostic process', async () => {
   assert.equal(result.status, null);
   assert.equal(result.timedOut, true);
   assert.match(result.error.message, /timed out/);
+});
+
+test('accepts only a successful process and explicit no-spend report', () => {
+  assert.equal(
+    evaluateNoSpendResult(
+      { status: 0 },
+      { passed: true, paid_compute_used: false },
+    ),
+    true,
+  );
+  assert.equal(
+    evaluateNoSpendResult(
+      { status: 0 },
+      { passed: true, paid_compute_used: true },
+    ),
+    false,
+  );
+  assert.equal(
+    evaluateNoSpendResult(
+      { status: 1 },
+      { passed: true, paid_compute_used: false },
+    ),
+    false,
+  );
+});
+
+test('reads a BOM-prefixed no-spend report and rejects arrays', () => {
+  const report = readNoSpendReport('report.json', {
+    readFile: () => '\uFEFF{"passed":true,"paid_compute_used":false}',
+  });
+  assert.equal(report.passed, true);
+  assert.throws(
+    () => readNoSpendReport('report.json', { readFile: () => '[]' }),
+    /not a JSON object/,
+  );
+});
+
+test('runs and evaluates the installed diagnostic in one operation', async () => {
+  const child = fakeChild();
+  const promise = runNoSpendDiagnostic('mentat.ps1', 'report.json', {
+    spawnProcess: () => child,
+    readFile: () => '{"passed":true,"paid_compute_used":false}',
+  });
+  child.emit('close', 0, null);
+  const diagnostic = await promise;
+  assert.equal(diagnostic.passed, true);
+  assert.equal(diagnostic.reportError, null);
 });

@@ -2,7 +2,7 @@ const electron = require('electron');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
-const { runNoSpendCommand } = require('./no-spend-command.cjs');
+const { runNoSpendDiagnostic } = require('./no-spend-command.cjs');
 
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
@@ -46,16 +46,6 @@ function isBrokerUrl(value) {
   }
 }
 
-function parseNoSpendReport() {
-  const reportPath = noSpendReportPath();
-  const raw = fs.readFileSync(reportPath, 'utf8').replace(/^\uFEFF/, '');
-  const report = JSON.parse(raw);
-  if (!report || typeof report !== 'object') {
-    throw new Error('The no-spend report is not a JSON object.');
-  }
-  return report;
-}
-
 async function runNoSpendAcceptance() {
   const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
   if (!fs.existsSync(commandPath)) {
@@ -91,17 +81,8 @@ async function runNoSpendAcceptance() {
   }
 
   try {
-    const result = await runNoSpendCommand(commandPath);
-    let report = null;
-    try {
-      report = parseNoSpendReport();
-    } catch {
-      // The process error below includes the actionable command output.
-    }
-    const passed = result.status === 0
-      && report
-      && report.passed === true
-      && report.paid_compute_used === false;
+    const diagnostic = await runNoSpendDiagnostic(commandPath, noSpendReportPath());
+    const { passed, report, result } = diagnostic;
     const checks = report && Array.isArray(report.checks) ? report.checks : [];
     const passedChecks = checks.filter((item) => item && item.status === 'passed').length;
     const failedChecks = checks.filter((item) => item && item.status === 'failed');
@@ -215,4 +196,26 @@ electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(ta
   return originalLoadURL.call(this, target, actualOptions);
 };
 
-require('./main.cjs');
+async function runNonInteractiveDiagnostics() {
+  const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
+  const diagnostic = await runNoSpendDiagnostic(commandPath, noSpendReportPath());
+  const summary = {
+    passed: diagnostic.passed,
+    paid_compute_used: diagnostic.report?.paid_compute_used ?? null,
+    report: noSpendReportPath(),
+    process_status: diagnostic.result.status,
+    process_error: diagnostic.result.error?.message || null,
+    report_error: diagnostic.reportError?.message || null,
+  };
+  process.stdout.write(`${JSON.stringify(summary)}\n`);
+  electron.app.exit(diagnostic.passed ? 0 : 1);
+}
+
+if (process.argv.includes('--diagnostics-no-spend')) {
+  electron.app.whenReady().then(runNonInteractiveDiagnostics).catch((error) => {
+    process.stderr.write(`${error.stack || error}\n`);
+    electron.app.exit(1);
+  });
+} else {
+  require('./main.cjs');
+}

@@ -4,6 +4,13 @@ on:
   pull_request:
     paths:
       - "apps/mentat-desktop/**"
+      - "config/model-registry.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/mentat/**"
+      - "scripts/package-openclaw-for-docker.mjs"
+      - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
       - "README.md"
@@ -14,6 +21,13 @@ on:
     branches: [main]
     paths:
       - "apps/mentat-desktop/**"
+      - "config/model-registry.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/mentat/**"
+      - "scripts/package-openclaw-for-docker.mjs"
+      - "services/model-broker/**"
       - "install.ps1"
       - "install.cmd"
       - "README.md"
@@ -32,9 +46,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.2.2"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24.18.0"
+          cache: "pnpm"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OpenClaw packaging dependencies
+        shell: powershell
+        run: pnpm install --frozen-lockfile
 
       - name: Install desktop packaging dependencies
         working-directory: apps/mentat-desktop
@@ -78,7 +105,59 @@ jobs:
           if (-not (Test-Path $installedExe)) {
             throw "Installed Mentat.exe was not found at $installedExe"
           }
-          Write-Host "Installed $installedExe"
+          $installRoot = Join-Path $env:LOCALAPPDATA 'Mentat'
+          $runtimeRoot = Join-Path $installRoot 'runtime'
+          $commandPath = Join-Path $installRoot 'bin\mentat.ps1'
+          foreach ($required in @(
+            $commandPath,
+            (Join-Path $runtimeRoot 'runtime-manifest.json'),
+            (Join-Path $runtimeRoot 'node\node.exe'),
+            (Join-Path $runtimeRoot 'openclaw\node_modules\openclaw\openclaw.mjs'),
+            (Join-Path $runtimeRoot 'services\model-broker\mentat_broker\__init__.py')
+          )) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Installed runtime component was not found: $required"
+            }
+          }
+          $wrapper = Get-Content -LiteralPath $commandPath -Raw
+          if ($wrapper.Contains($env:GITHUB_WORKSPACE)) {
+            throw 'Installed mentat wrapper embeds the source checkout path.'
+          }
+
+          Remove-Item Env:MENTAT_HOME -ErrorAction SilentlyContinue
+          Push-Location $env:RUNNER_TEMP
+          try {
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath doctor
+            if ($LASTEXITCODE -ne 0) { throw 'Installed mentat doctor failed.' }
+
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $commandPath test no-spend
+            if ($LASTEXITCODE -ne 0) { throw 'Installed mentat test no-spend failed.' }
+
+            $desktopDiagnostic = Start-Process -FilePath $installedExe -ArgumentList '--diagnostics-no-spend' -Wait -PassThru
+            if ($desktopDiagnostic.ExitCode -ne 0) {
+              throw "Installed desktop diagnostics failed with exit code $($desktopDiagnostic.ExitCode)."
+            }
+          } finally {
+            Pop-Location
+          }
+          Write-Host "Verified complete installed runtime at $runtimeRoot"
+
+      - name: Stage installed no-spend evidence
+        if: always()
+        shell: powershell
+        run: |
+          $report = Join-Path $env:LOCALAPPDATA 'Mentat\state\no-spend-acceptance.json'
+          if (Test-Path -LiteralPath $report) {
+            Copy-Item -LiteralPath $report -Destination (Join-Path $env:RUNNER_TEMP 'mentat-no-spend-acceptance.json')
+          }
+
+      - name: Upload installed no-spend evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-installed-no-spend-report
+          path: ${{ runner.temp }}/mentat-no-spend-acceptance.json
+          if-no-files-found: warn
 
       - name: Upload Mentat Windows installer
         uses: actions/upload-artifact@v4
