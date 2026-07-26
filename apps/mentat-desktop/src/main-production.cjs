@@ -208,13 +208,21 @@ async function runNonInteractiveDiagnostics() {
     report_error: diagnostic.reportError?.message || null,
   };
   process.stdout.write(`${JSON.stringify(summary)}\n`);
-  electron.app.exit(diagnostic.passed ? 0 : 1);
+  exitNonInteractiveDiagnostics(diagnostic.passed ? 0 : 1);
 }
 
-if (process.argv.includes('--diagnostics-no-spend')) {
+function exitNonInteractiveDiagnostics(code) {
+  setTimeout(() => process.exit(code), 1000);
+  electron.app.exit(code);
+}
+
+if (
+  process.argv.includes('--diagnostics-no-spend')
+  || process.env.MENTAT_DIAGNOSTICS_NO_SPEND === '1'
+) {
   electron.app.whenReady().then(runNonInteractiveDiagnostics).catch((error) => {
     process.stderr.write(`${error.stack || error}\n`);
-    electron.app.exit(1);
+    exitNonInteractiveDiagnostics(1);
   });
 } else {
   require('./main.cjs');
