@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import tempfile
 import zipfile
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -287,10 +288,8 @@ class DiagnosticsService:
                     "backup-manifest.json", json.dumps(manifest, indent=2) + "\n"
                 )
             os.replace(temp_name, destination)
-            try:
+            with suppress(OSError):
                 os.chmod(destination, 0o600)
-            except OSError:
-                pass
         finally:
             if os.path.exists(temp_name):
                 os.unlink(temp_name)
