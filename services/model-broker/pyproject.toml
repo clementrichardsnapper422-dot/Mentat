@@ -4,10 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mentat-model-broker"
-version = "0.1.0"
-description = "Deterministic model and Vast compute broker for Mentat"
+version = "1.0.0rc1"
+description = "Local evidence-driven model and compute broker for Mentat"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+  "ruff>=0.6,<1",
+]
 
 [project.scripts]
 mentat-broker = "mentat_broker.server:main"
@@ -29,3 +35,4 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "../../scripts/mentat/testing/no_spend_acceptance.py" = ["E402", "I001"]
+"../../scripts/mentat/testing/release_candidate_acceptance.py" = ["E402", "I001"]
