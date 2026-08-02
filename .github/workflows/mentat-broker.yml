@@ -50,6 +50,89 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Route the no-spend fixture through the production authority
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/mentat/testing/no_spend_acceptance.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace(
+              '            "MENTAT_VAST_BUNDLES_URL",\n',
+              '            "MENTAT_VAST_BUNDLES_URL",\n            "VAST_TEMPLATE_HASH",\n',
+          )
+          text = text.replace(
+              '                "MENTAT_VAST_BUNDLES_URL": vast_base + "/bundles/",\n',
+              '                "MENTAT_VAST_BUNDLES_URL": vast_base + "/bundles/",\n                "VAST_TEMPLATE_HASH": "fake-template",\n',
+          )
+          old = '''        broker_base = start_broker()
+          model = application.registry.get("kimi-k2.7-code")
+          offer = Offer(
+              id=501,
+              gpu_name="H200",
+              num_gpus=8,
+              gpu_ram_mb=141000,
+              hourly_usd=24,
+              reliability=0.995,
+              verified=True,
+              bw_nvlink=900,
+              disk_space_gb=1000,
+          )
+          now = datetime.now(UTC)
+          application.store.upsert_session(
+              model.id,
+              status="ready",
+              endpoint_url=upstream_base,
+              hourly_usd=offer.hourly_usd,
+              offer=offer,
+              decision_id="no-spend-approved-session",
+              started_at=now.isoformat(),
+              last_used_at=now.isoformat(),
+              approved_until=(now + timedelta(minutes=30)).isoformat(),
+          )
+          '''
+          new = '''        broker_base = start_broker()
+          application.v1.settings.update(
+              {
+                  "setup_complete": True,
+                  "privacy_mode": "remote_allowed",
+                  "remote_inference_enabled": True,
+                  "budgets": {
+                      "maximum_hourly_usd": 32,
+                      "maximum_session_usd": 64,
+                      "maximum_daily_usd": 128,
+                      "maximum_monthly_usd": 1280,
+                      "maximum_retry_usd": 8,
+                      "maximum_fallback_usd": 16,
+                      "maximum_exploration_usd": 4,
+                      "one_paid_session": True,
+                  },
+              }
+          )
+          model = application.registry.get("kimi-k2.7-code")
+          seed_decision = application.plan(
+              {
+                  "prompt": "Validate the fake Vast production authority path",
+                  "requires_tools": True,
+                  "estimated_input_tokens": 2048,
+                  "max_hourly_usd": 32,
+                  "max_total_usd": 64,
+              }
+          )
+          application.approve(
+              seed_decision.id,
+              {"accept_benchmark_cost": True},
+          )
+          application.sessions.wait_until_ready(model, timeout_seconds=10)
+          application.authority.provider_ready(seed_decision, model)
+          '''
+          if old in text:
+              text = text.replace(old, new)
+          elif "Validate the fake Vast production authority path" not in text:
+              raise SystemExit("no-spend fixture block changed unexpectedly")
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: Apply focused Python lint and format repairs
         run: |
           python -m pip install ruff
