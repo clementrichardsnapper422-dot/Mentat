@@ -83,11 +83,23 @@ jobs:
         shell: bash
         run: |
           python scripts/mentat/testing/no_spend_acceptance.py --report "${{ runner.temp }}/mentat-no-spend-${{ matrix.os }}.json"
+      - name: Run Mentat 1.0 zero-dollar release acceptance
+        shell: bash
+        run: |
+          python scripts/mentat/testing/release_candidate_acceptance.py --report "${{ runner.temp }}/mentat-v1-${{ matrix.os }}.json"
       - name: Upload no-spend acceptance report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mentat-no-spend-${{ matrix.os }}
           path: ${{ runner.temp }}/mentat-no-spend-${{ matrix.os }}.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload Mentat 1.0 release acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-v1-${{ matrix.os }}
+          path: ${{ runner.temp }}/mentat-v1-${{ matrix.os }}.json
           if-no-files-found: error
           retention-days: 30
