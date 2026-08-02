@@ -8,6 +8,7 @@ const { runNoSpendCli } = require('./no-spend-cli.cjs');
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
 let controlWindow = null;
+let controlSessionConfigured = false;
 
 function installRoot() {
   const localAppData = process.env.LOCALAPPDATA || electron.app.getPath('appData');
@@ -67,8 +68,27 @@ function secureControlWindowOptions() {
       sandbox: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      partition: 'mentat-control',
     },
   };
+}
+
+function configureControlSession(session, token) {
+  if (controlSessionConfigured) {
+    return;
+  }
+  session.webRequest.onBeforeSendHeaders(
+    { urls: [`${brokerBaseUrl()}/*`] },
+    (details, callback) => {
+      callback({
+        requestHeaders: {
+          ...details.requestHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    },
+  );
+  controlSessionConfigured = true;
 }
 
 async function openControlCenter() {
@@ -88,6 +108,7 @@ async function openControlCenter() {
     return;
   }
   controlWindow = new electron.BrowserWindow(secureControlWindowOptions());
+  configureControlSession(controlWindow.webContents.session, token);
   controlWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!isBrokerUrl(url)) {
       void electron.shell.openExternal(url);
