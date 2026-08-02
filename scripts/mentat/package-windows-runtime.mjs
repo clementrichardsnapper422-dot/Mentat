@@ -13,6 +13,17 @@ const PAYLOAD_DIR = path.join(ARTIFACT_DIR, "payload");
 const TARBALL_DIR = path.join(ARTIFACT_DIR, "package");
 const TARBALL_NAME = "openclaw.tgz";
 
+// Electron loads these CommonJS modules by package metadata and runtime delegation rather than
+// ESM imports. Keep explicit URL edges here so repository dead-code analysis can verify the real
+// desktop graph without suppressing the files.
+const DESKTOP_RUNTIME_ENTRYPOINTS = [
+  new URL("../../apps/mentat-desktop/src/main-production.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/main.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/no-spend-cli.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/no-spend-command.cjs", import.meta.url),
+];
+void DESKTOP_RUNTIME_ENTRYPOINTS;
+
 function run(command, args, cwd = ROOT_DIR) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
