@@ -145,7 +145,22 @@ def test_single_authority_controls_route_spend_and_provider_state(tmp_path):
         assert cooled.state == ExecutionState.COOLED
         reservation = app.spend.get(grant.reservation_id)
         assert reservation is not None
-        assert reservation.state == "reserved"
+        assert reservation.state == "reconciling"
+        snapshot = app.spend.snapshot()
+        assert snapshot["active_sessions"] == 0
+        assert snapshot["unresolved_reconciliations"] == 1
+        assert snapshot["today_exposure_usd"] == 8
+
+        next_route = decision("decision-3")
+        assert authority.register_decision(next_route, selected).execution_id == record.execution_id
+        next_grant = authority.prepare_paid_provider(
+            next_route,
+            selected,
+            hourly_usd=2,
+            maximum_session_hours=4,
+        )
+        assert app.spend.get(next_grant.reservation_id).state == "reserved"
+        assert app.spend.snapshot()["active_sessions"] == 1
     finally:
         app.close()
 
