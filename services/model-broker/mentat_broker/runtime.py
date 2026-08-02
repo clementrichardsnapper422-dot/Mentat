@@ -142,18 +142,18 @@ class MentatV1Runtime:
         return requirements.as_dict()
 
     def update_settings(self, patch: dict[str, Any]) -> dict[str, Any]:
-        candidate = self.settings.update(patch)
+        candidate = self.settings.preview_update(patch)
         self._validate_settings_against_hard_policy(candidate)
-        return candidate.as_dict()
+        return self.settings.replace(candidate).as_dict()
 
     def complete_setup(self, patch: dict[str, Any]) -> dict[str, Any]:
-        candidate = self.settings.complete_setup(patch)
+        candidate = self.settings.preview_complete_setup(patch)
         self._validate_settings_against_hard_policy(candidate)
         workspace = Path(candidate.workspace).expanduser()
         workspace.mkdir(parents=True, exist_ok=True)
         if not workspace.is_dir():
             raise RuntimeError("configured workspace is not a directory")
-        return candidate.as_dict()
+        return self.settings.replace(candidate).as_dict()
 
     def reset_setup(self) -> dict[str, Any]:
         return self.settings.reset_setup().as_dict()
