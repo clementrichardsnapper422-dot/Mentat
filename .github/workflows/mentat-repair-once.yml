@@ -1,10 +1,6 @@
 name: Mentat One-Shot Repair
 
 on:
-  push:
-    branches: [agent/shot2-owner-gate1-evidence]
-    paths:
-      - ".github/workflows/mentat-repair-once.yml"
   pull_request:
     paths:
       - ".github/workflows/mentat-repair-once.yml"
@@ -14,14 +10,13 @@ permissions:
 
 concurrency:
   group: mentat-one-shot-repair
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
     if: >-
-      github.event_name == 'push' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
-       github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence')
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
