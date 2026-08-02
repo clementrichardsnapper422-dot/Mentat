@@ -51,22 +51,10 @@ def production_read_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
     return parsed
 
 
-def secure_ui(base_ui: Callable[[], bytes], admin_token: str) -> bytes:
+def secure_ui(base_ui: Callable[[], bytes]) -> bytes:
+    """Add rating controls without placing broker authority in page JavaScript."""
+
     html = base_ui().decode("utf-8")
-    token_json = json.dumps(admin_token)
-    html = html.replace(
-        "const list = document.getElementById('list');",
-        "const list = document.getElementById('list');\n"
-        f"const adminToken = {token_json};",
-    )
-    html = html.replace(
-        "headers:{'Content-Type':'application/json'}",
-        "headers:{'Content-Type':'application/json','Authorization':'Bearer '+adminToken}",
-    )
-    html = html.replace(
-        "fetch('/v1/decisions?limit=30')",
-        "fetch('/v1/decisions?limit=30',{headers:{'Authorization':'Bearer '+adminToken}})",
-    )
     html = html.replace(
         "function render(decision) {",
         "async function rateDecision(id, stars) {\n"
@@ -181,7 +169,7 @@ def production_handler_factory(
                 if not self._admin_authorized():
                     self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
                     return
-                body = secure_ui(base_ui, application.admin_token)
+                body = secure_ui(base_ui)
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
