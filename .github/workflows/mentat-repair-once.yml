@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: agent/shot2-owner-gate1-evidence
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -147,11 +147,32 @@ jobs:
             services/model-broker/tests \
             scripts/mentat/testing
 
-      - name: Regenerate and verify dependency lockfile
+      - name: Synchronize and verify dependency lockfile
         shell: bash
         run: |
           set -euo pipefail
-          pnpm install --no-frozen-lockfile
+          python - <<'PY'
+          from pathlib import Path
+
+          workspace_path = Path("pnpm-workspace.yaml")
+          lock_path = Path("pnpm-lock.yaml")
+          workspace = workspace_path.read_text(encoding="utf-8")
+          lock = lock_path.read_text(encoding="utf-8")
+
+          workspace_start = workspace.find("overrides:\n")
+          if workspace_start < 0:
+              raise SystemExit("workspace overrides block is missing")
+          authoritative_overrides = workspace[workspace_start:].rstrip() + "\n"
+
+          lock_start = lock.find("overrides:\n")
+          lock_end = lock.find("\npackageExtensionsChecksum:", lock_start)
+          if lock_start < 0 or lock_end < 0:
+              raise SystemExit("lockfile overrides boundary is missing")
+
+          synchronized = lock[:lock_start] + authoritative_overrides + lock[lock_end:]
+          lock_path.write_text(synchronized, encoding="utf-8")
+          PY
+          pnpm install --lockfile-only --no-frozen-lockfile
           pnpm install --frozen-lockfile
           node scripts/pre-commit/pnpm-audit-prod.mjs --audit-level=high
 
