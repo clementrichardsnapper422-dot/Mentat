@@ -1,0 +1,75 @@
+name: Mentat Canonical Lint Repair
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mentat-lint-repair-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mentat-canonical-lint-repair
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/shot2-owner-gate1-evidence
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Apply canonical broker lint fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install pytest ruff
+          cd services/model-broker
+          ruff check --fix --unsafe-fixes mentat_broker tests ../../scripts/mentat/testing
+          ruff format mentat_broker tests ../../scripts/mentat/testing
+          ruff check mentat_broker tests ../../scripts/mentat/testing
+
+      - name: Run canonical broker proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q \
+            services/model-broker/mentat_broker \
+            services/model-broker/tests \
+            scripts/mentat/testing
+          (
+            cd services/model-broker
+            pytest -q
+          )
+          python scripts/mentat/testing/no_spend_acceptance.py \
+            --report "$RUNNER_TEMP/mentat-no-spend-lint-repair.json"
+          python scripts/mentat/testing/release_candidate_acceptance.py \
+            --report "$RUNNER_TEMP/mentat-v1-lint-repair.json"
+          git diff --check
+
+      - name: Remove repair workflow and publish candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/mentat-lint-repair-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No canonical lint repairs were produced."
+            exit 1
+          fi
+          git commit -m "style: synchronize canonical broker imports"
+          git push origin HEAD:agent/shot2-owner-gate1-evidence
