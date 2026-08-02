@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pnpm exec oxfmt \
+          ./node_modules/.bin/oxfmt \
             docs/mentat/threat-model.md \
             docs/mentat/work-items.md \
             scripts/mentat/package-windows-runtime.mjs \
