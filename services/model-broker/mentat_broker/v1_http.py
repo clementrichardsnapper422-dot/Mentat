@@ -41,7 +41,7 @@ def v1_handler_factory(
                 self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
                 return
             if parsed.path == "/ui/control":
-                body = render_control_center(application.admin_token)
+                body = render_control_center()
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
