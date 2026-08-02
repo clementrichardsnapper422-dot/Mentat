@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
 
-
-def render_control_center(admin_token: str) -> bytes:
-    token = json.dumps(admin_token)
+def render_control_center() -> bytes:
     html = f"""<!doctype html>
 <html>
 <head>
@@ -53,13 +50,11 @@ pre {{ white-space:pre-wrap; overflow-wrap:anywhere; background:#090c17; padding
 <section class="card full"><h2>Recent spend events</h2><pre id="events">Loading…</pre></section>
 </main>
 <script>
-const adminToken = {token};
 let state = null;
-const auth = {{Authorization:'Bearer '+adminToken}};
 function esc(value) {{ return String(value ?? '').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c])); }}
 function money(value) {{ return '$'+Number(value||0).toFixed(2); }}
 async function api(path, options={{}}) {{
-  const response = await fetch(path, {{...options, headers:{{...auth,'Content-Type':'application/json',...(options.headers||{{}})}}}});
+  const response = await fetch(path, {{...options, headers:{{'Content-Type':'application/json',...(options.headers||{{}})}}}});
   const payload = await response.json();
   if (!response.ok) throw new Error(payload?.error?.message || 'HTTP '+response.status);
   return payload;
