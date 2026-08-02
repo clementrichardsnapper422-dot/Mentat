@@ -73,13 +73,18 @@ function secureControlWindowOptions() {
   };
 }
 
-function configureControlSession(session, token) {
+function configureControlSession(session) {
   if (controlSessionConfigured) {
     return;
   }
   session.webRequest.onBeforeSendHeaders(
-    { urls: [`${brokerBaseUrl()}/*`] },
+    { urls: ['http://127.0.0.1/*'] },
     (details, callback) => {
+      const token = adminToken();
+      if (!token || !isBrokerUrl(details.url)) {
+        callback({ requestHeaders: details.requestHeaders });
+        return;
+      }
       callback({
         requestHeaders: {
           ...details.requestHeaders,
@@ -108,7 +113,7 @@ async function openControlCenter() {
     return;
   }
   controlWindow = new electron.BrowserWindow(secureControlWindowOptions());
-  configureControlSession(controlWindow.webContents.session, token);
+  configureControlSession(controlWindow.webContents.session);
   controlWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!isBrokerUrl(url)) {
       void electron.shell.openExternal(url);
