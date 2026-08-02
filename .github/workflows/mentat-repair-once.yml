@@ -78,7 +78,7 @@ jobs:
                   '                    "maximum_monthly_usd": 1280,',
                   '                    "maximum_retry_usd": 8,',
                   '                    "maximum_fallback_usd": 16,',
-                  '                    "maximum_exploration_usd": 4,',
+                  '                    "maximum_exploration_usd": 3,',
                   "                },",
                   "            }",
                   "        )",
