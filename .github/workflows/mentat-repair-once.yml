@@ -59,69 +59,79 @@ jobs:
 
           acceptance = Path("scripts/mentat/testing/no_spend_acceptance.py")
           text = acceptance.read_text(encoding="utf-8")
-          old = '''        application.v1.settings.update(
-              {
-                  "setup_complete": True,
-                  "privacy_mode": "remote_allowed",
-                  "remote_inference_enabled": True,
-                  "budgets": {
-                      "maximum_hourly_usd": 32,
-                      "maximum_session_usd": 64,
-                      "maximum_daily_usd": 128,
-                      "maximum_monthly_usd": 1280,
-                      "maximum_retry_usd": 8,
-                      "maximum_fallback_usd": 16,
-                      "maximum_exploration_usd": 4,
-                      "one_paid_session": True,
-                  },
-              }
-          )'''
-          new = '''        application.v1.settings.complete_setup(
-              {
-                  "workspace": str(data_dir.resolve()),
-                  "privacy_mode": "remote_allowed",
-                  "remote_inference_enabled": True,
-                  "one_paid_session": True,
-                  "budgets": {
-                      "maximum_hourly_usd": 32,
-                      "maximum_session_usd": 64,
-                      "maximum_daily_usd": 128,
-                      "maximum_monthly_usd": 1280,
-                      "maximum_retry_usd": 8,
-                      "maximum_fallback_usd": 16,
-                      "maximum_exploration_usd": 4,
-                  },
-              }
-          )'''
-          if old not in text:
-              raise SystemExit("no-spend setup fixture changed unexpectedly")
-          acceptance.write_text(text.replace(old, new), encoding="utf-8")
+          start_marker = "        application.v1.settings.update(\n"
+          end_marker = "\n        model = application.registry.get"
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit("no-spend settings update marker is missing")
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("no-spend model marker is missing")
+          replacement = "\n".join(
+              [
+                  "        application.v1.settings.complete_setup(",
+                  "            {",
+                  '                "workspace": str(data_dir.resolve()),',
+                  '                "privacy_mode": "remote_allowed",',
+                  '                "remote_inference_enabled": True,',
+                  '                "one_paid_session": True,',
+                  '                "budgets": {',
+                  '                    "maximum_hourly_usd": 32,',
+                  '                    "maximum_session_usd": 64,',
+                  '                    "maximum_daily_usd": 128,',
+                  '                    "maximum_monthly_usd": 1280,',
+                  '                    "maximum_retry_usd": 8,',
+                  '                    "maximum_fallback_usd": 16,',
+                  '                    "maximum_exploration_usd": 4,',
+                  "                },",
+                  "            }",
+                  "        )",
+              ]
+          )
+          acceptance.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
 
           tests = Path("services/model-broker/tests/test_single_authority.py")
           text = tests.read_text(encoding="utf-8")
-          text = text.replace(
-              '''    with pytest.raises(RuntimeError, match="proposal failed"):
-              with candidate_proposal_scope(application):
-                  raise RuntimeError("proposal failed")''',
-              '''    with (
-              pytest.raises(RuntimeError, match="proposal failed"),
-              candidate_proposal_scope(application),
-          ):
-              raise RuntimeError("proposal failed")''',
+          failure_old = "\n".join(
+              [
+                  '    with pytest.raises(RuntimeError, match="proposal failed"):',
+                  "        with candidate_proposal_scope(application):",
+                  '            raise RuntimeError("proposal failed")',
+              ]
           )
-          text = text.replace(
-              '''    with candidate_proposal_scope(application):
-              with pytest.raises(AuthorityBypassError, match="nested"):
-                  with candidate_proposal_scope(application):
-                      pass''',
-              '''    with (
-              candidate_proposal_scope(application),
-              pytest.raises(AuthorityBypassError, match="nested"),
-          ):
-              with candidate_proposal_scope(application):
-                  pass''',
+          failure_new = "\n".join(
+              [
+                  "    with (",
+                  '        pytest.raises(RuntimeError, match="proposal failed"),',
+                  "        candidate_proposal_scope(application),",
+                  "    ):",
+                  '        raise RuntimeError("proposal failed")',
+              ]
           )
-          tests.write_text(text, encoding="utf-8")
+          nested_old = "\n".join(
+              [
+                  "    with candidate_proposal_scope(application):",
+                  '        with pytest.raises(AuthorityBypassError, match="nested"):',
+                  "            with candidate_proposal_scope(application):",
+                  "                pass",
+              ]
+          )
+          nested_new = "\n".join(
+              [
+                  "    with (",
+                  "        candidate_proposal_scope(application),",
+                  '        pytest.raises(AuthorityBypassError, match="nested"),',
+                  "    ):",
+                  "        with candidate_proposal_scope(application):",
+                  "            pass",
+              ]
+          )
+          if failure_old not in text or nested_old not in text:
+              raise SystemExit("single-authority test markers are missing")
+          tests.write_text(
+              text.replace(failure_old, failure_new).replace(nested_old, nested_new),
+              encoding="utf-8",
+          )
           PY
 
       - name: Format and lint broker Python
