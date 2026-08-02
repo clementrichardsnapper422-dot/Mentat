@@ -99,6 +99,33 @@ class AuthoritativeProductionSessionManager(ProductionSessionManager):
         super().cool_all(timeout_seconds)
         self._reconcile_authority_once()
 
+    def cool_now(self, model_id: str) -> dict[str, Any]:
+        """Perform the provider action, then report it to the authority ledger."""
+
+        with self._approval_lock:
+            session = self.store.get_session(model_id)
+            if session is None:
+                raise KeyError("saved compute session not found")
+            model = self.registry.get(model_id)
+            try:
+                if model.provider == "vast":
+                    self._lifecycle(model, "cool")
+                self.store.upsert_session(model.id, status="cooled", error=None)
+                if self._authority is not None:
+                    self._authority.provider_cooled(
+                        model.id,
+                        reason="manual Control Center request",
+                    )
+            except Exception as exc:
+                self.store.upsert_session(model.id, status="failed", error=str(exc))
+                if self._authority is not None:
+                    self._authority.provider_cool_failed(model.id, message=str(exc))
+                raise
+            updated = self.store.get_session(model.id)
+            if updated is None:
+                raise SessionError("saved compute session disappeared after cooling")
+            return updated
+
     def _authority_reconcile_loop(self) -> None:
         while not self._authority_stop.wait(5):
             self._reconcile_authority_once()
