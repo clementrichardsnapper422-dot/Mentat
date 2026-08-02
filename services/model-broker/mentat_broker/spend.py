@@ -419,13 +419,9 @@ class SpendGovernor:
                 raise
         return self._required(reservation_id)
 
-    def reconcile(
-        self, reservation_id: str, actual_usd: float, *, source: str
-    ) -> SpendReservation:
+    def reconcile(self, reservation_id: str, actual_usd: float, *, source: str) -> SpendReservation:
         if actual_usd < 0 or not source.strip():
-            raise ValueError(
-                "reconciliation requires non-negative actual spend and a source"
-            )
+            raise ValueError("reconciliation requires non-negative actual spend and a source")
         with self._lock, self._connection:
             row = self._require_row(reservation_id)
             state = "committed" if actual_usd > 0 else "released"
@@ -511,8 +507,7 @@ class SpendGovernor:
                 "month_exposure_usd": self._sum_exposure(self._prefix(current, True)),
                 "active_sessions": self._active_count(),
                 "recent_events": [
-                    {**dict(row), "payload": json.loads(row["payload_json"])}
-                    for row in events
+                    {**dict(row), "payload": json.loads(row["payload_json"])} for row in events
                 ],
             }
 
