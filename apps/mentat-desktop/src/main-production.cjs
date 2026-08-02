@@ -7,6 +7,7 @@ const { runNoSpendCli } = require('./no-spend-cli.cjs');
 
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
+let controlWindow = null;
 
 function installRoot() {
   const localAppData = process.env.LOCALAPPDATA || electron.app.getPath('appData');
@@ -28,6 +29,10 @@ function brokerPort() {
   }
 }
 
+function brokerBaseUrl() {
+  return `http://127.0.0.1:${brokerPort()}`;
+}
+
 function adminToken() {
   try {
     return fs.readFileSync(path.join(installRoot(), 'state', 'broker-admin.token'), 'utf8').trim();
@@ -47,6 +52,71 @@ function isBrokerUrl(value) {
   }
 }
 
+function secureControlWindowOptions() {
+  return {
+    width: 1220,
+    height: 820,
+    minWidth: 860,
+    minHeight: 600,
+    show: false,
+    title: 'Mentat Control Center',
+    backgroundColor: '#0d1020',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+    },
+  };
+}
+
+async function openControlCenter() {
+  const token = adminToken();
+  if (!token) {
+    await electron.dialog.showMessageBox({
+      type: 'warning',
+      title: 'Mentat Control Center',
+      message: 'The local broker administration credential is unavailable.',
+      detail: 'Start Mentat, then open the Control Center again.',
+    });
+    return;
+  }
+  if (controlWindow && !controlWindow.isDestroyed()) {
+    controlWindow.show();
+    controlWindow.focus();
+    return;
+  }
+  controlWindow = new electron.BrowserWindow(secureControlWindowOptions());
+  controlWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (!isBrokerUrl(url)) {
+      void electron.shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+  controlWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isBrokerUrl(url)) {
+      event.preventDefault();
+      void electron.shell.openExternal(url);
+    }
+  });
+  controlWindow.once('ready-to-show', () => controlWindow?.show());
+  controlWindow.on('closed', () => {
+    controlWindow = null;
+  });
+  try {
+    await controlWindow.loadURL(`${brokerBaseUrl()}/ui/control`);
+  } catch (error) {
+    controlWindow?.destroy();
+    await electron.dialog.showMessageBox({
+      type: 'error',
+      title: 'Mentat Control Center',
+      message: 'The local broker control surface could not be opened.',
+      detail: error?.message || String(error),
+    });
+  }
+}
+
 async function runNoSpendAcceptance() {
   const commandPath = path.join(installRoot(), 'bin', 'mentat.ps1');
   if (!fs.existsSync(commandPath)) {
@@ -54,7 +124,7 @@ async function runNoSpendAcceptance() {
       type: 'error',
       title: 'Mentat diagnostics',
       message: 'The installed Mentat command was not found.',
-      detail: 'Run install.cmd from the Mentat repository to repair the installation.',
+      detail: 'Use the installer Repair action to restore the complete runtime.',
     });
     return;
   }
@@ -69,11 +139,7 @@ async function runNoSpendAcceptance() {
     cancelId: 1,
     noLink: true,
   });
-  if (confirmation.response !== 0) {
-    return;
-  }
-
-  if (noSpendRunInProgress) {
+  if (confirmation.response !== 0 || noSpendRunInProgress) {
     return;
   }
   noSpendRunInProgress = true;
@@ -132,10 +198,16 @@ electron.Menu.buildFromTemplate = function buildMentatProductionMenu(template) {
   if (Array.isArray(actualTemplate)) {
     let target = actualTemplate.find((item) => item && item.label === 'Mentat');
     if (!target) {
-      target = { label: 'Diagnostics', submenu: [] };
+      target = { label: 'Mentat', submenu: [] };
       actualTemplate.push(target);
     }
     const submenu = Array.isArray(target.submenu) ? [...target.submenu] : [];
+    submenu.unshift({
+      id: 'mentat-control-center',
+      label: 'Mentat Control Center…',
+      accelerator: 'CmdOrCtrl+Shift+M',
+      click: () => { void openControlCenter(); },
+    });
     submenu.push(
       { type: 'separator' },
       {
@@ -181,7 +253,7 @@ electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(ta
   if (token && isBrokerUrl(target)) {
     try {
       const candidate = new URL(target);
-      if (candidate.pathname === '/ui/decisions') {
+      if (candidate.pathname === '/ui/decisions' || candidate.pathname === '/ui/control') {
         const existing = actualOptions && actualOptions.extraHeaders
           ? String(actualOptions.extraHeaders).replace(/\r?\n$/, '') + '\r\n'
           : '';
