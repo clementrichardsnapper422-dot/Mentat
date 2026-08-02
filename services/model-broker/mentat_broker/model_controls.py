@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import Any
 
-from .models import ModelConfig, Registry
+from .models import ModelSpec
+from .registry import ModelRegistry
 from .settings import DesktopSettingsStore
 
 
@@ -14,51 +14,58 @@ class ModelDisabledError(KeyError):
 
 
 class SettingsAwareRegistry:
-    """Filter new model selection while delegating immutable registry policy.
+    """Filter new routing while preserving the immutable lifecycle registry.
 
-    Existing session and provider lifecycle managers intentionally retain the original
-    registry so a disabled model can still be cooled, reconciled, or destroyed safely.
+    The production application gives this view to routing and keeps the original
+    ``ModelRegistry`` inside the session manager. A disabled model therefore
+    cannot receive new work, but an existing paid resource can still be observed,
+    cooled, reconciled, or destroyed.
     """
 
-    def __init__(self, base: Registry, settings: DesktopSettingsStore) -> None:
+    def __init__(self, base: ModelRegistry, settings: DesktopSettingsStore) -> None:
         self._base = base
         self._settings = settings
-
-    @property
-    def path(self):
-        return self._base.path
-
-    @property
-    def schema_version(self) -> int:
-        return self._base.schema_version
 
     @property
     def policy(self):
         return self._base.policy
 
     @property
-    def models(self) -> tuple[ModelConfig, ...]:
-        disabled = set(self._settings.load().disabled_model_ids)
-        return tuple(model for model in self._base.models if model.id not in disabled)
+    def source(self):
+        return self._base.source
 
-    def get(self, model_id: str) -> ModelConfig:
-        if model_id in set(self._settings.load().disabled_model_ids):
+    @property
+    def root(self):
+        return self._base.root
+
+    def get(self, model_id: str) -> ModelSpec:
+        if model_id in self._disabled_ids():
             raise ModelDisabledError(f"model is disabled: {model_id}")
         return self._base.get(model_id)
 
-    def all_models(self) -> tuple[ModelConfig, ...]:
-        """Return every declared profile for UI/status without enabling selection."""
+    def enabled(self) -> list[ModelSpec]:
+        disabled = self._disabled_ids()
+        return [model for model in self._base.enabled() if model.id not in disabled]
 
-        return tuple(self._base.models)
+    def all(self) -> list[ModelSpec]:
+        """Return every model for status without making it routing-eligible."""
+
+        return self._base.all()
+
+    def all_models(self) -> tuple[ModelSpec, ...]:
+        return tuple(self._base.all())
 
     def enabled_ids(self) -> frozenset[str]:
-        return frozenset(model.id for model in self.models)
+        return frozenset(model.id for model in self.enabled())
 
-    def __iter__(self) -> Iterator[ModelConfig]:
-        return iter(self.models)
+    def as_public_dict(self) -> dict[str, Any]:
+        payload = self._base.as_public_dict()
+        payload["disabled_model_ids"] = sorted(self._disabled_ids())
+        payload["enabled_model_ids"] = sorted(self.enabled_ids())
+        return payload
 
-    def __len__(self) -> int:
-        return len(self.models)
+    def _disabled_ids(self) -> set[str]:
+        return set(self._settings.load().disabled_model_ids)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._base, name)
