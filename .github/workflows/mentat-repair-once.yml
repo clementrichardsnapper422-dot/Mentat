@@ -131,24 +131,19 @@ jobs:
 
           runtime = Path("services/model-broker/mentat_broker/runtime.py")
           text = runtime.read_text(encoding="utf-8")
-          runtime_old = "\n".join(
-              [
-                  "    def _validate_settings_against_hard_policy(self, settings: DesktopSettings) -> None:",
-                  "        hard = self.hard_budget_policy",
-              ]
-          )
+          runtime_old = "        self._validate_settings_against_hard_policy(self.settings.load())"
           runtime_new = "\n".join(
               [
-                  "    def _validate_settings_against_hard_policy(self, settings: DesktopSettings) -> None:",
-                  "        # First-run settings cannot authorize remote spend. The immutable",
-                  "        # SpendGovernor policy remains authoritative until setup completes.",
-                  "        if not settings.setup_completed:",
-                  "            return",
-                  "        hard = self.hard_budget_policy",
+                  "        settings = self.settings.load()",
+                  "        # First-run defaults cannot authorize paid compute, so they must not",
+                  "        # prevent startup under a tighter deployment policy. Explicit settings",
+                  "        # updates and completed setup remain strictly validated below.",
+                  "        if settings.setup_completed:",
+                  "            self._validate_settings_against_hard_policy(settings)",
               ]
           )
           if runtime_old not in text:
-              raise SystemExit("runtime hard-policy marker is missing")
+              raise SystemExit("runtime startup policy marker is missing")
           runtime.write_text(text.replace(runtime_old, runtime_new, 1), encoding="utf-8")
 
           settings = Path("services/model-broker/mentat_broker/settings.py")
