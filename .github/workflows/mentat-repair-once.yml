@@ -147,33 +147,35 @@ jobs:
             services/model-broker/tests \
             scripts/mentat/testing
 
-      - name: Synchronize and verify dependency lockfile
+      - name: Regenerate and verify dependency lockfile
         shell: bash
         run: |
           set -euo pipefail
+          pnpm install --lockfile-only --no-frozen-lockfile
+          pnpm install --frozen-lockfile
           python - <<'PY'
           from pathlib import Path
 
-          workspace_path = Path("pnpm-workspace.yaml")
-          lock_path = Path("pnpm-lock.yaml")
-          workspace = workspace_path.read_text(encoding="utf-8")
-          lock = lock_path.read_text(encoding="utf-8")
-
-          workspace_start = workspace.find("overrides:\n")
-          if workspace_start < 0:
-              raise SystemExit("workspace overrides block is missing")
-          authoritative_overrides = workspace[workspace_start:].rstrip() + "\n"
-
-          lock_start = lock.find("overrides:\n")
-          lock_end = lock.find("\npackageExtensionsChecksum:", lock_start)
-          if lock_start < 0 or lock_end < 0:
-              raise SystemExit("lockfile overrides boundary is missing")
-
-          synchronized = lock[:lock_start] + authoritative_overrides + lock[lock_end:]
-          lock_path.write_text(synchronized, encoding="utf-8")
+          targets = (
+              "@opentelemetry/propagator-jaeger",
+              "axios",
+              "brace-expansion",
+              "fast-uri",
+              "postcss",
+          )
+          resolved = {target: set() for target in targets}
+          for raw in Path("pnpm-lock.yaml").read_text(encoding="utf-8").splitlines():
+              line = raw.strip().strip("'")
+              if not line.endswith(":"):
+                  continue
+              key = line[:-1]
+              for target in targets:
+                  prefix = target + "@"
+                  if key.startswith(prefix):
+                      resolved[target].add(key[len(prefix) :])
+          for target, versions in resolved.items():
+              print(f"{target}: {', '.join(sorted(versions)) or '<missing>'}")
           PY
-          pnpm install --lockfile-only --no-frozen-lockfile
-          pnpm install --frozen-lockfile
           node scripts/pre-commit/pnpm-audit-prod.mjs --audit-level=high
 
       - name: Run focused release proof
