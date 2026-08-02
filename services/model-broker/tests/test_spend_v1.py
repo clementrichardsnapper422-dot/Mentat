@@ -69,6 +69,62 @@ def test_reservation_is_idempotent_and_one_session_is_enforced(tmp_path):
     assert instance.get("r1").state == "released"
 
 
+def test_cooled_session_retains_exposure_without_blocking_next_machine(tmp_path):
+    instance = governor(tmp_path)
+    instance.reserve(
+        lease(instance),
+        reservation_id="r1",
+        subject="admin",
+        backend=BackendKind.VAST_SERVERLESS,
+        model_id="kimi",
+        hourly_usd=3,
+        worst_case_usd=8,
+    )
+    instance.mark_reconciling("r1", reason="provider confirmed cooled")
+    snapshot = instance.snapshot()
+    assert snapshot["active_sessions"] == 0
+    assert snapshot["unresolved_reconciliations"] == 1
+    assert snapshot["today_exposure_usd"] == 8
+
+    instance.reserve(
+        lease(instance, "d2"),
+        reservation_id="r2",
+        subject="admin",
+        backend=BackendKind.VAST_SERVERLESS,
+        model_id="kimi",
+        hourly_usd=3,
+        worst_case_usd=4,
+    )
+    snapshot = instance.snapshot()
+    assert snapshot["active_sessions"] == 1
+    assert snapshot["today_exposure_usd"] == 12
+
+
+def test_expired_authority_requires_reconciliation_instead_of_assuming_zero_bill(tmp_path):
+    instance = governor(tmp_path)
+    authority = instance.issue_lease(
+        decision_id="d1",
+        subject="admin",
+        expires_at=(datetime.now(UTC) + timedelta(seconds=1)).isoformat(),
+        backend=BackendKind.VAST_SERVERLESS,
+        model_id="kimi",
+        maximum_hourly_usd=5,
+        maximum_total_usd=10,
+    )
+    instance.reserve(
+        authority,
+        reservation_id="r1",
+        subject="admin",
+        backend=BackendKind.VAST_SERVERLESS,
+        model_id="kimi",
+        hourly_usd=3,
+        worst_case_usd=8,
+    )
+    recovered = instance.recover_expired(datetime.now(UTC) + timedelta(minutes=1))
+    assert recovered == ["r1"]
+    assert instance.get("r1").state == "reconciling"
+
+
 def test_overspend_fails_closed_and_activates_kill_switch(tmp_path):
     instance = governor(tmp_path)
     instance.reserve(
