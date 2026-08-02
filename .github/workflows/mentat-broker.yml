@@ -10,9 +10,11 @@ on:
       - "scripts/mentat/vast_http.py"
       - "scripts/mentat/testing/**"
       - "infrastructure/vast/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
       - ".github/workflows/mentat-broker.yml"
   push:
-    branches: [main]
+    branches: [main, agent/shot2-owner-gate1-evidence]
     paths:
       - "services/model-broker/**"
       - "config/model-registry.json"
@@ -21,12 +23,46 @@ on:
       - "scripts/mentat/vast_http.py"
       - "scripts/mentat/testing/**"
       - "infrastructure/vast/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
       - ".github/workflows/mentat-broker.yml"
 
 permissions:
   contents: read
 
 jobs:
+  refresh-release-lockfile:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/agent/shot2-owner-gate1-evidence' &&
+      !contains(github.event.head_commit.message, '[lockfile-refresh]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.14.0"
+      - name: Enable the repository package manager
+        run: corepack enable
+      - name: Refresh the patched lockfile without lifecycle scripts
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+      - name: Commit the generated lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(deps): refresh patched lockfile [lockfile-refresh]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
   broker-tests:
     strategy:
       fail-fast: false
