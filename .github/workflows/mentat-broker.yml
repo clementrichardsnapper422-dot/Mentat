@@ -53,8 +53,8 @@ jobs:
       - name: Apply focused Python lint and format repairs
         run: |
           python -m pip install ruff
-          ruff check --fix --unsafe-fixes services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
-          ruff format services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
+          ruff check --config services/model-broker/pyproject.toml --fix --unsafe-fixes services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
+          ruff format --config services/model-broker/pyproject.toml services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
       - name: Commit generated Python repairs
         shell: bash
         run: |
