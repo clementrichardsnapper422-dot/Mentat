@@ -292,7 +292,7 @@ class BrokerAuthority:
             model_id=model_id,
         )
         reservation = self.runtime.spend.get(grant.reservation_id)
-        if reservation is None or reservation.state not in {"reserved", "reconciling"}:
+        if reservation is None or reservation.state != "reserved":
             raise AuthorityError("provider mutation has no active spend reservation")
         if reservation.lease_id != grant.lease.lease_id:
             raise AuthorityError("provider mutation reservation uses different authority")
@@ -386,7 +386,7 @@ class BrokerAuthority:
             if not record.spend_reservation_id:
                 raise AuthorityError("paid route has no spend reservation")
             reservation = self.runtime.spend.get(record.spend_reservation_id)
-            if reservation is None or reservation.state not in {"reserved", "reconciling"}:
+            if reservation is None or reservation.state != "reserved":
                 raise AuthorityError("paid route has no active spend authority")
         return record
 
@@ -492,6 +492,11 @@ class BrokerAuthority:
                     detail={"reason": reason},
                 )
             if record.state == ExecutionState.COOLING:
+                if record.spend_reservation_id:
+                    self.runtime.spend.mark_reconciling(
+                        record.spend_reservation_id,
+                        reason=f"provider cooled; billing evidence pending: {reason}",
+                    )
                 self.runtime.executions.transition(
                     record.execution_id,
                     ExecutionState.COOLED,
