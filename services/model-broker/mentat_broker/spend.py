@@ -53,7 +53,9 @@ class SpendError(RuntimeError):
 class SpendGovernor:
     """The only component allowed to increase paid exposure."""
 
-    ACTIVE_STATES = {"reserved", "reconciling"}
+    EXPOSURE_STATES = {"reserved", "reconciling"}
+    ACTIVE_SESSION_STATES = {"reserved"}
+    ACTIVE_STATES = EXPOSURE_STATES
 
     def __init__(
         self,
@@ -202,10 +204,10 @@ class SpendGovernor:
         return float(row["exposure"] or 0)
 
     def _active_count(self) -> int:
-        marks = ",".join("?" for _ in self.ACTIVE_STATES)
+        marks = ",".join("?" for _ in self.ACTIVE_SESSION_STATES)
         row = self._connection.execute(
             f"SELECT COUNT(*) count FROM spend_reservations WHERE state IN ({marks})",
-            tuple(sorted(self.ACTIVE_STATES)),
+            tuple(sorted(self.ACTIVE_SESSION_STATES)),
         ).fetchone()
         return int(row["count"] or 0)
 
@@ -357,6 +359,37 @@ class SpendGovernor:
                 raise
         return self._required(reservation_id)
 
+    def mark_reconciling(self, reservation_id: str, *, reason: str) -> SpendReservation:
+        """End active-session ownership while retaining worst-case bill exposure."""
+
+        if not reason.strip():
+            raise ValueError("reconciliation reason is required")
+        with self._lock:
+            try:
+                self._connection.execute("BEGIN IMMEDIATE")
+                row = self._require_row(reservation_id)
+                if row["state"] == "reconciling":
+                    self._connection.commit()
+                    return self._row(row)
+                if row["state"] != "reserved":
+                    raise SpendError(f"cannot reconcile a {row['state']} reservation")
+                self._connection.execute(
+                    "UPDATE spend_reservations SET state='reconciling' WHERE reservation_id=?",
+                    (reservation_id,),
+                )
+                self._event(
+                    "reconciliation_required",
+                    float(row["reserved_usd"]),
+                    reservation_id,
+                    row["decision_id"],
+                    {"reason": reason},
+                )
+                self._connection.commit()
+            except Exception:
+                self._connection.rollback()
+                raise
+        return self._required(reservation_id)
+
     def release(self, reservation_id: str, *, reason: str) -> SpendReservation:
         if not reason.strip():
             raise ValueError("release reason is required")
@@ -386,9 +419,13 @@ class SpendGovernor:
                 raise
         return self._required(reservation_id)
 
-    def reconcile(self, reservation_id: str, actual_usd: float, *, source: str) -> SpendReservation:
+    def reconcile(
+        self, reservation_id: str, actual_usd: float, *, source: str
+    ) -> SpendReservation:
         if actual_usd < 0 or not source.strip():
-            raise ValueError("reconciliation requires non-negative actual spend and a source")
+            raise ValueError(
+                "reconciliation requires non-negative actual spend and a source"
+            )
         with self._lock, self._connection:
             row = self._require_row(reservation_id)
             state = "committed" if actual_usd > 0 else "released"
@@ -408,8 +445,10 @@ class SpendGovernor:
         return self._required(reservation_id)
 
     def recover_expired(self, now: datetime | None = None) -> list[str]:
+        """Move expired active leases to reconciliation; never assume a zero bill."""
+
         current = (now or datetime.now(UTC)).isoformat()
-        released: list[str] = []
+        reconciling: list[str] = []
         with self._lock, self._connection:
             rows = self._connection.execute(
                 "SELECT * FROM spend_reservations WHERE state='reserved' AND expires_at<=?",
@@ -417,18 +456,18 @@ class SpendGovernor:
             ).fetchall()
             for row in rows:
                 self._connection.execute(
-                    "UPDATE spend_reservations SET state='released' WHERE reservation_id=?",
+                    "UPDATE spend_reservations SET state='reconciling' WHERE reservation_id=?",
                     (row["reservation_id"],),
                 )
                 self._event(
-                    "expired_released",
+                    "expired_reconciliation_required",
                     float(row["reserved_usd"]),
                     row["reservation_id"],
                     row["decision_id"],
                     {},
                 )
-                released.append(row["reservation_id"])
-        return released
+                reconciling.append(row["reservation_id"])
+        return reconciling
 
     def get(self, reservation_id: str) -> SpendReservation | None:
         with self._lock:
@@ -452,6 +491,9 @@ class SpendGovernor:
             active = self._connection.execute(
                 "SELECT COALESCE(SUM(reserved_usd),0) total FROM spend_reservations WHERE state IN ('reserved','reconciling')"
             ).fetchone()
+            reconciling = self._connection.execute(
+                "SELECT COUNT(*) count, COALESCE(SUM(reserved_usd),0) total FROM spend_reservations WHERE state='reconciling'"
+            ).fetchone()
             committed = self._connection.execute(
                 "SELECT COALESCE(SUM(committed_usd),0) total FROM spend_reservations WHERE state='committed'"
             ).fetchone()
@@ -462,12 +504,15 @@ class SpendGovernor:
                 "kill_switch": bool(self._setting("kill_switch")),
                 "policy": self.policy.as_dict(),
                 "active_reserved_usd": float(active["total"] or 0),
+                "unresolved_reconciliation_usd": float(reconciling["total"] or 0),
+                "unresolved_reconciliations": int(reconciling["count"] or 0),
                 "committed_usd": float(committed["total"] or 0),
                 "today_exposure_usd": self._sum_exposure(self._prefix(current)),
                 "month_exposure_usd": self._sum_exposure(self._prefix(current, True)),
                 "active_sessions": self._active_count(),
                 "recent_events": [
-                    {**dict(row), "payload": json.loads(row["payload_json"])} for row in events
+                    {**dict(row), "payload": json.loads(row["payload_json"])}
+                    for row in events
                 ],
             }
 
