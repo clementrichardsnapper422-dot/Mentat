@@ -3,10 +3,8 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import replace
 from http.server import BaseHTTPRequestHandler
 
-from mentat_broker.models import Session
 from mentat_broker.production_http import LoopbackThreadingHTTPServer
 from mentat_broker.v1_http import v1_handler_factory
 
@@ -24,33 +22,35 @@ class BaseHandler(BaseHTTPRequestHandler):
 
 class Store:
     def __init__(self):
-        self.session = Session(
-            model_id="kimi/model",
-            status="ready",
-            endpoint_url="http://127.0.0.1:9999/v1",
-            hourly_usd=2.5,
-            offer={},
-            decision_id="decision-1",
-            started_at="2026-08-01T20:00:00+00:00",
-            last_used_at="2026-08-01T20:10:00+00:00",
-            approved_until="2026-08-01T21:00:00+00:00",
-        )
+        self.session = {
+            "model_id": "kimi/model",
+            "status": "ready",
+            "endpoint_url": "http://127.0.0.1:9999/v1",
+            "hourly_usd": 2.5,
+            "offer": {},
+            "decision_id": "decision-1",
+            "started_at": "2026-08-01T20:00:00+00:00",
+            "last_used_at": "2026-08-01T20:10:00+00:00",
+            "approved_until": "2026-08-01T21:00:00+00:00",
+            "error": None,
+        }
 
     def list_sessions(self):
-        return [self.session]
+        return [dict(self.session)]
 
     def get_session(self, model_id):
-        return self.session if model_id == self.session.model_id else None
+        return dict(self.session) if model_id == self.session["model_id"] else None
 
 
-class Manager:
+class Sessions:
     def __init__(self, store):
         self.store = store
         self.cooled = []
 
-    def cool_now(self, session):
-        self.cooled.append(session.model_id)
-        self.store.session = replace(session, status="cooling")
+    def cool_now(self, model_id):
+        self.cooled.append(model_id)
+        self.store.session["status"] = "cooled"
+        return dict(self.store.session)
 
 
 class Runtime:
@@ -65,14 +65,8 @@ class Runtime:
                 "month_exposure_usd": 0,
                 "recent_events": [],
             },
-            "setup": {"completed": False, "completed_at": None},
-            "settings": {},
-            "effective_budget_ceiling": {},
-            "diagnostics": {"passed": True, "repairable_failures": []},
             "executions": [],
             "startup_recovery_plan": [],
-            "backends": [],
-            "circuits": {},
         }
 
 
@@ -82,7 +76,7 @@ class Application:
 
     def __init__(self):
         self.store = Store()
-        self.manager = Manager(self.store)
+        self.sessions = Sessions(self.store)
         self.v1 = Runtime()
 
 
@@ -142,10 +136,10 @@ def test_active_compute_requires_admin_and_cools_real_saved_session():
         assert status == 200
         assert payload == {
             "model_id": "kimi/model",
-            "status": "cooling",
+            "status": "cooled",
             "cooling_requested": True,
         }
-        assert application.manager.cooled == ["kimi/model"]
+        assert application.sessions.cooled == ["kimi/model"]
     finally:
         server.shutdown()
         server.server_close()
