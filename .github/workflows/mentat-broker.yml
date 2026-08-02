@@ -52,19 +52,29 @@ jobs:
           node-version: "24.14.0"
       - name: Enable the repository package manager
         run: corepack enable
-      - name: Refresh the patched lockfile without lifecycle scripts
-        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
-      - name: Commit the generated lockfile
+      - name: Install dependencies and refresh the patched lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+      - name: Format only files changed by this pull request
         shell: bash
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
-            echo "Lockfile is already synchronized."
+          mapfile -t changed_files < <(
+            git diff --name-only origin/main...HEAD |
+              grep -E '\.(cjs|js|json|jsonc|md|mjs|toml|ts|tsx|yaml|yml)$' || true
+          )
+          if (( ${#changed_files[@]} )); then
+            pnpm exec oxfmt --write "${changed_files[@]}"
+          fi
+      - name: Commit generated release inputs
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Lockfile and changed-file formatting are synchronized."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git commit -m "chore(deps): refresh patched lockfile [lockfile-refresh]"
+          git add --all
+          git commit -m "chore: synchronize release inputs [lockfile-refresh]"
           git push origin "HEAD:agent/shot2-owner-gate1-evidence"
 
   broker-tests:
