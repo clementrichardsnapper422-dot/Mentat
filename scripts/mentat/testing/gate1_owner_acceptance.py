@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import json
 import os
 import platform
@@ -13,6 +12,7 @@ import secrets
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -58,7 +58,9 @@ def run(
     )
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
-        raise GateFailure(f"{Path(command[0]).name} exited {result.returncode}: {detail[-1200:]}")
+        raise GateFailure(
+            f"{Path(command[0]).name} exited {result.returncode}: {detail[-1200:]}"
+        )
     return result
 
 
@@ -77,12 +79,33 @@ def parse_json_output(output: str, label: str) -> Any:
         raise GateFailure(f"{label} did not return JSON: {exc}") from exc
 
 
-def validate_container_inspect(inspect: dict[str, Any], workspace: Path) -> dict[str, Any]:
+def docker_user_is_root(user_spec: Any) -> bool:
+    """Return whether Docker's Config.User value identifies UID zero."""
+
+    value = str(user_spec or "").strip().lower()
+    if not value or value == "root":
+        return True
+    user = value.split(":", 1)[0].strip()
+    if user == "root":
+        return True
+    try:
+        return int(user, 10) == 0
+    except ValueError:
+        return False
+
+
+def validate_container_inspect(
+    inspect: dict[str, Any],
+    workspace: Path,
+) -> dict[str, Any]:
     host_config = inspect.get("HostConfig") or {}
     config = inspect.get("Config") or {}
     mounts = inspect.get("Mounts") or []
     require(host_config.get("NetworkMode") == "none", "sandbox network mode is not none")
-    require(host_config.get("ReadonlyRootfs") is True, "sandbox root filesystem is not read-only")
+    require(
+        host_config.get("ReadonlyRootfs") is True,
+        "sandbox root filesystem is not read-only",
+    )
     cap_drop = {str(item).upper() for item in (host_config.get("CapDrop") or [])}
     require("ALL" in cap_drop, "sandbox does not drop all capabilities")
     security_opt = {str(item).lower() for item in (host_config.get("SecurityOpt") or [])}
@@ -90,11 +113,14 @@ def validate_container_inspect(inspect: dict[str, Any], workspace: Path) -> dict
         any("no-new-privileges" in item for item in security_opt),
         "sandbox does not enforce no-new-privileges",
     )
-    require(str(config.get("User") or "") not in {"", "0", "root"}, "sandbox runs as root")
+    require(not docker_user_is_root(config.get("User")), "sandbox runs as root")
     environment = [str(item) for item in (config.get("Env") or [])]
     names = {item.split("=", 1)[0] for item in environment}
     leaked = sorted(FORBIDDEN_ENV & names)
-    require(not leaked, f"forbidden credentials reached sandbox environment: {', '.join(leaked)}")
+    require(
+        not leaked,
+        f"forbidden credentials reached sandbox environment: {', '.join(leaked)}",
+    )
     socket_mounts = [
         item
         for item in mounts
@@ -106,7 +132,8 @@ def validate_container_inspect(inspect: dict[str, Any], workspace: Path) -> dict
     writable_mounts = [
         item
         for item in mounts
-        if item.get("RW") is True and str(item.get("Source", "")).lower() != workspace_resolved
+        if item.get("RW") is True
+        and str(item.get("Source", "")).lower() != workspace_resolved
     ]
     require(not writable_mounts, "sandbox has an unexpected writable host mount")
     return {
@@ -153,14 +180,19 @@ class ProbeHandler(BaseHTTPRequestHandler):
             self.write_json(HTTPStatus.NOT_FOUND, {"error": {"message": "not found"}})
             return
         if self.headers.get("Authorization") != "Bearer test-gate1-key":
-            self.write_json(HTTPStatus.UNAUTHORIZED, {"error": {"message": "invalid test token"}})
+            self.write_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": {"message": "invalid test token"}},
+            )
             return
         length = int(self.headers.get("Content-Length") or 0)
         payload = json.loads(self.rfile.read(length).decode())
         self.server.state.requests += 1
         messages = payload.get("messages") or []
         text = "\n".join(
-            str(item.get("content") or "") for item in messages if isinstance(item, dict)
+            str(item.get("content") or "")
+            for item in messages
+            if isinstance(item, dict)
         )
         nonce_match = re.search(r"\[\[sandbox_probe=([a-f0-9]{32})\]\]", text)
         has_result = any(
@@ -190,7 +222,10 @@ class ProbeHandler(BaseHTTPRequestHandler):
             }
             finish_reason = "tool_calls"
         else:
-            message = {"role": "assistant", "content": "Gate 1 sandbox probe complete."}
+            message = {
+                "role": "assistant",
+                "content": "Gate 1 sandbox probe complete.",
+            }
             finish_reason = "stop"
         self.write_json(
             HTTPStatus.OK,
@@ -202,7 +237,11 @@ class ProbeHandler(BaseHTTPRequestHandler):
                 "choices": [
                     {"index": 0, "message": message, "finish_reason": finish_reason}
                 ],
-                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "total_tokens": 2,
+                },
             },
         )
 
@@ -217,7 +256,14 @@ class ProbeServer(ThreadingHTTPServer):
 
 def configure(cli: list[str], env: dict[str, str], key: str, value: Any) -> None:
     run(
-        cli + ["config", "set", key, json.dumps(value, separators=(",", ":")), "--strict-json"],
+        cli
+        + [
+            "config",
+            "set",
+            key,
+            json.dumps(value, separators=(",", ":")),
+            "--strict-json",
+        ],
         env=env,
     )
 
@@ -226,7 +272,7 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
     started = datetime.now(UTC).isoformat()
     checks: list[dict[str, Any]] = []
 
-    def check(name: str, action) -> Any:
+    def check(name: str, action: Callable[[], Any]) -> Any:
         began = time.monotonic()
         try:
             detail = action()
@@ -253,7 +299,10 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
     require(os.name == "nt", "Gate 1 owner evidence must run on the target Windows PC")
     manifest_path = ROOT / "runtime-manifest.json"
     require(manifest_path.is_file(), "run this from the installed Mentat runtime")
-    manifest = parse_json_output(manifest_path.read_text(encoding="utf-8-sig"), "runtime manifest")
+    manifest = parse_json_output(
+        manifest_path.read_text(encoding="utf-8-sig"),
+        "runtime manifest",
+    )
     check(
         "installed-runtime",
         lambda: {
@@ -266,7 +315,9 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
     check(
         "docker-ready",
         lambda: {
-            "server": run(["docker", "version", "--format", "{{.Server.Version}}"]).stdout.strip()
+            "server": run(
+                ["docker", "version", "--format", "{{.Server.Version}}"]
+            ).stdout.strip()
         },
     )
 
@@ -289,6 +340,7 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
     upstream = f"http://127.0.0.1:{fake.server_address[1]}/v1"
     session_key = f"agent:main:gate1-{nonce}"
     marker = workspace / f"gate1-sandbox-{nonce}.json"
+    failure: Exception | None = None
 
     try:
         configure(
@@ -331,7 +383,6 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
             },
         )
         configure(cli, env, "tools.elevated.enabled", False)
-
         check(
             "effective-sandbox-policy",
             lambda: parse_json_output(
@@ -355,7 +406,10 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
                             "--session-key",
                             session_key,
                             "--message",
-                            f"[[sandbox_probe={nonce}]] Execute the requested probe exactly once.",
+                            (
+                                f"[[sandbox_probe={nonce}]] Execute the requested "
+                                "probe exactly once."
+                            ),
                             "--json",
                         ],
                         env=env,
@@ -367,18 +421,30 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
         )
         marker_payload = check(
             "sandbox-marker",
-            lambda: parse_json_output(marker.read_text(encoding="utf-8"), "sandbox marker"),
+            lambda: parse_json_output(
+                marker.read_text(encoding="utf-8"),
+                "sandbox marker",
+            ),
         )
         require(marker_payload.get("nonce") == nonce, "sandbox marker nonce mismatch")
         sandboxes = parse_json_output(
             run(cli + ["sandbox", "list", "--json"], env=env).stdout,
             "sandbox list",
         )
-        entries = sandboxes if isinstance(sandboxes, list) else sandboxes.get("sandboxes", [])
+        entries = (
+            sandboxes
+            if isinstance(sandboxes, list)
+            else sandboxes.get("sandboxes", [])
+        )
         matching = [
-            item for item in entries if session_key in json.dumps(item, separators=(",", ":"))
+            item
+            for item in entries
+            if session_key in json.dumps(item, separators=(",", ":"))
         ]
-        require(len(matching) == 1, f"expected one sandbox for {session_key}, found {len(matching)}")
+        require(
+            len(matching) == 1,
+            f"expected one sandbox for {session_key}, found {len(matching)}",
+        )
         container_id = (
             matching[0].get("containerId")
             or matching[0].get("container_id")
@@ -398,15 +464,36 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
             lambda: validate_container_inspect(inspect_values[0], workspace),
         )
         require(fake.state.requests >= 2, "fake OpenAI did not complete the tool loop")
+    except Exception as exc:
+        failure = exc
     finally:
         fake.shutdown()
         fake.server_close()
         fake_thread.join(timeout=2)
-        with contextlib.suppress(Exception):
-            run(
-                cli + ["sandbox", "recreate", "--session", session_key, "--force"],
-                env=env,
+        try:
+            check(
+                "sandbox-cleanup",
+                lambda: {
+                    "session_key": session_key,
+                    "result": run(
+                        cli
+                        + [
+                            "sandbox",
+                            "recreate",
+                            "--session",
+                            session_key,
+                            "--force",
+                        ],
+                        env=env,
+                    ).stdout.strip(),
+                },
             )
+        except Exception as cleanup_exc:
+            if failure is None:
+                failure = cleanup_exc
+
+    if failure is not None:
+        raise failure
 
     return {
         "schema_version": 1,
@@ -425,7 +512,9 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Collect Mentat Gate 1 owner-PC evidence")
+    parser = argparse.ArgumentParser(
+        description="Collect Mentat Gate 1 owner-PC evidence"
+    )
     parser.add_argument("--report", required=True, type=Path)
     args = parser.parse_args()
     try:
