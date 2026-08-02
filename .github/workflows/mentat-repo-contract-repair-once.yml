@@ -18,7 +18,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Checkout repair branch
         uses: actions/checkout@v4
@@ -93,13 +93,22 @@ jobs:
             services/vast-compute-manager/pyproject.toml \
             config/knip.config.ts
 
-      - name: Regenerate lock and shrinkwrap authorities
+      - name: Regenerate lock and stale shrinkwrap authorities
         shell: bash
         run: |
           set -euo pipefail
           pnpm install --lockfile-only --no-frozen-lockfile
           pnpm install --frozen-lockfile
-          pnpm deps:shrinkwrap:generate
+          for package_dir in \
+            . \
+            extensions/acpx \
+            extensions/diagnostics-otel \
+            extensions/feishu \
+            extensions/lobster \
+            extensions/slack; do
+            echo "Regenerating shrinkwrap for ${package_dir}"
+            node scripts/generate-npm-shrinkwrap.mjs --package-dir "${package_dir}"
+          done
 
       - name: Prove repository contracts
         shell: bash
