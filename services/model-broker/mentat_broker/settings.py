@@ -146,6 +146,18 @@ class DesktopSettings:
 
 
 class DesktopSettingsStore:
+    ALLOWED_PATCH_FIELDS = {
+        "workspace",
+        "privacy_mode",
+        "remote_inference_enabled",
+        "routing_mode",
+        "one_paid_session",
+        "disabled_model_ids",
+        "budgets",
+        "update_channel",
+        "preserve_user_data_on_uninstall",
+    }
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,19 +177,8 @@ class DesktopSettingsStore:
                 raise RuntimeError("desktop settings must be a JSON object")
             return DesktopSettings.from_dict(raw)
 
-    def update(self, patch: dict[str, Any]) -> DesktopSettings:
-        allowed = {
-            "workspace",
-            "privacy_mode",
-            "remote_inference_enabled",
-            "routing_mode",
-            "one_paid_session",
-            "disabled_model_ids",
-            "budgets",
-            "update_channel",
-            "preserve_user_data_on_uninstall",
-        }
-        unknown = set(patch) - allowed
+    def preview_update(self, patch: dict[str, Any]) -> DesktopSettings:
+        unknown = set(patch) - self.ALLOWED_PATCH_FIELDS
         if unknown:
             raise ValueError(f"unsupported settings fields: {sorted(unknown)}")
         current = self.load().as_dict()
@@ -189,28 +190,31 @@ class DesktopSettingsStore:
             else:
                 current[key] = value
         current["updated_at"] = utc_now()
-        updated = DesktopSettings.from_dict(current)
-        self._write(updated)
-        return updated
+        return DesktopSettings.from_dict(current)
+
+    def preview_complete_setup(self, patch: dict[str, Any]) -> DesktopSettings:
+        candidate = self.preview_update(patch).as_dict()
+        candidate["setup_completed"] = True
+        candidate["setup_completed_at"] = utc_now()
+        candidate["updated_at"] = utc_now()
+        return DesktopSettings.from_dict(candidate)
+
+    def replace(self, settings: DesktopSettings) -> DesktopSettings:
+        self._write(settings)
+        return settings
+
+    def update(self, patch: dict[str, Any]) -> DesktopSettings:
+        return self.replace(self.preview_update(patch))
 
     def complete_setup(self, patch: dict[str, Any]) -> DesktopSettings:
-        updated = self.update(patch)
-        value = updated.as_dict()
-        value["setup_completed"] = True
-        value["setup_completed_at"] = utc_now()
-        value["updated_at"] = utc_now()
-        completed = DesktopSettings.from_dict(value)
-        self._write(completed)
-        return completed
+        return self.replace(self.preview_complete_setup(patch))
 
     def reset_setup(self) -> DesktopSettings:
         current = self.load().as_dict()
         current["setup_completed"] = False
         current["setup_completed_at"] = None
         current["updated_at"] = utc_now()
-        updated = DesktopSettings.from_dict(current)
-        self._write(updated)
-        return updated
+        return self.replace(DesktopSettings.from_dict(current))
 
     def _write(self, settings: DesktopSettings) -> None:
         settings.validate()
