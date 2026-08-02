@@ -31,11 +31,11 @@ permissions:
   contents: read
 
 jobs:
-  refresh-release-lockfile:
+  refresh-python-format:
     if: >-
       (github.event_name == 'push' &&
        github.ref == 'refs/heads/agent/shot2-owner-gate1-evidence' &&
-       !contains(github.event.head_commit.message, '[lockfile-refresh]')) ||
+       !contains(github.event.head_commit.message, '[python-refresh]')) ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence')
@@ -47,42 +47,25 @@ jobs:
         with:
           ref: agent/shot2-owner-gate1-evidence
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.14.0"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Enable the repository package manager
-        run: corepack enable
-      - name: Install dependencies and refresh the patched lockfile
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Apply focused Python lint and format repairs
         run: |
           python -m pip install ruff
           ruff check --fix --unsafe-fixes services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
           ruff format services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
-      - name: Format only files changed by this pull request
-        shell: bash
-        run: |
-          mapfile -t changed_files < <(
-            git diff --name-only origin/main...HEAD |
-              grep -E '\.(cjs|js|json|jsonc|md|mjs|toml|ts|tsx|yaml|yml)$' || true
-          )
-          if (( ${#changed_files[@]} )); then
-            pnpm exec oxfmt --write "${changed_files[@]}"
-          fi
-      - name: Commit generated release inputs
+      - name: Commit generated Python repairs
         shell: bash
         run: |
           if git diff --quiet; then
-            echo "Lockfile and changed-file formatting are synchronized."
+            echo "Python files are synchronized."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --all
-          git commit -m "chore: synchronize release inputs [lockfile-refresh]"
+          git add services/model-broker/mentat_broker services/model-broker/tests scripts/mentat/testing
+          git commit -m "chore: synchronize broker Python [python-refresh]"
           git push origin "HEAD:agent/shot2-owner-gate1-evidence"
 
   broker-tests:
