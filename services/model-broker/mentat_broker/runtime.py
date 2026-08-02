@@ -199,9 +199,7 @@ class MentatV1Runtime:
             )
         )
 
-    def _validate_settings_against_hard_policy(
-        self, settings: DesktopSettings
-    ) -> None:
+    def _validate_settings_against_hard_policy(self, settings: DesktopSettings) -> None:
         hard = self.hard_budget_policy
         configured = settings.budgets
         pairs = {
@@ -245,24 +243,12 @@ class MentatV1Runtime:
         hard = self.hard_budget_policy
         configured = settings.budgets
         return {
-            "maximum_hourly_usd": min(
-                configured.maximum_hourly_usd, hard.maximum_hourly_usd
-            ),
-            "maximum_session_usd": min(
-                configured.maximum_session_usd, hard.maximum_session_usd
-            ),
-            "maximum_daily_usd": min(
-                configured.maximum_daily_usd, hard.maximum_daily_usd
-            ),
-            "maximum_monthly_usd": min(
-                configured.maximum_monthly_usd, hard.maximum_monthly_usd
-            ),
-            "maximum_retry_usd": min(
-                configured.maximum_retry_usd, hard.maximum_retry_usd
-            ),
-            "maximum_fallback_usd": min(
-                configured.maximum_fallback_usd, hard.maximum_fallback_usd
-            ),
+            "maximum_hourly_usd": min(configured.maximum_hourly_usd, hard.maximum_hourly_usd),
+            "maximum_session_usd": min(configured.maximum_session_usd, hard.maximum_session_usd),
+            "maximum_daily_usd": min(configured.maximum_daily_usd, hard.maximum_daily_usd),
+            "maximum_monthly_usd": min(configured.maximum_monthly_usd, hard.maximum_monthly_usd),
+            "maximum_retry_usd": min(configured.maximum_retry_usd, hard.maximum_retry_usd),
+            "maximum_fallback_usd": min(configured.maximum_fallback_usd, hard.maximum_fallback_usd),
             "maximum_exploration_usd": min(
                 configured.maximum_exploration_usd,
                 hard.maximum_exploration_usd,

@@ -255,7 +255,7 @@ def build_decision(
     value_pool = [item for item in ranked if item[1] >= best_quality - allowed_gap]
 
     def rank_key(
-        item: tuple[ModelSpec, float, str, int, Offer | None, str, int, float]
+        item: tuple[ModelSpec, float, str, int, Offer | None, str, int, float],
     ) -> tuple[float, float, float, str]:
         model, quality, _source, _samples, offer, _offer_source, _minutes, cost = item
         reliability = offer.reliability if offer else 0
@@ -286,7 +286,9 @@ def build_decision(
             f"at ${offer.hourly_usd:.2f}/hour with reliability {offer.reliability:.3f}."
         )
     elif model.provider == "vast":
-        reasons.append("No live offer was available; the registry hourly cap is used conservatively.")
+        reasons.append(
+            "No live offer was available; the registry hourly cap is used conservatively."
+        )
     else:
         reasons.append("Selected external fallback does not trigger a Vast GPU launch.")
 

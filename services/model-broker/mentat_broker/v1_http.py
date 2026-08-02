@@ -30,9 +30,7 @@ def _active_compute(application: Any) -> list[dict[str, Any]]:
                 "model_id": str(session.get("model_id") or ""),
                 "status": str(session.get("status") or "unknown"),
                 "hourly_usd": (
-                    float(session["hourly_usd"])
-                    if session.get("hourly_usd") is not None
-                    else None
+                    float(session["hourly_usd"]) if session.get("hourly_usd") is not None else None
                 ),
                 "decision_id": session.get("decision_id"),
                 "started_at": session.get("started_at"),

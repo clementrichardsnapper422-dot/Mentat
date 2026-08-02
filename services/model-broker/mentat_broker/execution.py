@@ -59,9 +59,7 @@ LEGAL_TRANSITIONS: dict[ExecutionState, frozenset[ExecutionState]] = {
             ExecutionState.CANCELLED,
         }
     ),
-    ExecutionState.AMBIGUOUS: frozenset(
-        {ExecutionState.RECONCILING, ExecutionState.FAILED}
-    ),
+    ExecutionState.AMBIGUOUS: frozenset({ExecutionState.RECONCILING, ExecutionState.FAILED}),
     ExecutionState.RECONCILING: frozenset(
         {
             ExecutionState.ACQUIRING,
@@ -95,9 +93,7 @@ LEGAL_TRANSITIONS: dict[ExecutionState, frozenset[ExecutionState]] = {
     ExecutionState.VERIFYING: frozenset(
         {ExecutionState.COMPLETED, ExecutionState.COOLING, ExecutionState.FAILED}
     ),
-    ExecutionState.COMPLETED: frozenset(
-        {ExecutionState.COOLING, ExecutionState.DESTROYING}
-    ),
+    ExecutionState.COMPLETED: frozenset({ExecutionState.COOLING, ExecutionState.DESTROYING}),
     ExecutionState.COOLING: frozenset(
         {ExecutionState.COOLED, ExecutionState.AMBIGUOUS, ExecutionState.FAILED}
     ),
@@ -411,10 +407,7 @@ class ExecutionStore:
                 "SELECT * FROM execution_events WHERE execution_id=? ORDER BY id ASC",
                 (execution_id,),
             ).fetchall()
-        return [
-            {**dict(row), "detail": json.loads(row["detail_json"] or "{}")}
-            for row in rows
-        ]
+        return [{**dict(row), "detail": json.loads(row["detail_json"] or "{}")} for row in rows]
 
     def startup_recovery_plan(self) -> list[dict[str, Any]]:
         plan: list[dict[str, Any]] = []
@@ -559,9 +552,7 @@ class ExecutionStore:
                 else None
             ),
             actual_total_usd=(
-                float(row["actual_total_usd"])
-                if row["actual_total_usd"] is not None
-                else None
+                float(row["actual_total_usd"]) if row["actual_total_usd"] is not None else None
             ),
             attempt=int(row["attempt"]),
             error_code=row["error_code"],

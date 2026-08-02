@@ -11,7 +11,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from mentat_broker.production_http import (
     LoopbackThreadingHTTPServer,
     production_handler_factory,

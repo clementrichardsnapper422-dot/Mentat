@@ -148,12 +148,8 @@ class MentatV1ProductionApplication(ProductionBrokerApplication):
                 budget_policy=BudgetPolicy(
                     maximum_hourly_usd=policy.max_hourly_usd,
                     maximum_session_usd=policy.max_total_usd,
-                    maximum_daily_usd=max(
-                        policy.max_total_usd, policy.max_total_usd * 2
-                    ),
-                    maximum_monthly_usd=max(
-                        policy.max_total_usd, policy.max_total_usd * 20
-                    ),
+                    maximum_daily_usd=max(policy.max_total_usd, policy.max_total_usd * 2),
+                    maximum_monthly_usd=max(policy.max_total_usd, policy.max_total_usd * 20),
                     maximum_retry_usd=max(0.01, policy.max_total_usd * 0.15),
                     maximum_fallback_usd=max(0.01, policy.max_total_usd * 0.30),
                     maximum_exploration_usd=max(0.01, policy.max_total_usd * 0.05),
@@ -320,9 +316,7 @@ class MentatV1ProductionApplication(ProductionBrokerApplication):
         endpoint_url = self.sessions.endpoint_url(model)
         state: dict[str, Any] = {}
         try:
-            state = json.loads(
-                self.sessions.endpoint_state_path(model).read_text(encoding="utf-8")
-            )
+            state = json.loads(self.sessions.endpoint_state_path(model).read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError, SessionError):
             state = {}
         endpoint_id = state.get("endpoint_id")

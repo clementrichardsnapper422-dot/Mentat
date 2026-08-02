@@ -71,9 +71,7 @@ class DesktopSettings:
         if self.update_channel not in {"stable", "release_candidate"}:
             raise ValueError("update_channel is invalid")
         if self.remote_inference_enabled and self.privacy_mode != "remote_allowed":
-            raise ValueError(
-                "remote inference cannot be enabled while privacy_mode is local_first"
-            )
+            raise ValueError("remote inference cannot be enabled while privacy_mode is local_first")
         if self.setup_completed:
             if not self.workspace.strip():
                 raise ValueError("a workspace is required before setup can complete")
@@ -97,42 +95,24 @@ class DesktopSettings:
             schema_version=int(value.get("schema_version", 1)),
             setup_completed=bool(value.get("setup_completed", False)),
             setup_completed_at=(
-                str(value["setup_completed_at"])
-                if value.get("setup_completed_at")
-                else None
+                str(value["setup_completed_at"]) if value.get("setup_completed_at") else None
             ),
             workspace=str(value.get("workspace") or ""),
             privacy_mode=str(value.get("privacy_mode") or "local_first"),  # type: ignore[arg-type]
-            remote_inference_enabled=bool(
-                value.get("remote_inference_enabled", False)
-            ),
+            remote_inference_enabled=bool(value.get("remote_inference_enabled", False)),
             routing_mode=RoutingMode(value.get("routing_mode") or "balanced"),
             one_paid_session=bool(value.get("one_paid_session", True)),
             disabled_model_ids=tuple(
                 sorted({str(item) for item in value.get("disabled_model_ids", [])})
             ),
             budgets=BudgetSettings(
-                maximum_hourly_usd=float(
-                    budgets_raw.get("maximum_hourly_usd", 4.0)
-                ),
-                maximum_session_usd=float(
-                    budgets_raw.get("maximum_session_usd", 12.0)
-                ),
-                maximum_daily_usd=float(
-                    budgets_raw.get("maximum_daily_usd", 25.0)
-                ),
-                maximum_monthly_usd=float(
-                    budgets_raw.get("maximum_monthly_usd", 100.0)
-                ),
-                maximum_retry_usd=float(
-                    budgets_raw.get("maximum_retry_usd", 2.0)
-                ),
-                maximum_fallback_usd=float(
-                    budgets_raw.get("maximum_fallback_usd", 4.0)
-                ),
-                maximum_exploration_usd=float(
-                    budgets_raw.get("maximum_exploration_usd", 1.0)
-                ),
+                maximum_hourly_usd=float(budgets_raw.get("maximum_hourly_usd", 4.0)),
+                maximum_session_usd=float(budgets_raw.get("maximum_session_usd", 12.0)),
+                maximum_daily_usd=float(budgets_raw.get("maximum_daily_usd", 25.0)),
+                maximum_monthly_usd=float(budgets_raw.get("maximum_monthly_usd", 100.0)),
+                maximum_retry_usd=float(budgets_raw.get("maximum_retry_usd", 2.0)),
+                maximum_fallback_usd=float(budgets_raw.get("maximum_fallback_usd", 4.0)),
+                maximum_exploration_usd=float(budgets_raw.get("maximum_exploration_usd", 1.0)),
             ),
             update_channel=str(value.get("update_channel") or "stable"),  # type: ignore[arg-type]
             preserve_user_data_on_uninstall=bool(

@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from mentat_broker.contracts import (
     BackendKind,
     EvidenceTier,
@@ -27,9 +26,7 @@ def profile(model="kimi", quality=0.95, success=0.98):
         backend=BackendKind.VAST_SERVERLESS,
         runtime_revision="r1",
         capabilities=frozenset({"text", "code", "tools"}),
-        task_classes=frozenset(
-            {"simple", "general", "code", "large_code", "high_risk"}
-        ),
+        task_classes=frozenset({"simple", "general", "code", "large_code", "high_risk"}),
         context_tokens=256_000,
         quality_prior=quality,
         success_prior=success,
@@ -105,10 +102,7 @@ def test_uncertain_candidate_is_rejected_before_economic_scoring():
         weak,
     )
     assert not candidate.eligible
-    assert any(
-        "quality" in reason or "success" in reason
-        for reason in candidate.hard_rejections
-    )
+    assert any("quality" in reason or "success" in reason for reason in candidate.hard_rejections)
 
 
 def test_economy_mode_prefers_lower_cost_only_after_hard_requirements():

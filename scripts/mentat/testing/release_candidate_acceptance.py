@@ -253,9 +253,7 @@ def run_acceptance() -> dict[str, Any]:
                     runtime.backends.get(BackendKind.VAST_DIRECT)
                 except BackendError as exc:
                     return {"blocked": True, "error_code": exc.error.code}
-                raise AcceptanceFailure(
-                    "experimental direct backend became production eligible"
-                )
+                raise AcceptanceFailure("experimental direct backend became production eligible")
 
             check("unvalidated-direct-backend-blocked", direct_backend_stop_sign)
 
@@ -284,10 +282,7 @@ def run_acceptance() -> dict[str, Any]:
                 "live evidence was fabricated",
             )
             require(
-                any(
-                    item["kind"] == "external"
-                    for item in status["release"]["pending"]
-                ),
+                any(item["kind"] == "external" for item in status["release"]["pending"]),
                 "external release gates disappeared",
             )
             events = runtime.executions.events("execution-1")
@@ -308,9 +303,7 @@ def run_acceptance() -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run Mentat 1.0 release-candidate acceptance"
-    )
+    parser = argparse.ArgumentParser(description="Run Mentat 1.0 release-candidate acceptance")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     try:

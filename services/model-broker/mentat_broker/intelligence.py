@@ -6,9 +6,10 @@ import hashlib
 import math
 import random
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Iterable
+from typing import Any
 
 from .contracts import (
     EvidenceTier,
@@ -112,9 +113,7 @@ class CircuitBreakerRegistry:
         return {
             key: {
                 "open": self.is_open(key, current),
-                "opened_until": (
-                    state.opened_until.isoformat() if state.opened_until else None
-                ),
+                "opened_until": (state.opened_until.isoformat() if state.opened_until else None),
                 "reason": state.reason,
                 "recent_failures": len(state.failures),
             }
@@ -265,10 +264,10 @@ class PredictionEngine:
         now: datetime | None = None,
     ) -> tuple[RangeEstimate, RangeEstimate, RangeEstimate, RangeEstimate]:
         current = now or datetime.now(UTC)
-        version_match = (
-            evidence.model_version in {None, profile.model_version}
-            and evidence.runtime_revision in {None, profile.runtime_revision}
-        )
+        version_match = evidence.model_version in {
+            None,
+            profile.model_version,
+        } and evidence.runtime_revision in {None, profile.runtime_revision}
         samples = evidence.samples if version_match else 0
         penalty = self._age_penalty(evidence.observed_at, current)
         quality_center = (
@@ -294,10 +293,13 @@ class PredictionEngine:
             z = 1.96
             denominator = 1 + z * z / samples
             adjusted = (success_center + z * z / (2 * samples)) / denominator
-            half = z * math.sqrt(
-                (success_center * (1 - success_center) + z * z / (4 * samples))
-                / samples
-            ) / denominator
+            half = (
+                z
+                * math.sqrt(
+                    (success_center * (1 - success_center) + z * z / (4 * samples)) / samples
+                )
+                / denominator
+            )
             success_low = max(0.0, adjusted - half - penalty)
             success_high = min(1.0, adjusted + half)
         else:
@@ -321,9 +323,7 @@ class PredictionEngine:
         if evidence.total_cost_mean_usd is not None and samples:
             cost_center = max(0.0, evidence.total_cost_mean_usd)
         elif market:
-            cost_center = market.hourly_usd * max(
-                1 / 60, latency.expected / 3_600_000
-            )
+            cost_center = market.hourly_usd * max(1 / 60, latency.expected / 3_600_000)
         else:
             cost_center = 0.0
         cost_half = self._half_width(
@@ -487,9 +487,7 @@ class RouteEngine:
         all_candidates = list(candidates)
         ranked = self.rank(requirements, all_candidates, **rank_options)
         if not ranked:
-            reasons = {
-                item.candidate_id: list(item.hard_rejections) for item in all_candidates
-            }
+            reasons = {item.candidate_id: list(item.hard_rejections) for item in all_candidates}
             raise RoutingIntelligenceError(f"no eligible execution candidate: {reasons}")
         winner = ranked[0]
         return winner, {
@@ -513,9 +511,7 @@ class RouteEngine:
         if fallback.total_cost_usd.high > remaining_budget_usd:
             raise RoutingIntelligenceError("fallback exceeds remaining approved budget")
         if original.capabilities - fallback.profile.capabilities:
-            raise RoutingIntelligenceError(
-                "fallback does not satisfy original capabilities"
-            )
+            raise RoutingIntelligenceError("fallback does not satisfy original capabilities")
         if original.task_class not in fallback.profile.task_classes:
             raise RoutingIntelligenceError("fallback does not satisfy original task class")
         if fallback.quality.low < original.minimum_quality:
@@ -540,12 +536,8 @@ class RouteEngine:
             "selected_candidate_id": selected.candidate_id,
             "counterfactual_candidate_id": expected_best.candidate_id,
             "quality_prediction_error": actual_quality - selected.quality.expected,
-            "cost_prediction_error_usd": (
-                actual_cost_usd - selected.total_cost_usd.expected
-            ),
-            "expected_quality_regret": max(
-                0.0, expected_best.quality.expected - actual_quality
-            ),
+            "cost_prediction_error_usd": (actual_cost_usd - selected.total_cost_usd.expected),
+            "expected_quality_regret": max(0.0, expected_best.quality.expected - actual_quality),
             "expected_cost_regret_usd": max(
                 0.0, actual_cost_usd - expected_best.total_cost_usd.expected
             ),
@@ -594,8 +586,5 @@ def classify_failure(error_code: str, message: str = "") -> dict[str, Any]:
     return {
         "category": category,
         "recommended_action": action,
-        "circuit_key": (
-            re.sub(r"[^a-z0-9_.-]+", "-", error_code.lower()).strip("-")
-            or "unknown"
-        ),
+        "circuit_key": (re.sub(r"[^a-z0-9_.-]+", "-", error_code.lower()).strip("-") or "unknown"),
     }

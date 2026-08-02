@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from mentat_broker.models import BenchmarkRecord, Decision, Offer
 from mentat_broker.production_store import ProductionBrokerStore
 

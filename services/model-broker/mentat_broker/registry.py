@@ -113,18 +113,26 @@ class ModelRegistry:
 
             if model.provider == "vast":
                 if not model.endpoint_config or not model.state_name:
-                    raise RegistryError(f"{model.id}: Vast models need endpoint_config and state_name")
+                    raise RegistryError(
+                        f"{model.id}: Vast models need endpoint_config and state_name"
+                    )
                 if model.num_gpus < 1 or model.min_gpu_ram_mb < 1 or model.min_disk_gb < 1:
-                    raise RegistryError(f"{model.id}: Vast models need GPU, RAM, and disk requirements")
+                    raise RegistryError(
+                        f"{model.id}: Vast models need GPU, RAM, and disk requirements"
+                    )
                 if model.max_hourly_usd <= 0:
                     raise RegistryError(f"{model.id}: max_hourly_usd must be positive")
                 endpoint_path = (self.root / model.endpoint_config).resolve()
                 try:
                     endpoint_path.relative_to(self.root)
                 except ValueError as exc:
-                    raise RegistryError(f"{model.id}: endpoint_config escapes the repository") from exc
+                    raise RegistryError(
+                        f"{model.id}: endpoint_config escapes the repository"
+                    ) from exc
                 if not endpoint_path.is_file():
-                    raise RegistryError(f"{model.id}: endpoint config not found: {model.endpoint_config}")
+                    raise RegistryError(
+                        f"{model.id}: endpoint config not found: {model.endpoint_config}"
+                    )
 
             for fallback in model.fallback_chain:
                 if fallback not in self._models:

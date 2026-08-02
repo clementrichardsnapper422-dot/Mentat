@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,6 @@ for location in (SERVICE, TESTING):
 from fake_openai import start_fake_openai  # noqa: E402
 from fake_vast import start_fake_vast  # noqa: E402
 from mentat_broker import server as broker_server  # noqa: E402
-from mentat_broker.models import Offer  # noqa: E402
 from mentat_broker.production import install_production_hooks  # noqa: E402
 from mentat_broker.runtime_policy import install_runtime_policy_hooks  # noqa: E402
 from mentat_broker.safety import install_safety_hooks  # noqa: E402
@@ -139,6 +138,7 @@ def run_acceptance() -> dict[str, Any]:
             "MENTAT_ENDPOINT_KIMI_K2_7_CODE",
             "MENTAT_VAST_API_BASE",
             "MENTAT_VAST_BUNDLES_URL",
+            "VAST_TEMPLATE_HASH",
         )
     }
 
@@ -178,6 +178,7 @@ def run_acceptance() -> dict[str, Any]:
                 "MENTAT_ENDPOINT_KIMI_K2_7_CODE": upstream_base,
                 "MENTAT_VAST_API_BASE": vast_base,
                 "MENTAT_VAST_BUNDLES_URL": vast_base + "/bundles/",
+                "VAST_TEMPLATE_HASH": "fake-template",
             }
         )
         install_safety_hooks()
@@ -185,30 +186,39 @@ def run_acceptance() -> dict[str, Any]:
         install_production_hooks()
 
         broker_base = start_broker()
+        application.v1.settings.update(
+            {
+                "setup_complete": True,
+                "privacy_mode": "remote_allowed",
+                "remote_inference_enabled": True,
+                "budgets": {
+                    "maximum_hourly_usd": 32,
+                    "maximum_session_usd": 64,
+                    "maximum_daily_usd": 128,
+                    "maximum_monthly_usd": 1280,
+                    "maximum_retry_usd": 8,
+                    "maximum_fallback_usd": 16,
+                    "maximum_exploration_usd": 4,
+                    "one_paid_session": True,
+                },
+            }
+        )
         model = application.registry.get("kimi-k2.7-code")
-        offer = Offer(
-            id=501,
-            gpu_name="H200",
-            num_gpus=8,
-            gpu_ram_mb=141000,
-            hourly_usd=24,
-            reliability=0.995,
-            verified=True,
-            bw_nvlink=900,
-            disk_space_gb=1000,
+        seed_decision = application.plan(
+            {
+                "prompt": "Validate the fake Vast production authority path",
+                "requires_tools": True,
+                "estimated_input_tokens": 2048,
+                "max_hourly_usd": 32,
+                "max_total_usd": 64,
+            }
         )
-        now = datetime.now(UTC)
-        application.store.upsert_session(
-            model.id,
-            status="ready",
-            endpoint_url=upstream_base,
-            hourly_usd=offer.hourly_usd,
-            offer=offer,
-            decision_id="no-spend-approved-session",
-            started_at=now.isoformat(),
-            last_used_at=now.isoformat(),
-            approved_until=(now + timedelta(minutes=30)).isoformat(),
+        application.approve(
+            seed_decision.id,
+            {"accept_benchmark_cost": True},
         )
+        application.sessions.wait_until_ready(model, timeout_seconds=10)
+        application.authority.provider_ready(seed_decision, model)
 
         def model_discovery():
             payload = read_json_response(
@@ -321,8 +331,7 @@ def run_acceptance() -> dict[str, Any]:
                 payload = json.loads(response.read().decode("utf-8"))
                 decision_id = response.headers["X-Mentat-Decision-Id"]
             require(
-                payload["choices"][0]["message"]["content"]
-                == "Mentat no-spend inference online",
+                payload["choices"][0]["message"]["content"] == "Mentat no-spend inference online",
                 "normal completion mismatch",
             )
             return {"decision_id": decision_id}
@@ -450,10 +459,7 @@ def run_acceptance() -> dict[str, Any]:
             "malformed-response-negative-evidence",
             lambda: (
                 require(
-                    any(
-                        "malformed completion JSON" in str(item.get("notes"))
-                        for item in failed
-                    ),
+                    any("malformed completion JSON" in str(item.get("notes")) for item in failed),
                     "malformed response was not retained as failed evidence",
                 ),
                 {"failed_runtime_samples": len(failed)},
@@ -463,10 +469,7 @@ def run_acceptance() -> dict[str, Any]:
             "no-real-vast-network",
             lambda: (
                 require(
-                    all(
-                        "console.vast.ai" not in str(call)
-                        for call in fake_vast.state.calls
-                    ),
+                    all("console.vast.ai" not in str(call) for call in fake_vast.state.calls),
                     "real Vast hostname appeared in fake call history",
                 ),
                 {"fake_vast_calls": len(fake_vast.state.calls)},

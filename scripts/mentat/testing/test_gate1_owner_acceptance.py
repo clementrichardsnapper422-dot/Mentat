@@ -72,9 +72,7 @@ class ContainerPolicyTests(unittest.TestCase):
 
     def test_rejects_unexpected_writable_mount(self):
         inspect = valid_inspect()
-        inspect["Mounts"].append(
-            {"Source": "/host", "Destination": "/host", "RW": True}
-        )
+        inspect["Mounts"].append({"Source": "/host", "Destination": "/host", "RW": True})
         with self.assertRaisesRegex(GateFailure, "unexpected writable"):
             validate_container_inspect(inspect, Path("/tmp/gate-workspace"))
 

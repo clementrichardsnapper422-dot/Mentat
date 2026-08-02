@@ -58,9 +58,7 @@ def run(
     )
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
-        raise GateFailure(
-            f"{Path(command[0]).name} exited {result.returncode}: {detail[-1200:]}"
-        )
+        raise GateFailure(f"{Path(command[0]).name} exited {result.returncode}: {detail[-1200:]}")
     return result
 
 
@@ -132,8 +130,7 @@ def validate_container_inspect(
     writable_mounts = [
         item
         for item in mounts
-        if item.get("RW") is True
-        and str(item.get("Source", "")).lower() != workspace_resolved
+        if item.get("RW") is True and str(item.get("Source", "")).lower() != workspace_resolved
     ]
     require(not writable_mounts, "sandbox has an unexpected writable host mount")
     return {
@@ -190,20 +187,16 @@ class ProbeHandler(BaseHTTPRequestHandler):
         self.server.state.requests += 1
         messages = payload.get("messages") or []
         text = "\n".join(
-            str(item.get("content") or "")
-            for item in messages
-            if isinstance(item, dict)
+            str(item.get("content") or "") for item in messages if isinstance(item, dict)
         )
         nonce_match = re.search(r"\[\[sandbox_probe=([a-f0-9]{32})\]\]", text)
-        has_result = any(
-            isinstance(item, dict) and item.get("role") == "tool" for item in messages
-        )
+        has_result = any(isinstance(item, dict) and item.get("role") == "tool" for item in messages)
         if nonce_match and not has_result:
             nonce = nonce_match.group(1)
             command = (
                 "umask 077; printf '%s\\n' "
-                f"'{{\"schema_version\":1,\"nonce\":\"{nonce}\","
-                "\"tool_execution\":\"docker\"}' "
+                f'\'{{"schema_version":1,"nonce":"{nonce}",'
+                '"tool_execution":"docker"}\' '
                 f"> gate1-sandbox-{nonce}.json"
             )
             message = {
@@ -234,9 +227,7 @@ class ProbeHandler(BaseHTTPRequestHandler):
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": "fake-model",
-                "choices": [
-                    {"index": 0, "message": message, "finish_reason": finish_reason}
-                ],
+                "choices": [{"index": 0, "message": message, "finish_reason": finish_reason}],
                 "usage": {
                     "prompt_tokens": 1,
                     "completion_tokens": 1,
@@ -315,9 +306,7 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
     check(
         "docker-ready",
         lambda: {
-            "server": run(
-                ["docker", "version", "--format", "{{.Server.Version}}"]
-            ).stdout.strip()
+            "server": run(["docker", "version", "--format", "{{.Server.Version}}"]).stdout.strip()
         },
     )
 
@@ -431,15 +420,9 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
             run(cli + ["sandbox", "list", "--json"], env=env).stdout,
             "sandbox list",
         )
-        entries = (
-            sandboxes
-            if isinstance(sandboxes, list)
-            else sandboxes.get("sandboxes", [])
-        )
+        entries = sandboxes if isinstance(sandboxes, list) else sandboxes.get("sandboxes", [])
         matching = [
-            item
-            for item in entries
-            if session_key in json.dumps(item, separators=(",", ":"))
+            item for item in entries if session_key in json.dumps(item, separators=(",", ":"))
         ]
         require(
             len(matching) == 1,
@@ -512,9 +495,7 @@ def run_acceptance(report_path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Collect Mentat Gate 1 owner-PC evidence"
-    )
+    parser = argparse.ArgumentParser(description="Collect Mentat Gate 1 owner-PC evidence")
     parser.add_argument("--report", required=True, type=Path)
     args = parser.parse_args()
     try:

@@ -1,5 +1,4 @@
 import pytest
-
 from mentat_broker.runtime import MentatV1Runtime
 from mentat_broker.settings import DesktopSettingsStore
 from mentat_broker.spend import BudgetPolicy
@@ -49,9 +48,7 @@ def test_runtime_rejects_preferences_above_immutable_registry_policy(tmp_path):
     try:
         before = runtime.settings.load()
         with pytest.raises(ValueError, match="immutable registry policy"):
-            runtime.update_settings(
-                {"budgets": {"maximum_hourly_usd": 11}}
-            )
+            runtime.update_settings({"budgets": {"maximum_hourly_usd": 11}})
         assert runtime.settings.load() == before
     finally:
         runtime.close()

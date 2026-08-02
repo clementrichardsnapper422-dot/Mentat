@@ -265,9 +265,15 @@ class SpendGovernor:
                     return saved
                 if self.policy.one_paid_session and self._active_count():
                     raise SpendError("another paid session already owns active exposure")
-                if self._sum_exposure(self._prefix(current)) + worst_case_usd > self.policy.maximum_daily_usd:
+                if (
+                    self._sum_exposure(self._prefix(current)) + worst_case_usd
+                    > self.policy.maximum_daily_usd
+                ):
                     raise SpendError("daily spend ceiling would be exceeded")
-                if self._sum_exposure(self._prefix(current, True)) + worst_case_usd > self.policy.maximum_monthly_usd:
+                if (
+                    self._sum_exposure(self._prefix(current, True)) + worst_case_usd
+                    > self.policy.maximum_monthly_usd
+                ):
                     raise SpendError("monthly spend ceiling would be exceeded")
                 self._connection.execute(
                     """
@@ -327,7 +333,9 @@ class SpendGovernor:
                         {"reserved_usd": row["reserved_usd"]},
                     )
                     self._connection.commit()
-                    raise SpendError("actual spend exceeded the reserved exposure; kill switch enabled")
+                    raise SpendError(
+                        "actual spend exceeded the reserved exposure; kill switch enabled"
+                    )
                 self._connection.execute(
                     "UPDATE spend_reservations SET state='committed',committed_usd=? WHERE reservation_id=?",
                     (actual_usd, reservation_id),

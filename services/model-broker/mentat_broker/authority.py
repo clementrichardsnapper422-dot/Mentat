@@ -125,9 +125,7 @@ class BrokerAuthority:
             raise AuthorityError("no-spend provider authorization is external-only")
         record = self._execution_for_decision(decision)
         if record.state != ExecutionState.AWAITING_APPROVAL:
-            raise AuthorityError(
-                f"no-spend provider cannot start from {record.state.value}"
-            )
+            raise AuthorityError(f"no-spend provider cannot start from {record.state.value}")
         for state in (
             ExecutionState.APPROVED,
             ExecutionState.RESERVING,
@@ -157,9 +155,7 @@ class BrokerAuthority:
             raise AuthorityError("paid provider grants are Vast Serverless-only in 1.0")
         record = self._execution_for_decision(decision)
         if record.state not in {ExecutionState.AWAITING_APPROVAL, ExecutionState.COOLED}:
-            raise AuthorityError(
-                f"paid provider cannot start from {record.state.value}"
-            )
+            raise AuthorityError(f"paid provider cannot start from {record.state.value}")
         if hourly_usd <= 0:
             raise AuthorityError("paid provider hourly price must be positive")
         total_cap = min(
@@ -310,9 +306,7 @@ class BrokerAuthority:
         if record.spend_reservation_id != grant.reservation_id:
             raise AuthorityError("execution is not bound to the supplied reservation")
         if record.state not in {ExecutionState.ACQUIRING, ExecutionState.WARMING}:
-            raise AuthorityError(
-                f"provider mutation is not authorized from {record.state.value}"
-            )
+            raise AuthorityError(f"provider mutation is not authorized from {record.state.value}")
 
     def provider_acquired(
         self,
@@ -430,9 +424,7 @@ class BrokerAuthority:
                     actor="vast-serverless-adapter",
                     expected_version=record.version,
                     provider_lifecycle=(
-                        ProviderLifecycle.AMBIGUOUS
-                        if ambiguous
-                        else ProviderLifecycle.FAILED
+                        ProviderLifecycle.AMBIGUOUS if ambiguous else ProviderLifecycle.FAILED
                     ),
                     error_code="provider_mutation_failed",
                     error_message=message,
@@ -508,9 +500,7 @@ class BrokerAuthority:
                     provider_lifecycle=ProviderLifecycle.COOLED,
                     detail={
                         "reason": reason,
-                        "billing_reconciliation_required": bool(
-                            record.spend_reservation_id
-                        ),
+                        "billing_reconciliation_required": bool(record.spend_reservation_id),
                     },
                 )
         except Exception as exc:

@@ -118,9 +118,7 @@ def test_active_compute_requires_admin_and_cools_real_saved_session():
         else:
             raise AssertionError("active compute was readable without admin authority")
 
-        status, payload = request_json(
-            base + "/v1/compute", token=application.admin_token
-        )
+        status, payload = request_json(base + "/v1/compute", token=application.admin_token)
         assert status == 200
         assert payload["active_compute"][0]["model_id"] == "kimi/model"
         assert payload["active_compute"][0]["hourly_usd"] == 2.5

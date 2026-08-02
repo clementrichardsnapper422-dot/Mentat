@@ -2,7 +2,6 @@ import json
 import zipfile
 
 import pytest
-
 from mentat_broker.diagnostics import DiagnosticsService
 from mentat_broker.runtime import MentatV1Runtime
 

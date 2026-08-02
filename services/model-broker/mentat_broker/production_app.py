@@ -70,9 +70,7 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
             self.sessions.reconcile_startup()
             self.sessions.start_sweeper()
 
-    def routing_prompt_from_messages(
-        self, messages: list[dict[str, Any]]
-    ) -> tuple[str, bool]:
+    def routing_prompt_from_messages(self, messages: list[dict[str, Any]]) -> tuple[str, bool]:
         user_messages = [
             message for message in messages if str(message.get("role") or "") == "user"
         ]
@@ -80,9 +78,7 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
             return self._prompt_from_messages(messages[-1:])
         latest, has_images = self._prompt_from_messages(user_messages[-1:])
         normalized = " ".join(latest.lower().split())
-        if len(user_messages) > 1 and (
-            normalized in self.FOLLOWUP_TERMS or len(normalized) < 8
-        ):
+        if len(user_messages) > 1 and (normalized in self.FOLLOWUP_TERMS or len(normalized) < 8):
             previous, previous_images = self._prompt_from_messages(user_messages[-2:-1])
             return f"{previous}\nFollow-up: {latest}".strip(), has_images or previous_images
         return latest, has_images
@@ -94,7 +90,10 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
             if model.id == self.registry.policy.primary_model_id:
                 result.append(model)
                 continue
-            if allow_unmeasured or not self.registry.policy.require_measured_quality_for_non_primary:
+            if (
+                allow_unmeasured
+                or not self.registry.policy.require_measured_quality_for_non_primary
+            ):
                 result.append(model)
                 continue
             summary = self.store.benchmark_summary(model.id, task_class)
@@ -180,8 +179,7 @@ class ProductionBrokerApplication(ContextAwareBrokerApplication):
                 f"no live Vast offer satisfies the production requirements for {selected.display_name}"
             )
         decision.metadata["requires_endpoint_creation"] = (
-            selected.provider == "vast"
-            and not self.sessions.endpoint_state_path(selected).exists()
+            selected.provider == "vast" and not self.sessions.endpoint_state_path(selected).exists()
         )
         decision.metadata["approved_price_ceiling_usd"] = (
             decision.offer.hourly_usd if decision.offer else selected.max_hourly_usd

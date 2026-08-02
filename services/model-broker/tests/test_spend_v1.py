@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from mentat_broker.contracts import BackendKind
 from mentat_broker.spend import BudgetPolicy, SpendError, SpendGovernor
 

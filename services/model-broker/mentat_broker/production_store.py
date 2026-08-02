@@ -82,9 +82,7 @@ class ProductionBrokerStore(QualityAwareBrokerStore):
             "runtime_samples": int(runtime["runtime_samples"] or 0),
             "success_rate": float(runtime["success_rate"] or 0),
             "latency_ms": (
-                float(runtime["latency_ms"])
-                if runtime["latency_ms"] is not None
-                else None
+                float(runtime["latency_ms"]) if runtime["latency_ms"] is not None else None
             ),
             "tokens_per_second": (
                 float(runtime["tokens_per_second"])
@@ -92,19 +90,13 @@ class ProductionBrokerStore(QualityAwareBrokerStore):
                 else None
             ),
             "hourly_usd": (
-                float(runtime["hourly_usd"])
-                if runtime["hourly_usd"] is not None
-                else None
+                float(runtime["hourly_usd"]) if runtime["hourly_usd"] is not None else None
             ),
             "total_cost_usd": (
-                float(runtime["total_cost_usd"])
-                if runtime["total_cost_usd"] is not None
-                else None
+                float(runtime["total_cost_usd"]) if runtime["total_cost_usd"] is not None else None
             ),
             "quality_score": (
-                float(quality["quality_score"])
-                if quality["quality_score"] is not None
-                else None
+                float(quality["quality_score"]) if quality["quality_score"] is not None else None
             ),
         }
 

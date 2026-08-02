@@ -193,9 +193,7 @@ class DiagnosticsService:
                 errors="replace",
                 timeout=8,
                 check=False,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-                ),
+                creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             return DiagnosticCheck(
@@ -284,9 +282,7 @@ class DiagnosticsService:
             ) as archive:
                 for path in files:
                     archive.write(path, path.relative_to(self.data_dir).as_posix())
-                archive.writestr(
-                    "backup-manifest.json", json.dumps(manifest, indent=2) + "\n"
-                )
+                archive.writestr("backup-manifest.json", json.dumps(manifest, indent=2) + "\n")
             os.replace(temp_name, destination)
             with suppress(OSError):
                 os.chmod(destination, 0o600)

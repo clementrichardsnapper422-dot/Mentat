@@ -1,5 +1,4 @@
 import pytest
-
 from mentat_broker.backends import (
     BackendError,
     BackendRegistry,

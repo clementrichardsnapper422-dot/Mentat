@@ -64,25 +64,27 @@ def secure_ui(base_ui: Callable[[], bytes]) -> bytes:
         "function render(decision) {",
     )
     original_actions = (
-        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        '${pending ? `<div class="actions"><button class="approve" '
         "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
         "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
         "Reject</button></div>` : ''}"
     )
     rated_actions = (
-        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        '${pending ? `<div class="actions"><button class="approve" '
         "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
         "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
         "Reject</button></div>` : decision.status === 'completed' ? "
-        "(decision.rating ? `<div class=\"actions\"><span class=\"badge\">Rated "
+        '(decision.rating ? `<div class="actions"><span class="badge">Rated '
         "${Math.round(Number(decision.rating.quality_score) * 5)}/5</span></div>` : "
-        "`<div class=\"actions\"><span class=\"label\">Rate quality</span>"
-        "${[1,2,3,4,5].map(star => `<button class=\"approve\" "
+        '`<div class="actions"><span class="label">Rate quality</span>'
+        '${[1,2,3,4,5].map(star => `<button class="approve" '
         "onclick=\"rateDecision('${decision.id}',${star})\">${star}★</button>`).join('')}"
         "</div>`) : ''}"
     )
     if original_actions not in html:
-        raise RuntimeError("decision UI template changed; secure production patch cannot be applied")
+        raise RuntimeError(
+            "decision UI template changed; secure production patch cannot be applied"
+        )
     return html.replace(original_actions, rated_actions).encode("utf-8")
 
 

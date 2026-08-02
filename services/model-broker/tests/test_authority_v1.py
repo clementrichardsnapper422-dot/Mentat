@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from mentat_broker.authority import AuthorityError, BrokerAuthority
 from mentat_broker.contracts import (
     BackendKind,
@@ -157,9 +156,7 @@ def test_vast_adapter_refuses_mutation_without_authority_grant(tmp_path):
     route = decision()
     selected = model()
     authority.register_decision(route, selected)
-    manager = AuthoritativeProductionSessionManager.__new__(
-        AuthoritativeProductionSessionManager
-    )
+    manager = AuthoritativeProductionSessionManager.__new__(AuthoritativeProductionSessionManager)
     manager.registry = type("Registry", (), {"get": lambda self, _model_id: selected})()
     manager._authority = authority
     try:

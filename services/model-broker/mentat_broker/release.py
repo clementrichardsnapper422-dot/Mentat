@@ -46,28 +46,118 @@ class ReleaseEvidence:
 
 
 REQUIREMENTS: tuple[ReleaseRequirement, ...] = (
-    ReleaseRequirement("G0_PRIVATE_REPOSITORY", 0, "Repository is private and detached from public fork network", "owner"),
-    ReleaseRequirement("G0_PROTECTED_MAIN", 0, "Protected main and focused required checks enabled", "owner"),
-    ReleaseRequirement("G0_REPRODUCIBLE_BUILD", 0, "Installer build is reproducible from pinned dependencies", "automated"),
-    ReleaseRequirement("G0_SBOM_PROVENANCE", 0, "SBOM, checksums, and provenance are retained", "automated"),
-    ReleaseRequirement("G0_SIGNED_INSTALLER", 0, "Windows installer is Authenticode signed and verified", "signing"),
-    ReleaseRequirement("G1_CLEAN_WINDOWS_INSTALL", 1, "Clean Windows installation succeeds without source checkout", "owner"),
+    ReleaseRequirement(
+        "G0_PRIVATE_REPOSITORY",
+        0,
+        "Repository is private and detached from public fork network",
+        "owner",
+    ),
+    ReleaseRequirement(
+        "G0_PROTECTED_MAIN", 0, "Protected main and focused required checks enabled", "owner"
+    ),
+    ReleaseRequirement(
+        "G0_REPRODUCIBLE_BUILD",
+        0,
+        "Installer build is reproducible from pinned dependencies",
+        "automated",
+    ),
+    ReleaseRequirement(
+        "G0_SBOM_PROVENANCE", 0, "SBOM, checksums, and provenance are retained", "automated"
+    ),
+    ReleaseRequirement(
+        "G0_SIGNED_INSTALLER", 0, "Windows installer is Authenticode signed and verified", "signing"
+    ),
+    ReleaseRequirement(
+        "G1_CLEAN_WINDOWS_INSTALL",
+        1,
+        "Clean Windows installation succeeds without source checkout",
+        "owner",
+    ),
     ReleaseRequirement("G1_DOCTOR_GREEN", 1, "Installed mentat doctor is green", "owner"),
-    ReleaseRequirement("G1_DOCKER_TOOL_ISOLATION", 1, "Actual OpenClaw tool execution is isolated in Docker", "owner"),
-    ReleaseRequirement("G1_CREDENTIAL_BOUNDARY", 1, "Gateway, renderer, tools, prompts, URLs, and logs cannot access spending credentials", "owner"),
-    ReleaseRequirement("G1_AUTH_BOUNDARY", 1, "Broker client/admin authentication is proven end to end", "automated"),
-    ReleaseRequirement("G1_FAKE_FULL_LOOP", 1, "Fake Vast and fake inference complete chat and tool loops", "automated"),
-    ReleaseRequirement("G1_FAILURE_RECOVERY", 1, "Reject, timeout, malformed, shutdown, process-kill, logoff, and reboot recovery pass", "owner"),
-    ReleaseRequirement("G2_VAST_PERMISSION_MATRIX", 2, "Vast API assumptions and least-privilege permission matrix are live validated", "external"),
-    ReleaseRequirement("G2_LOW_COST_CANARY", 2, "Capped low-cost Vast canary passes approval, reuse, rejection, cooling, and crash recovery", "external"),
-    ReleaseRequirement("G2_BILLING_RECONCILIATION", 2, "Actual Vast bill is imported and reconciled to displayed ceilings", "external"),
-    ReleaseRequirement("G3_KIMI_CANARY", 3, "Official Kimi profile passes startup, tools, reasoning, context, and streaming", "external"),
-    ReleaseRequirement("G3_CAP_ENFORCEMENT", 3, "Kimi four-hour and total-dollar caps are proven", "external"),
-    ReleaseRequirement("G4_SOAK", 4, "100-session, 24-hour, and multi-day soak completes without leaks", "external"),
-    ReleaseRequirement("G4_ADVERSARIAL_RECOVERY", 4, "Network, disk, SQLite, concurrency, restart, and rollback failures are safe", "owner"),
-    ReleaseRequirement("G5_SECURITY_REVIEW", 5, "Threat model review findings are closed or explicitly accepted", "security"),
-    ReleaseRequirement("G5_RUNBOOKS", 5, "Operator, incident, backup, and recovery runbooks are complete", "automated"),
-    ReleaseRequirement("G5_RELEASE_ARTIFACT", 5, "Versioned signed release artifact is installed and verified", "signing"),
+    ReleaseRequirement(
+        "G1_DOCKER_TOOL_ISOLATION",
+        1,
+        "Actual OpenClaw tool execution is isolated in Docker",
+        "owner",
+    ),
+    ReleaseRequirement(
+        "G1_CREDENTIAL_BOUNDARY",
+        1,
+        "Gateway, renderer, tools, prompts, URLs, and logs cannot access spending credentials",
+        "owner",
+    ),
+    ReleaseRequirement(
+        "G1_AUTH_BOUNDARY",
+        1,
+        "Broker client/admin authentication is proven end to end",
+        "automated",
+    ),
+    ReleaseRequirement(
+        "G1_FAKE_FULL_LOOP",
+        1,
+        "Fake Vast and fake inference complete chat and tool loops",
+        "automated",
+    ),
+    ReleaseRequirement(
+        "G1_FAILURE_RECOVERY",
+        1,
+        "Reject, timeout, malformed, shutdown, process-kill, logoff, and reboot recovery pass",
+        "owner",
+    ),
+    ReleaseRequirement(
+        "G2_VAST_PERMISSION_MATRIX",
+        2,
+        "Vast API assumptions and least-privilege permission matrix are live validated",
+        "external",
+    ),
+    ReleaseRequirement(
+        "G2_LOW_COST_CANARY",
+        2,
+        "Capped low-cost Vast canary passes approval, reuse, rejection, cooling, and crash recovery",
+        "external",
+    ),
+    ReleaseRequirement(
+        "G2_BILLING_RECONCILIATION",
+        2,
+        "Actual Vast bill is imported and reconciled to displayed ceilings",
+        "external",
+    ),
+    ReleaseRequirement(
+        "G3_KIMI_CANARY",
+        3,
+        "Official Kimi profile passes startup, tools, reasoning, context, and streaming",
+        "external",
+    ),
+    ReleaseRequirement(
+        "G3_CAP_ENFORCEMENT", 3, "Kimi four-hour and total-dollar caps are proven", "external"
+    ),
+    ReleaseRequirement(
+        "G4_SOAK", 4, "100-session, 24-hour, and multi-day soak completes without leaks", "external"
+    ),
+    ReleaseRequirement(
+        "G4_ADVERSARIAL_RECOVERY",
+        4,
+        "Network, disk, SQLite, concurrency, restart, and rollback failures are safe",
+        "owner",
+    ),
+    ReleaseRequirement(
+        "G5_SECURITY_REVIEW",
+        5,
+        "Threat model review findings are closed or explicitly accepted",
+        "security",
+    ),
+    ReleaseRequirement(
+        "G5_RUNBOOKS",
+        5,
+        "Operator, incident, backup, and recovery runbooks are complete",
+        "automated",
+    ),
+    ReleaseRequirement(
+        "G5_RELEASE_ARTIFACT",
+        5,
+        "Versioned signed release artifact is installed and verified",
+        "signing",
+    ),
 )
 
 
@@ -79,7 +169,9 @@ class ReleaseEvidenceStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         if not self.path.exists():
-            self._write({"schema_version": self.SCHEMA_VERSION, "updated_at": utc_now(), "evidence": {}})
+            self._write(
+                {"schema_version": self.SCHEMA_VERSION, "updated_at": utc_now(), "evidence": {}}
+            )
         else:
             self._read()
 
@@ -159,7 +251,9 @@ class ReleaseEvidenceStore:
                 "passed": passed,
                 "evidence": evidence.as_dict() if evidence else None,
             }
-            gate = gates.setdefault(requirement.gate, {"gate": requirement.gate, "requirements": []})
+            gate = gates.setdefault(
+                requirement.gate, {"gate": requirement.gate, "requirements": []}
+            )
             gate["requirements"].append(entry)
         for gate in gates.values():
             gate["passed"] = all(
