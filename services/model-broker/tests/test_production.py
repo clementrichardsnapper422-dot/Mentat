@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
 from mentat_broker import server as broker_server
 from mentat_broker.models import BenchmarkRecord, Decision, Offer
 from mentat_broker.production_app import ProductionBrokerApplication

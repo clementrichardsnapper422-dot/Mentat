@@ -1,6 +1,7 @@
 import json
 
 import pytest
+
 from mentat_broker.model_controls import ModelDisabledError, SettingsAwareRegistry
 from mentat_broker.registry import ModelRegistry
 from mentat_broker.settings import DesktopSettingsStore

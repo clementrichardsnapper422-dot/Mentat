@@ -1,4 +1,5 @@
 import pytest
+
 from mentat_broker.contracts import (
     BackendKind,
     ExecutionState,

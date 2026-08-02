@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+
 from mentat_broker import server as broker_server
 from mentat_broker.models import Offer
 from mentat_broker.production_app import ProductionBrokerApplication

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+
 from mentat_broker.authority import AuthorityError, BrokerAuthority
 from mentat_broker.contracts import (
     BackendKind,

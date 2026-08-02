@@ -1,4 +1,5 @@
 import pytest
+
 from mentat_broker.runtime import MentatV1Runtime
 from mentat_broker.settings import DesktopSettingsStore
 from mentat_broker.spend import BudgetPolicy

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from mentat_broker.production_sessions import ProductionSessionManager
 from mentat_broker.registry import ModelRegistry
 from mentat_broker.sessions import ApprovalCoordinator, SessionError

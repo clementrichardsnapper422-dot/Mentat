@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+
 from mentat_broker.single_authority import AuthorityBypassError, candidate_proposal_scope
 
 
