@@ -62,8 +62,11 @@ async function gitCommit() {
     child.stdout.on("data", (chunk) => output.push(chunk));
     child.once("error", reject);
     child.once("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`git rev-parse exited with ${code}.`));
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`git rev-parse exited with ${code}.`));
+      }
     });
   });
   return Buffer.concat(output).toString("utf8").trim();
@@ -178,7 +181,9 @@ async function main() {
   process.stdout.write(`${PAYLOAD_DIR}\n`);
 }
 
-await main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+await main().catch(
+  /** @param {unknown} error */ (error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  },
+);
