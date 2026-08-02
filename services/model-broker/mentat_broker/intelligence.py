@@ -300,8 +300,14 @@ class PredictionEngine:
                 )
                 / denominator
             )
-            success_low = max(0.0, adjusted - half - penalty)
-            success_high = min(1.0, adjusted + half)
+            success_low = min(
+                success_center,
+                max(0.0, adjusted - half - penalty),
+            )
+            success_high = max(
+                success_center,
+                min(1.0, adjusted + half),
+            )
         else:
             success_low = max(0.0, success_center - 0.20 - penalty)
             success_high = min(1.0, success_center + 0.10)
