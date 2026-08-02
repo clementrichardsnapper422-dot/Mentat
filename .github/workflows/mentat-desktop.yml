@@ -43,6 +43,7 @@ permissions:
 jobs:
   build-windows-installer:
     runs-on: windows-latest
+    timeout-minutes: 60
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
@@ -83,6 +84,7 @@ jobs:
         run: node --test scripts/mentat/package-windows-runtime.test.mjs
 
       - name: Build Mentat NSIS installer
+        timeout-minutes: 25
         working-directory: apps/mentat-desktop
         shell: powershell
         run: npm run dist
@@ -96,6 +98,17 @@ jobs:
           $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Mentat NSIS installer was not produced.' }
           Write-Host "Built $($installer.FullName)"
+
+      - name: Generate checksum, SBOM, provenance, and signature status
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem 'apps/mentat-desktop/dist/Mentat-Setup-*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Mentat NSIS installer was not produced.' }
+          python scripts/mentat/release_artifacts.py `
+            --artifact $installer.FullName `
+            --payload-root '.artifacts/mentat-windows-runtime/payload' `
+            --output-dir (Join-Path $env:RUNNER_TEMP 'mentat-release-metadata')
+          if ($LASTEXITCODE -ne 0) { throw 'Mentat release metadata generation failed.' }
 
       - name: Smoke-install generated Mentat setup
         timeout-minutes: 20
@@ -204,6 +217,15 @@ jobs:
           name: mentat-installed-no-spend-report
           path: ${{ runner.temp }}/mentat-no-spend-acceptance.json
           if-no-files-found: warn
+
+      - name: Upload release metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentat-release-metadata
+          path: ${{ runner.temp }}/mentat-release-metadata
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload Mentat Windows installer
         uses: actions/upload-artifact@v4
