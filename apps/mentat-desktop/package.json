@@ -1,8 +1,8 @@
 {
   "name": "mentat-desktop",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "private": true,
-  "description": "Native Windows desktop shell for the local Mentat Control UI",
+  "description": "Windows-native Mentat AI operator and evidence-driven compute broker",
   "main": "src/main-production.cjs",
   "author": "Mentat",
   "license": "MIT",
