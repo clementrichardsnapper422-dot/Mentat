@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from mentat_broker.runtime import MentatV1Runtime
