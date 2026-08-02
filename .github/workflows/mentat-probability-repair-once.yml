@@ -39,20 +39,26 @@ jobs:
           from pathlib import Path
 
           path = Path("services/model-broker/mentat_broker/intelligence.py")
-          text = path.read_text(encoding="utf-8")
-          old = '''            success_low = max(0.0, adjusted - half - penalty)
-            success_high = min(1.0, adjusted + half)'''
-          new = '''            success_low = min(
-                success_center,
-                max(0.0, adjusted - half - penalty),
-            )
-            success_high = max(
-                success_center,
-                min(1.0, adjusted + half),
-            )'''
-          if old not in text:
-              raise SystemExit("probability-bound marker is missing")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          low = "success_low = max(0.0, adjusted - half - penalty)"
+          high = "success_high = min(1.0, adjusted + half)"
+          for index, line in enumerate(lines[:-1]):
+              if line.strip() == low and lines[index + 1].strip() == high:
+                  indent = line[: len(line) - len(line.lstrip())]
+                  lines[index : index + 2] = [
+                      indent + "success_low = min(",
+                      indent + "    success_center,",
+                      indent + "    max(0.0, adjusted - half - penalty),",
+                      indent + ")",
+                      indent + "success_high = max(",
+                      indent + "    success_center,",
+                      indent + "    min(1.0, adjusted + half),",
+                      indent + ")",
+                  ]
+                  break
+          else:
+              raise SystemExit("probability-bound assignments are missing")
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
       - name: Validate broker on platform
         shell: bash
@@ -86,20 +92,26 @@ jobs:
           from pathlib import Path
 
           path = Path("services/model-broker/mentat_broker/intelligence.py")
-          text = path.read_text(encoding="utf-8")
-          old = '''            success_low = max(0.0, adjusted - half - penalty)
-            success_high = min(1.0, adjusted + half)'''
-          new = '''            success_low = min(
-                success_center,
-                max(0.0, adjusted - half - penalty),
-            )
-            success_high = max(
-                success_center,
-                min(1.0, adjusted + half),
-            )'''
-          if old not in text:
-              raise SystemExit("probability-bound marker is missing")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          low = "success_low = max(0.0, adjusted - half - penalty)"
+          high = "success_high = min(1.0, adjusted + half)"
+          for index, line in enumerate(lines[:-1]):
+              if line.strip() == low and lines[index + 1].strip() == high:
+                  indent = line[: len(line) - len(line.lstrip())]
+                  lines[index : index + 2] = [
+                      indent + "success_low = min(",
+                      indent + "    success_center,",
+                      indent + "    max(0.0, adjusted - half - penalty),",
+                      indent + ")",
+                      indent + "success_high = max(",
+                      indent + "    success_center,",
+                      indent + "    min(1.0, adjusted + half),",
+                      indent + ")",
+                  ]
+                  break
+          else:
+              raise SystemExit("probability-bound assignments are missing")
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
           python -m pip install pytest ruff
           cd services/model-broker
