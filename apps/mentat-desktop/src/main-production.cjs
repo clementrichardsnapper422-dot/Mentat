@@ -8,7 +8,7 @@ const { runNoSpendCli } = require('./no-spend-cli.cjs');
 let noSpendRunInProgress = false;
 let noSpendMenuItem = null;
 let controlWindow = null;
-let controlSessionConfigured = false;
+const configuredBrokerSessions = new WeakSet();
 
 function installRoot() {
   const localAppData = process.env.LOCALAPPDATA || electron.app.getPath('appData');
@@ -73,8 +73,8 @@ function secureControlWindowOptions() {
   };
 }
 
-function configureControlSession(session) {
-  if (controlSessionConfigured) {
+function configureBrokerSession(session) {
+  if (configuredBrokerSessions.has(session)) {
     return;
   }
   session.webRequest.onBeforeSendHeaders(
@@ -93,7 +93,7 @@ function configureControlSession(session) {
       });
     },
   );
-  controlSessionConfigured = true;
+  configuredBrokerSessions.add(session);
 }
 
 async function openControlCenter() {
@@ -113,7 +113,7 @@ async function openControlCenter() {
     return;
   }
   controlWindow = new electron.BrowserWindow(secureControlWindowOptions());
-  configureControlSession(controlWindow.webContents.session);
+  configureBrokerSession(controlWindow.webContents.session);
   controlWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!isBrokerUrl(url)) {
       void electron.shell.openExternal(url);
@@ -280,6 +280,7 @@ electron.BrowserWindow.prototype.loadURL = function authenticatedLocalLoadURL(ta
     try {
       const candidate = new URL(target);
       if (candidate.pathname === '/ui/decisions' || candidate.pathname === '/ui/control') {
+        configureBrokerSession(this.webContents.session);
         const existing = actualOptions && actualOptions.extraHeaders
           ? String(actualOptions.extraHeaders).replace(/\r?\n$/, '') + '\r\n'
           : '';
