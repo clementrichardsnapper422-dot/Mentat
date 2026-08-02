@@ -9,6 +9,7 @@ from . import server as broker_server
 from .authority import BrokerAuthority, ProviderMutationGrant
 from .contracts import ProviderLifecycle, ProviderResource, utc_now
 from .endpoint_overrides import install_endpoint_override_hooks
+from .model_controls import SettingsAwareRegistry
 from .models import Decision, ModelSpec
 from .production_app import ProductionBrokerApplication
 from .production_http import (
@@ -132,6 +133,8 @@ class MentatV1ProductionApplication(ProductionBrokerApplication):
                     one_paid_session=True,
                 ),
             )
+            lifecycle_registry = self.registry
+            self.registry = SettingsAwareRegistry(lifecycle_registry, self.v1.settings)
             self.authority = BrokerAuthority(self.v1)
             self.sessions.set_authority(self.authority)
             self.authority.reconcile_sessions(self.store.list_sessions())
@@ -142,7 +145,23 @@ class MentatV1ProductionApplication(ProductionBrokerApplication):
     def plan(self, payload: dict[str, Any]) -> Decision:
         """Treat the established router as a candidate generator, never authority."""
 
-        decision = super().plan(payload)
+        settings = self.v1.settings.load()
+        effective_payload = dict(payload)
+        requested_hourly = effective_payload.get("max_hourly_usd")
+        requested_total = effective_payload.get("max_total_usd")
+        effective_payload["max_hourly_usd"] = min(
+            float(requested_hourly)
+            if requested_hourly is not None
+            else settings.budgets.maximum_hourly_usd,
+            settings.budgets.maximum_hourly_usd,
+        )
+        effective_payload["max_total_usd"] = min(
+            float(requested_total)
+            if requested_total is not None
+            else settings.budgets.maximum_session_usd,
+            settings.budgets.maximum_session_usd,
+        )
+        decision = super().plan(effective_payload)
         model = self.registry.get(decision.selected_model)
         try:
             self.authority.register_decision(decision, model)
@@ -191,6 +210,22 @@ class MentatV1ProductionApplication(ProductionBrokerApplication):
                 self.authority.no_spend_failed(decision, str(exc))
                 raise
 
+        settings = self.v1.settings.load()
+        if settings.privacy_mode != "remote_allowed":
+            raise SessionError("desktop privacy mode blocks remote inference")
+        if not settings.remote_inference_enabled:
+            raise SessionError("remote inference is disabled in desktop settings")
+        exposure = self.v1.spend.snapshot()
+        if (
+            float(exposure["today_exposure_usd"]) + decision.max_total_usd
+            > settings.budgets.maximum_daily_usd
+        ):
+            raise SessionError("desktop daily spend ceiling would be exceeded")
+        if (
+            float(exposure["month_exposure_usd"]) + decision.max_total_usd
+            > settings.budgets.maximum_monthly_usd
+        ):
+            raise SessionError("desktop monthly spend ceiling would be exceeded")
         hourly_usd = (
             decision.offer.hourly_usd
             if decision.offer
