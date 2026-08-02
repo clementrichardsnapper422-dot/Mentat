@@ -39,22 +39,26 @@ def authenticode(path: Path) -> dict[str, Any]:
     if os.name != "nt":
         return {"checked": False, "status": "unsupported_on_non_windows"}
     script = (
-        "$s=Get-AuthenticodeSignature -LiteralPath $args[0];"
+        "$p=[Environment]::GetEnvironmentVariable('MENTAT_AUTHENTICODE_PATH');"
+        "if([string]::IsNullOrWhiteSpace($p)){throw 'Authenticode path is missing'};"
+        "$s=Get-AuthenticodeSignature -LiteralPath $p;"
         "@{Status=[string]$s.Status;StatusMessage=$s.StatusMessage;"
         "Signer=if($s.SignerCertificate){$s.SignerCertificate.Subject}else{$null};"
         "Thumbprint=if($s.SignerCertificate){$s.SignerCertificate.Thumbprint}else{$null}}"
         "|ConvertTo-Json -Compress"
     )
+    environment = os.environ.copy()
+    environment["MENTAT_AUTHENTICODE_PATH"] = str(path)
     result = subprocess.run(
-        ["powershell.exe", "-NoLogo", "-NoProfile", "-Command", script, str(path)],
+        ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
         text=True,
         capture_output=True,
         check=False,
+        env=environment,
     )
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "Authenticode inspection failed")
     return {"checked": True, **json.loads(result.stdout)}
-
 
 def build_metadata(artifact: Path, payload_root: Path | None) -> dict[str, Any]:
     signature = authenticode(artifact)
