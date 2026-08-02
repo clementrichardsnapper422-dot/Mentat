@@ -8,8 +8,9 @@ paid provider mutations, or begin inference.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 
 class AuthorityBypassError(RuntimeError):

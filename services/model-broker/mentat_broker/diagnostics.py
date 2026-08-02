@@ -245,7 +245,7 @@ class DiagnosticsService:
         }
 
     def create_backup(self) -> dict[str, Any]:
-        """Create a local sensitive recovery archive with a hashed manifest."""
+        """Create a consistent local recovery archive with a hashed manifest."""
 
         diagnostics = self.run(include_docker=False)
         if not diagnostics["passed"]:
@@ -253,23 +253,15 @@ class DiagnosticsService:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = utc_now().replace(":", "-").replace("+", "_")
         destination = self.backup_dir / f"mentat-state-{timestamp}.zip"
-        files = [path for path in sorted(self.data_dir.rglob("*")) if path.is_file()]
-        manifest = {
-            "schema_version": 1,
-            "created_at": utc_now(),
-            "sensitive": True,
-            "warning": (
-                "This archive contains local spend authority and must be stored like a credential."
-            ),
-            "files": [
-                {
-                    "path": path.relative_to(self.data_dir).as_posix(),
-                    "size": path.stat().st_size,
-                    "sha256": _sha256(path),
-                }
-                for path in files
-            ],
-        }
+        sidecar_suffixes = ("-wal", "-shm", "-journal")
+        database_names = set(self.DATABASES)
+        non_database_sources = [
+            path
+            for path in sorted(self.data_dir.rglob("*"))
+            if path.is_file()
+            and path.name not in database_names
+            and not path.name.endswith(sidecar_suffixes)
+        ]
         descriptor, temp_name = tempfile.mkstemp(
             prefix=destination.name + ".",
             suffix=".tmp",
@@ -277,12 +269,72 @@ class DiagnosticsService:
         )
         os.close(descriptor)
         try:
-            with zipfile.ZipFile(
-                temp_name, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
-            ) as archive:
-                for path in files:
-                    archive.write(path, path.relative_to(self.data_dir).as_posix())
-                archive.writestr("backup-manifest.json", json.dumps(manifest, indent=2) + "\n")
+            with tempfile.TemporaryDirectory(
+                prefix="mentat-backup-stage-",
+                dir=self.backup_dir,
+            ) as staging_name:
+                staging = Path(staging_name)
+                for source in non_database_sources:
+                    relative = source.relative_to(self.data_dir)
+                    target = staging / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source, target)
+
+                for name in self.DATABASES:
+                    source = self.data_dir / name
+                    target = staging / name
+                    source_connection = sqlite3.connect(
+                        f"file:{source}?mode=ro",
+                        uri=True,
+                        timeout=30,
+                    )
+                    target_connection = sqlite3.connect(target, timeout=30)
+                    try:
+                        source_connection.backup(target_connection)
+                        target_connection.commit()
+                        result = target_connection.execute("PRAGMA integrity_check").fetchone()
+                        if not result or result[0] != "ok":
+                            raise RuntimeError(
+                                f"backup snapshot integrity failed for {name}: {result}"
+                            )
+                    finally:
+                        target_connection.close()
+                        source_connection.close()
+
+                files = [
+                    path
+                    for path in sorted(staging.rglob("*"))
+                    if path.is_file() and not path.name.endswith(sidecar_suffixes)
+                ]
+                manifest = {
+                    "schema_version": 1,
+                    "created_at": utc_now(),
+                    "sensitive": True,
+                    "warning": (
+                        "This archive contains local spend authority and must be "
+                        "stored like a credential."
+                    ),
+                    "files": [
+                        {
+                            "path": path.relative_to(staging).as_posix(),
+                            "size": path.stat().st_size,
+                            "sha256": _sha256(path),
+                        }
+                        for path in files
+                    ],
+                }
+                with zipfile.ZipFile(
+                    temp_name,
+                    "w",
+                    compression=zipfile.ZIP_DEFLATED,
+                    compresslevel=9,
+                ) as archive:
+                    for path in files:
+                        archive.write(path, path.relative_to(staging).as_posix())
+                    archive.writestr(
+                        "backup-manifest.json",
+                        json.dumps(manifest, indent=2) + "\n",
+                    )
             os.replace(temp_name, destination)
             with suppress(OSError):
                 os.chmod(destination, 0o600)

@@ -47,7 +47,12 @@ class MentatV1Runtime:
         self.backends.register(FakeBackend())
         self.backends.register(ExperimentalDirectBackend())
         self.recovery_plan = self.executions.startup_recovery_plan()
-        self._validate_settings_against_hard_policy(self.settings.load())
+        settings = self.settings.load()
+        # First-run defaults cannot authorize paid compute, so they must not
+        # prevent startup under a tighter deployment policy. Explicit settings
+        # updates and completed setup remain strictly validated below.
+        if settings.setup_completed:
+            self._validate_settings_against_hard_policy(settings)
 
     @staticmethod
     def _load_or_create_secret(path: Path) -> bytes:

@@ -186,11 +186,12 @@ def run_acceptance() -> dict[str, Any]:
         install_production_hooks()
 
         broker_base = start_broker()
-        application.v1.settings.update(
+        application.v1.settings.complete_setup(
             {
-                "setup_complete": True,
+                "workspace": str(data_dir.resolve()),
                 "privacy_mode": "remote_allowed",
                 "remote_inference_enabled": True,
+                "one_paid_session": True,
                 "budgets": {
                     "maximum_hourly_usd": 32,
                     "maximum_session_usd": 64,
@@ -198,8 +199,7 @@ def run_acceptance() -> dict[str, Any]:
                     "maximum_monthly_usd": 1280,
                     "maximum_retry_usd": 8,
                     "maximum_fallback_usd": 16,
-                    "maximum_exploration_usd": 4,
-                    "one_paid_session": True,
+                    "maximum_exploration_usd": 3,
                 },
             }
         )

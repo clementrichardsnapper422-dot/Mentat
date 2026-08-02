@@ -166,7 +166,20 @@ class DesktopSettingsStore:
             if key == "budgets":
                 if not isinstance(value, dict):
                     raise ValueError("budgets must be an object")
-                current["budgets"] = {**current["budgets"], **value}
+                merged_budgets = {**current["budgets"], **value}
+                if "maximum_session_usd" in value:
+                    session_ceiling = float(value["maximum_session_usd"])
+                    for dependent_limit in (
+                        "maximum_retry_usd",
+                        "maximum_fallback_usd",
+                        "maximum_exploration_usd",
+                    ):
+                        if dependent_limit not in value:
+                            merged_budgets[dependent_limit] = min(
+                                float(merged_budgets[dependent_limit]),
+                                session_ceiling,
+                            )
+                current["budgets"] = merged_budgets
             else:
                 current[key] = value
         current["updated_at"] = utc_now()
