@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 import urllib.parse
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
-from typing import Any, Callable
+from typing import Any
 
 from .control_ui import render_control_center
 from .production_http import (
@@ -13,6 +15,33 @@ from .production_http import (
     production_read_json,
     write_secure_json,
 )
+
+
+def _active_compute(application: Any) -> list[dict[str, Any]]:
+    """Return a sanitized view of saved compute without endpoint or credential data."""
+
+    active_states = {"approved", "warming", "ready", "cooling", "failed"}
+    result: list[dict[str, Any]] = []
+    for session in application.store.list_sessions():
+        if str(session.get("status") or "") not in active_states:
+            continue
+        result.append(
+            {
+                "model_id": str(session.get("model_id") or ""),
+                "status": str(session.get("status") or "unknown"),
+                "hourly_usd": (
+                    float(session["hourly_usd"])
+                    if session.get("hourly_usd") is not None
+                    else None
+                ),
+                "decision_id": session.get("decision_id"),
+                "started_at": session.get("started_at"),
+                "last_used_at": session.get("last_used_at"),
+                "approved_until": session.get("approved_until"),
+                "error": session.get("error"),
+            }
+        )
+    return result
 
 
 def v1_handler_factory(
@@ -31,6 +60,7 @@ def v1_handler_factory(
                 "/v1/release",
                 "/v1/spend",
                 "/v1/executions",
+                "/v1/compute",
             }:
                 super().do_GET()
                 return
@@ -54,6 +84,13 @@ def v1_handler_factory(
                 self.end_headers()
                 self.wfile.write(body)
                 return
+            if parsed.path == "/v1/compute":
+                write_secure_json(
+                    self,
+                    HTTPStatus.OK,
+                    {"active_compute": _active_compute(application)},
+                )
+                return
             status = application.v1.status()
             if parsed.path == "/v1/status":
                 payload = status
@@ -70,7 +107,8 @@ def v1_handler_factory(
 
         def do_POST(self) -> None:  # noqa: N802
             parsed = urllib.parse.urlparse(self.path)
-            if parsed.path not in {"/v1/control/kill-switch", "/v1/analyze"}:
+            cool_match = re.fullmatch(r"/v1/compute/([^/]+)/cool", parsed.path)
+            if parsed.path not in {"/v1/control/kill-switch", "/v1/analyze"} and not cool_match:
                 super().do_POST()
                 return
             if not self._valid_host() or not self._valid_origin():
@@ -81,6 +119,19 @@ def v1_handler_factory(
                 return
             try:
                 payload = production_read_json(self)
+                if cool_match:
+                    model_id = urllib.parse.unquote(cool_match.group(1))
+                    session = application.sessions.cool_now(model_id)
+                    write_secure_json(
+                        self,
+                        HTTPStatus.OK,
+                        {
+                            "model_id": model_id,
+                            "status": str(session.get("status") or "cooled"),
+                            "cooling_requested": True,
+                        },
+                    )
+                    return
                 if parsed.path == "/v1/control/kill-switch":
                     if not isinstance(payload.get("enabled"), bool):
                         raise ValueError("enabled must be a boolean")
@@ -106,7 +157,11 @@ def v1_handler_factory(
                         maximum_latency_ms=int(payload.get("maximum_latency_ms") or 1_800_000),
                     )
                 write_secure_json(self, HTTPStatus.OK, result)
+            except KeyError as exc:
+                self._deny(HTTPStatus.NOT_FOUND, str(exc))
             except (TypeError, ValueError) as exc:
                 self._deny(HTTPStatus.BAD_REQUEST, str(exc))
+            except Exception as exc:
+                self._deny(HTTPStatus.CONFLICT, str(exc))
 
     return MentatV1Handler
