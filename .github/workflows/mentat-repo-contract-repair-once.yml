@@ -67,6 +67,10 @@ jobs:
                   '  "apps/mentat-desktop/src/main.cjs!",',
                   '  "apps/mentat-desktop/src/no-spend-command.cjs!",',
                   '  "apps/mentat-desktop/src/no-spend-cli.cjs!",',
+                  "  // The standalone desktop package invokes this exact test glob via node --test.",
+                  '  "apps/mentat-desktop/test/no-spend-command.test.cjs!",',
+                  "  // Mentat Desktop packaging invokes this helper directly from package.json.",
+                  '  "scripts/mentat/package-windows-runtime.mjs!",',
                   "",
               ]
           )
