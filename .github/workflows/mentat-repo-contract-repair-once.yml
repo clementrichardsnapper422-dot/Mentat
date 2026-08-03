@@ -99,16 +99,14 @@ jobs:
           set -euo pipefail
           pnpm install --lockfile-only --no-frozen-lockfile
           pnpm install --frozen-lockfile
-          for package_dir in \
-            . \
-            extensions/acpx \
-            extensions/diagnostics-otel \
-            extensions/feishu \
-            extensions/lobster \
-            extensions/slack; do
-            echo "Regenerating shrinkwrap for ${package_dir}"
-            node scripts/generate-npm-shrinkwrap.mjs --package-dir "${package_dir}"
-          done
+          node scripts/generate-npm-shrinkwrap.mjs \
+            --jobs 6 \
+            --package-dir . \
+            --package-dir extensions/acpx \
+            --package-dir extensions/diagnostics-otel \
+            --package-dir extensions/feishu \
+            --package-dir extensions/lobster \
+            --package-dir extensions/slack
 
       - name: Prove repository contracts
         shell: bash
