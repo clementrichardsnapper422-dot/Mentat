@@ -276,7 +276,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pnpm docs:format:check
+          ./node_modules/.bin/oxfmt --check \
+            docs/mentat/threat-model.md \
+            docs/mentat/work-items.md
           pnpm format:check
           pnpm deadcode:dependencies
           pnpm deadcode:unused-files
