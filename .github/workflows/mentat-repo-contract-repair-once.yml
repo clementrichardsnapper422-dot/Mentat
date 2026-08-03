@@ -44,6 +44,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sed -i "s/^WORKER_PIPELINE = '''/WORKER_PIPELINE = r'''/" \
+            .github/repair/mentat-repo-contract-repair.py
           python -m py_compile .github/repair/mentat-repo-contract-repair.py
           python .github/repair/mentat-repo-contract-repair.py
 
