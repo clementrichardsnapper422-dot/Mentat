@@ -51,22 +51,10 @@ def production_read_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
     return parsed
 
 
-def secure_ui(base_ui: Callable[[], bytes], admin_token: str) -> bytes:
+def secure_ui(base_ui: Callable[[], bytes]) -> bytes:
+    """Add rating controls without placing broker authority in page JavaScript."""
+
     html = base_ui().decode("utf-8")
-    token_json = json.dumps(admin_token)
-    html = html.replace(
-        "const list = document.getElementById('list');",
-        "const list = document.getElementById('list');\n"
-        f"const adminToken = {token_json};",
-    )
-    html = html.replace(
-        "headers:{'Content-Type':'application/json'}",
-        "headers:{'Content-Type':'application/json','Authorization':'Bearer '+adminToken}",
-    )
-    html = html.replace(
-        "fetch('/v1/decisions?limit=30')",
-        "fetch('/v1/decisions?limit=30',{headers:{'Authorization':'Bearer '+adminToken}})",
-    )
     html = html.replace(
         "function render(decision) {",
         "async function rateDecision(id, stars) {\n"
@@ -76,25 +64,27 @@ def secure_ui(base_ui: Callable[[], bytes], admin_token: str) -> bytes:
         "function render(decision) {",
     )
     original_actions = (
-        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        '${pending ? `<div class="actions"><button class="approve" '
         "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
         "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
         "Reject</button></div>` : ''}"
     )
     rated_actions = (
-        "${pending ? `<div class=\"actions\"><button class=\"approve\" "
+        '${pending ? `<div class="actions"><button class="approve" '
         "onclick=\"approveDecision('${decision.id}')\">Approve compute</button>"
         "<button class=\"reject\" onclick=\"action('${decision.id}','reject')\">"
         "Reject</button></div>` : decision.status === 'completed' ? "
-        "(decision.rating ? `<div class=\"actions\"><span class=\"badge\">Rated "
+        '(decision.rating ? `<div class="actions"><span class="badge">Rated '
         "${Math.round(Number(decision.rating.quality_score) * 5)}/5</span></div>` : "
-        "`<div class=\"actions\"><span class=\"label\">Rate quality</span>"
-        "${[1,2,3,4,5].map(star => `<button class=\"approve\" "
+        '`<div class="actions"><span class="label">Rate quality</span>'
+        '${[1,2,3,4,5].map(star => `<button class="approve" '
         "onclick=\"rateDecision('${decision.id}',${star})\">${star}★</button>`).join('')}"
         "</div>`) : ''}"
     )
     if original_actions not in html:
-        raise RuntimeError("decision UI template changed; secure production patch cannot be applied")
+        raise RuntimeError(
+            "decision UI template changed; secure production patch cannot be applied"
+        )
     return html.replace(original_actions, rated_actions).encode("utf-8")
 
 
@@ -181,7 +171,7 @@ def production_handler_factory(
                 if not self._admin_authorized():
                     self._deny(HTTPStatus.UNAUTHORIZED, "admin authorization required")
                     return
-                body = secure_ui(base_ui, application.admin_token)
+                body = secure_ui(base_ui)
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))

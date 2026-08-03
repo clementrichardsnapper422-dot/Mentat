@@ -1,0 +1,146 @@
+name: Mentat Repository Contract Repair
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mentat-repo-contract-repair-once.yml"
+      - ".github/repair/mentat-repo-contract-repair.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mentat-repository-contract-repair
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/shot2-owner-gate1-evidence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/shot2-owner-gate1-evidence
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+
+      - name: Activate repository pnpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare "$(node -p "require('./package.json').packageManager")" --activate
+          pnpm install --frozen-lockfile
+
+      - name: Apply repository contract repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i "s/^WORKER_PIPELINE = '''/WORKER_PIPELINE = r'''/" \
+            .github/repair/mentat-repo-contract-repair.py
+          python -m py_compile .github/repair/mentat-repo-contract-repair.py
+          python .github/repair/mentat-repo-contract-repair.py
+
+      - name: Apply canonical formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/oxfmt \
+            .github/workflows/mentat-repo-contract-repair-once.yml \
+            docs/mentat/threat-model.md \
+            docs/mentat/work-items.md \
+            scripts/generate-npm-shrinkwrap.mjs \
+            scripts/mentat/package-windows-runtime.mjs \
+            scripts/mentat/package-windows-runtime.test.mjs \
+            scripts/mentat/runtime-package-layout.mjs \
+            services/model-broker/pyproject.toml \
+            services/vast-compute-manager/pyproject.toml \
+            config/knip.config.ts
+          node --check scripts/generate-npm-shrinkwrap.mjs
+
+      - name: Prove shrinkwrap package watchdog
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          OPENCLAW_NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS=50 \
+            node scripts/generate-npm-shrinkwrap.mjs --package-dir . --check --jobs 1 \
+            >"$RUNNER_TEMP/shrinkwrap-watchdog.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/shrinkwrap-watchdog.log"
+          if [ "$status" -eq 0 ]; then
+            echo "Shrinkwrap watchdog test unexpectedly succeeded." >&2
+            exit 1
+          fi
+          grep -F "shrinkwrap generation exceeded 50ms" \
+            "$RUNNER_TEMP/shrinkwrap-watchdog.log"
+
+      - name: Regenerate lock and stale shrinkwrap authorities
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --lockfile-only --no-frozen-lockfile
+          pnpm install --frozen-lockfile
+          timeout --signal=TERM --kill-after=30s 30m \
+            node scripts/generate-npm-shrinkwrap.mjs \
+              --jobs 7 \
+              --package-dir . \
+              --package-dir extensions/acpx \
+              --package-dir extensions/diagnostics-otel \
+              --package-dir extensions/feishu \
+              --package-dir extensions/lobster \
+              --package-dir extensions/msteams \
+              --package-dir extensions/slack
+
+      - name: Prove repository contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/oxfmt --check \
+            docs/mentat/threat-model.md \
+            docs/mentat/work-items.md
+          pnpm format:check
+          pnpm deadcode:dependencies
+          pnpm deadcode:unused-files
+          pnpm deadcode:exports
+          timeout --signal=TERM --kill-after=30s 20m pnpm deps:shrinkwrap:check
+          node scripts/pre-commit/pnpm-audit-prod.mjs --audit-level=high
+          pnpm --dir apps/mentat-desktop check
+          pnpm --dir apps/mentat-desktop test
+          (
+            cd services/model-broker
+            python -m pip install pytest ruff
+            ruff check mentat_broker tests ../../scripts/mentat/testing
+            pytest -q
+          )
+          python scripts/mentat/testing/no_spend_acceptance.py \
+            --report "$RUNNER_TEMP/mentat-no-spend-repo-contract.json"
+          python scripts/mentat/testing/release_candidate_acceptance.py \
+            --report "$RUNNER_TEMP/mentat-v1-repo-contract.json"
+          git diff --check
+
+      - name: Remove repair machinery and publish candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/mentat-repo-contract-repair-once.yml
+          rm -f .github/repair/mentat-repo-contract-repair.py
+          rmdir .github/repair 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No repository-contract repairs were produced."
+            exit 1
+          fi
+          git commit -m "fix: synchronize repository release contracts"
+          git push origin HEAD:agent/shot2-owner-gate1-evidence

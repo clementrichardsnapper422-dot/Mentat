@@ -13,6 +13,17 @@ const PAYLOAD_DIR = path.join(ARTIFACT_DIR, "payload");
 const TARBALL_DIR = path.join(ARTIFACT_DIR, "package");
 const TARBALL_NAME = "openclaw.tgz";
 
+// Electron loads these CommonJS modules by package metadata and runtime delegation rather than
+// ESM imports. Keep explicit URL edges here so repository dead-code analysis can verify the real
+// desktop graph without suppressing the files.
+const DESKTOP_RUNTIME_ENTRYPOINTS = [
+  new URL("../../apps/mentat-desktop/src/main-production.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/main.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/no-spend-cli.cjs", import.meta.url),
+  new URL("../../apps/mentat-desktop/src/no-spend-command.cjs", import.meta.url),
+];
+void DESKTOP_RUNTIME_ENTRYPOINTS;
+
 function run(command, args, cwd = ROOT_DIR) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -62,8 +73,11 @@ async function gitCommit() {
     child.stdout.on("data", (chunk) => output.push(chunk));
     child.once("error", reject);
     child.once("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`git rev-parse exited with ${code}.`));
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`git rev-parse exited with ${code}.`));
+      }
     });
   });
   return Buffer.concat(output).toString("utf8").trim();
@@ -166,6 +180,7 @@ async function main() {
     "scripts/mentat/launch.ps1",
     "scripts/mentat/broker.py",
     "scripts/mentat/testing/no_spend_acceptance.py",
+    "scripts/mentat/testing/gate1_owner_acceptance.py",
     "services/model-broker/mentat_broker/__init__.py",
     "services/model-broker/pyproject.toml",
     "config/model-registry.json",
@@ -177,7 +192,9 @@ async function main() {
   process.stdout.write(`${PAYLOAD_DIR}\n`);
 }
 
-await main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+await main().catch(
+  /** @param {unknown} error */ (error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  },
+);

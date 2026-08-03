@@ -67,9 +67,7 @@ def production_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 def test_kimi_stays_primary_until_cheaper_model_is_measured(production_app) -> None:
-    first = production_app.plan(
-        {"prompt": "Summarize this paragraph", "requires_tools": False}
-    )
+    first = production_app.plan({"prompt": "Summarize this paragraph", "requires_tools": False})
     assert first.selected_model == "kimi-k2.7-code"
 
     for _ in range(5):
@@ -86,9 +84,7 @@ def test_kimi_stays_primary_until_cheaper_model_is_measured(production_app) -> N
                 notes="rated production fixture",
             )
         )
-    second = production_app.plan(
-        {"prompt": "Summarize this paragraph", "requires_tools": False}
-    )
+    second = production_app.plan({"prompt": "Summarize this paragraph", "requires_tools": False})
     assert second.selected_model == "qwen3-coder-30b"
     assert second.quality_source == "measured"
 

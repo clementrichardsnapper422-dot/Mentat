@@ -28,11 +28,7 @@ class VastOfferDiscovery:
         self.api_key = api_key or os.getenv("VAST_API_KEY")
         self.timeout = timeout
         self.max_attempts = max(1, max_attempts)
-        self.api_url = (
-            api_url
-            or os.getenv("MENTAT_VAST_BUNDLES_URL")
-            or self.API_URL
-        )
+        self.api_url = api_url or os.getenv("MENTAT_VAST_BUNDLES_URL") or self.API_URL
 
     @property
     def configured(self) -> bool:
@@ -122,9 +118,8 @@ class VastOfferDiscovery:
                 continue
             if offer.disk_space_gb is not None and offer.disk_space_gb < model.min_disk_gb:
                 continue
-            if (
-                model.min_nvlink_bw > 0
-                and (offer.bw_nvlink is None or offer.bw_nvlink < model.min_nvlink_bw)
+            if model.min_nvlink_bw > 0 and (
+                offer.bw_nvlink is None or offer.bw_nvlink < model.min_nvlink_bw
             ):
                 continue
             offers.append(offer)

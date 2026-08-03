@@ -24,9 +24,7 @@ _CURRENT_APPROVAL_TOKEN = ""
 class SafeEndpointSessionManager(EndpointSessionManager):
     """Add cumulative budget, concurrency, authenticated health, and expiry controls."""
 
-    def _session_not_expired(
-        self, session: dict[str, object], now: datetime | None = None
-    ) -> bool:
+    def _session_not_expired(self, session: dict[str, object], now: datetime | None = None) -> bool:
         approved_until = session.get("approved_until")
         if not approved_until:
             return False
@@ -82,7 +80,9 @@ class SafeEndpointSessionManager(EndpointSessionManager):
             hourly_usd=hourly_usd,
             decision_id=decision.id,
             started_at=(str(session["started_at"]) if session.get("started_at") else utc_now()),
-            last_used_at=(str(session["last_used_at"]) if session.get("last_used_at") else utc_now()),
+            last_used_at=(
+                str(session["last_used_at"]) if session.get("last_used_at") else utc_now()
+            ),
             approved_until=approved_until.isoformat(),
         )
         return result
@@ -185,9 +185,7 @@ class SafeBrokerApplication(_ORIGINAL_APPLICATION):
         normalized = re.sub(r"\s+", " ", prompt.lower()).strip()
         return any(term in normalized for term in TOOL_ACTION_TERMS)
 
-    def routing_prompt_from_messages(
-        self, messages: list[dict[str, Any]]
-    ) -> tuple[str, bool]:
+    def routing_prompt_from_messages(self, messages: list[dict[str, Any]]) -> tuple[str, bool]:
         user_messages = [
             message for message in messages if str(message.get("role") or "") == "user"
         ]
@@ -244,8 +242,7 @@ class SafeBrokerApplication(_ORIGINAL_APPLICATION):
         decision = super().plan(payload)
         selected = self.registry.get(decision.selected_model)
         requires_creation = (
-            selected.provider == "vast"
-            and not self.sessions.endpoint_state_path(selected).exists()
+            selected.provider == "vast" and not self.sessions.endpoint_state_path(selected).exists()
         )
         decision.metadata["requires_endpoint_creation"] = requires_creation
         decision.metadata["approved_price_ceiling_usd"] = (

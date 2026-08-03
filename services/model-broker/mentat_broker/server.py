@@ -89,15 +89,21 @@ class BrokerApplication:
             requires_tools=bool(payload.get("requires_tools", True)),
             risk_level=str(payload.get("risk_level") or "normal"),
             max_hourly_usd=(
-                float(payload["max_hourly_usd"]) if payload.get("max_hourly_usd") is not None else None
+                float(payload["max_hourly_usd"])
+                if payload.get("max_hourly_usd") is not None
+                else None
             ),
             max_total_usd=(
-                float(payload["max_total_usd"]) if payload.get("max_total_usd") is not None else None
+                float(payload["max_total_usd"])
+                if payload.get("max_total_usd") is not None
+                else None
             ),
         )
         if self.sessions.is_approved(decision.selected_model):
             decision.status = "approved"
-            decision.reasons.append("An approved reusable session is already active; no new launch approval is needed.")
+            decision.reasons.append(
+                "An approved reusable session is already active; no new launch approval is needed."
+            )
         self.store.save_decision(decision)
         return decision
 
@@ -201,9 +207,13 @@ class BrokerApplication:
                     continue
             raise SessionError(f"all approved model endpoints failed: {last_error}")
         except PermissionError as exc:
-            self._json_error(handler, HTTPStatus.FORBIDDEN, "mentat_compute_rejected", str(exc), decision)
+            self._json_error(
+                handler, HTTPStatus.FORBIDDEN, "mentat_compute_rejected", str(exc), decision
+            )
         except (ValueError, RoutingError) as exc:
-            self._json_error(handler, HTTPStatus.BAD_REQUEST, "mentat_routing_error", str(exc), decision)
+            self._json_error(
+                handler, HTTPStatus.BAD_REQUEST, "mentat_routing_error", str(exc), decision
+            )
         except SessionError as exc:
             self._json_error(
                 handler,
@@ -213,7 +223,9 @@ class BrokerApplication:
                 decision,
             )
         except Exception as exc:
-            self._json_error(handler, HTTPStatus.BAD_GATEWAY, "mentat_proxy_error", str(exc), decision)
+            self._json_error(
+                handler, HTTPStatus.BAD_GATEWAY, "mentat_proxy_error", str(exc), decision
+            )
 
     def _proxy_to_model(
         self,
@@ -249,7 +261,9 @@ class BrokerApplication:
         except urllib.error.HTTPError as exc:
             if exc.code < 500:
                 details = exc.read().decode("utf-8", errors="replace")
-                raise SessionError(f"upstream rejected the request with HTTP {exc.code}: {details}") from exc
+                raise SessionError(
+                    f"upstream rejected the request with HTTP {exc.code}: {details}"
+                ) from exc
             raise
 
         content_type = response.headers.get("Content-Type", "application/json")
@@ -460,24 +474,38 @@ def make_handler(application: BrokerApplication):
                     status = query.get("status", [None])[0]
                     limit = int(query.get("limit", ["50"])[0])
                     decisions = application.store.list_decisions(status=status, limit=limit)
-                    _write_json(self, HTTPStatus.OK, {"decisions": [item.as_dict() for item in decisions]})
+                    _write_json(
+                        self, HTTPStatus.OK, {"decisions": [item.as_dict() for item in decisions]}
+                    )
                 elif parsed.path.startswith("/v1/decisions/"):
                     decision_id = parsed.path.rsplit("/", 1)[-1]
                     decision = application.store.get_decision(decision_id)
                     if not decision:
-                        _write_json(self, HTTPStatus.NOT_FOUND, {"error": {"message": "decision not found"}})
+                        _write_json(
+                            self, HTTPStatus.NOT_FOUND, {"error": {"message": "decision not found"}}
+                        )
                     else:
                         _write_json(self, HTTPStatus.OK, decision.as_dict())
                 elif parsed.path == "/v1/benchmarks":
                     limit = int(query.get("limit", ["100"])[0])
-                    _write_json(self, HTTPStatus.OK, {"benchmarks": application.store.list_benchmarks(limit)})
+                    _write_json(
+                        self,
+                        HTTPStatus.OK,
+                        {"benchmarks": application.store.list_benchmarks(limit)},
+                    )
                 elif parsed.path == "/v1/sessions":
-                    _write_json(self, HTTPStatus.OK, {"sessions": application.store.list_sessions()})
+                    _write_json(
+                        self, HTTPStatus.OK, {"sessions": application.store.list_sessions()}
+                    )
                 elif parsed.path == "/v1/offers":
                     model_id = query.get("model", [""])[0]
                     model = application.registry.get(model_id)
                     offers = application.offers_for(model, refresh=True)
-                    _write_json(self, HTTPStatus.OK, {"model": model_id, "offers": [item.as_dict() for item in offers]})
+                    _write_json(
+                        self,
+                        HTTPStatus.OK,
+                        {"model": model_id, "offers": [item.as_dict() for item in offers]},
+                    )
                 elif parsed.path == "/ui/decisions":
                     body = _decision_ui()
                     self.send_response(HTTPStatus.OK)
@@ -491,7 +519,9 @@ def make_handler(application: BrokerApplication):
             except (ValueError, RegistryError) as exc:
                 _write_json(self, HTTPStatus.BAD_REQUEST, {"error": {"message": str(exc)}})
             except Exception as exc:
-                _write_json(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"message": str(exc)}})
+                _write_json(
+                    self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"message": str(exc)}}
+                )
 
         def do_POST(self) -> None:  # noqa: N802
             parsed = urllib.parse.urlparse(self.path)
@@ -523,7 +553,9 @@ def make_handler(application: BrokerApplication):
                             else None
                         ),
                         hourly_usd=(
-                            float(payload["hourly_usd"]) if payload.get("hourly_usd") is not None else None
+                            float(payload["hourly_usd"])
+                            if payload.get("hourly_usd") is not None
+                            else None
                         ),
                         total_cost_usd=(
                             float(payload["total_cost_usd"])
@@ -540,7 +572,9 @@ def make_handler(application: BrokerApplication):
                     if record.quality_score is not None and not 0 <= record.quality_score <= 1:
                         raise ValueError("quality_score must be between 0 and 1")
                     record_id = application.store.add_benchmark(record)
-                    _write_json(self, HTTPStatus.CREATED, {"id": record_id, "benchmark": record.as_dict()})
+                    _write_json(
+                        self, HTTPStatus.CREATED, {"id": record_id, "benchmark": record.as_dict()}
+                    )
                 else:
                     _write_json(self, HTTPStatus.NOT_FOUND, {"error": {"message": "not found"}})
             except KeyError as exc:
@@ -548,7 +582,9 @@ def make_handler(application: BrokerApplication):
             except (ValueError, RegistryError, RoutingError, SessionError) as exc:
                 _write_json(self, HTTPStatus.BAD_REQUEST, {"error": {"message": str(exc)}})
             except Exception as exc:
-                _write_json(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"message": str(exc)}})
+                _write_json(
+                    self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"message": str(exc)}}
+                )
 
     return BrokerHandler
 
@@ -577,7 +613,9 @@ def main() -> int:
     args = build_parser().parse_args()
     root = args.root.resolve() if args.root else find_root(Path(__file__))
     registry_path = args.registry or root / "config" / "model-registry.json"
-    default_data = Path(os.getenv("MENTAT_BROKER_DATA_DIR") or Path.home() / ".config" / "mentat" / "broker")
+    default_data = Path(
+        os.getenv("MENTAT_BROKER_DATA_DIR") or Path.home() / ".config" / "mentat" / "broker"
+    )
     data_dir = args.data_dir or default_data
     application = BrokerApplication(root=root, registry_path=registry_path, data_dir=data_dir)
     port = args.port or application.registry.policy.port
@@ -587,6 +625,7 @@ def main() -> int:
         return 0
     server = ThreadingHTTPServer((args.host, port), make_handler(application))
     if args.parent_pid:
+
         def monitor_parent() -> None:
             while True:
                 try:
@@ -595,6 +634,7 @@ def main() -> int:
                     server.shutdown()
                     return
                 time.sleep(2)
+
         threading.Thread(target=monitor_parent, name="mentat-broker-parent", daemon=True).start()
     print(f"Mentat broker listening on http://{args.host}:{port}")
     try:

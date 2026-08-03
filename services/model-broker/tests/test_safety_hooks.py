@@ -47,7 +47,9 @@ def make_decision(model_id: str, hourly: float = 8.0) -> Decision:
         quality_score=0.95,
         quality_source="bootstrap",
         benchmark_samples=0,
-        offer=Offer(1, model.gpu_names[0], model.num_gpus, model.min_gpu_ram_mb, hourly, 0.995, True),
+        offer=Offer(
+            1, model.gpu_names[0], model.num_gpus, model.min_gpu_ram_mb, hourly, 0.995, True
+        ),
         offer_source="live-vast",
         estimated_minutes=20,
         estimated_cost_usd=hourly / 3,
@@ -119,8 +121,12 @@ def test_second_paid_session_is_blocked(tmp_path: Path) -> None:
 
 
 def test_tool_requirement_uses_task_intent_not_tool_availability() -> None:
-    assert SafeBrokerApplication.task_requires_tools("Summarize this pasted paragraph", True) is False
-    assert SafeBrokerApplication.task_requires_tools("Edit the repository and run tests", True) is True
+    assert (
+        SafeBrokerApplication.task_requires_tools("Summarize this pasted paragraph", True) is False
+    )
+    assert (
+        SafeBrokerApplication.task_requires_tools("Edit the repository and run tests", True) is True
+    )
     assert SafeBrokerApplication.task_requires_tools("Edit the repository", False) is False
 
 

@@ -71,7 +71,9 @@ class EndpointSessionManager:
     def start_sweeper(self) -> None:
         if self._sweeper and self._sweeper.is_alive():
             return
-        self._sweeper = threading.Thread(target=self._sweep_loop, name="mentat-broker-idle", daemon=True)
+        self._sweeper = threading.Thread(
+            target=self._sweep_loop, name="mentat-broker-idle", daemon=True
+        )
         self._sweeper.start()
 
     def stop_sweeper(self) -> None:
@@ -241,9 +243,7 @@ class EndpointSessionManager:
         return updated
 
     def reject(self, decision_id: str) -> Decision | None:
-        updated = self.store.update_decision_status(
-            decision_id, "rejected", completed_at=utc_now()
-        )
+        updated = self.store.update_decision_status(decision_id, "rejected", completed_at=utc_now())
         self.coordinator.notify()
         return updated
 
@@ -296,9 +296,14 @@ class EndpointSessionManager:
         return result
 
     def _probe(self, base_url: str) -> bool:
-        targets = [base_url.rstrip("/") + "/models", base_url.rstrip("/").removesuffix("/v1") + "/health"]
+        targets = [
+            base_url.rstrip("/") + "/models",
+            base_url.rstrip("/").removesuffix("/v1") + "/health",
+        ]
         for target in targets:
-            request = urllib.request.Request(target, method="GET", headers={"Accept": "application/json"})
+            request = urllib.request.Request(
+                target, method="GET", headers={"Accept": "application/json"}
+            )
             try:
                 with urllib.request.urlopen(request, timeout=3) as response:
                     if 200 <= response.status < 500:

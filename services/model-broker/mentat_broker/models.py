@@ -65,8 +65,7 @@ class ModelSpec:
             state_name=(str(data["state_name"]) if data.get("state_name") else None),
             fallback_chain=[str(item) for item in data.get("fallback_chain", [])],
             default_minutes={
-                str(key): int(value)
-                for key, value in dict(data.get("default_minutes", {})).items()
+                str(key): int(value) for key, value in dict(data.get("default_minutes", {})).items()
             },
             minimum_benchmark_samples=int(data.get("minimum_benchmark_samples", 5)),
             api_key_env=str(data.get("api_key_env", "VAST_API_KEY")),
@@ -157,12 +156,8 @@ class Offer:
             verified=verified,
             geolocation=(str(raw["geolocation"]) if raw.get("geolocation") else None),
             dlperf=(float(raw["dlperf"]) if raw.get("dlperf") is not None else None),
-            bw_nvlink=(
-                float(raw["bw_nvlink"]) if raw.get("bw_nvlink") is not None else None
-            ),
-            disk_space_gb=(
-                float(raw["disk_space"]) if raw.get("disk_space") is not None else None
-            ),
+            bw_nvlink=(float(raw["bw_nvlink"]) if raw.get("bw_nvlink") is not None else None),
+            disk_space_gb=(float(raw["disk_space"]) if raw.get("disk_space") is not None else None),
         )
 
     def as_dict(self) -> dict[str, Any]:

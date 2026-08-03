@@ -24,10 +24,7 @@ def compose_production_broker_for_production_tests(
     """
 
     filename = Path(str(request.node.path)).name
-    if not (
-        filename.startswith("test_production")
-        or filename == "test_no_spend_inference.py"
-    ):
+    if not (filename.startswith("test_production") or filename == "test_no_spend_inference.py"):
         return
     install_endpoint_override_hooks()
     monkeypatch.setattr(broker_server, "BrokerStore", ProductionBrokerStore)

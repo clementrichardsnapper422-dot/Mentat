@@ -72,7 +72,9 @@ def _json_completion(payload: dict[str, Any], text: str) -> dict[str, Any]:
         }
         finish_reason = "tool_calls"
     else:
-        content = "OK" if int(payload.get("max_tokens") or 0) == 1 else "Mentat no-spend inference online"
+        content = (
+            "OK" if int(payload.get("max_tokens") or 0) == 1 else "Mentat no-spend inference online"
+        )
         message = {"role": "assistant", "content": content}
         finish_reason = "stop"
     completion = {

@@ -36,7 +36,9 @@ def _validate_tool_calls(tool_calls: list[Any]) -> None:
         try:
             parsed_arguments = json.loads(arguments)
         except json.JSONDecodeError as exc:
-            raise SessionError("upstream assistant tool call arguments were malformed JSON") from exc
+            raise SessionError(
+                "upstream assistant tool call arguments were malformed JSON"
+            ) from exc
         if not isinstance(parsed_arguments, dict):
             raise SessionError("upstream assistant tool call arguments must be a JSON object")
 
@@ -81,7 +83,9 @@ def _validate_json_completion(raw: bytes) -> dict[str, Any]:
     return parsed
 
 
-def _record_failure(application: Any, model: ModelSpec, decision: Decision, started: float, error: str) -> None:
+def _record_failure(
+    application: Any, model: ModelSpec, decision: Decision, started: float, error: str
+) -> None:
     latency_ms = (time.monotonic() - started) * 1000
     application.store.update_decision_status(
         decision.id,

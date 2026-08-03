@@ -37,22 +37,14 @@ class QualityAwareBrokerStore(BrokerStore):
             "success_rate": float(row["success_rate"] or 0),
             "latency_ms": float(row["latency_ms"]) if row["latency_ms"] is not None else None,
             "tokens_per_second": (
-                float(row["tokens_per_second"])
-                if row["tokens_per_second"] is not None
-                else None
+                float(row["tokens_per_second"]) if row["tokens_per_second"] is not None else None
             ),
-            "hourly_usd": (
-                float(row["hourly_usd"]) if row["hourly_usd"] is not None else None
-            ),
+            "hourly_usd": (float(row["hourly_usd"]) if row["hourly_usd"] is not None else None),
             "total_cost_usd": (
-                float(row["total_cost_usd"])
-                if row["total_cost_usd"] is not None
-                else None
+                float(row["total_cost_usd"]) if row["total_cost_usd"] is not None else None
             ),
             "quality_score": (
-                float(row["quality_score"])
-                if row["quality_score"] is not None
-                else None
+                float(row["quality_score"]) if row["quality_score"] is not None else None
             ),
         }
 

@@ -14,11 +14,13 @@ $BrokerAdminTokenPath = Join-Path $StateDir 'broker-admin.token'
 $OutLog = Join-Path $StateDir 'gateway.out.log'
 $ErrorLog = Join-Path $StateDir 'gateway.error.log'
 $NoSpendReportPath = Join-Path $StateDir 'no-spend-acceptance.json'
+$Gate1OwnerReportPath = Join-Path $StateDir 'gate1-owner-acceptance.json'
 $LaunchScript = Join-Path $RootDir 'scripts\mentat\launch.ps1'
 $DoctorScript = Join-Path $RootDir 'scripts\mentat\doctor.ps1'
 $VastScript = Join-Path $RootDir 'scripts\mentat\vast_endpoint.py'
 $BrokerShutdownScript = Join-Path $RootDir 'scripts\mentat\broker_shutdown.py'
 $NoSpendScript = Join-Path $RootDir 'scripts\mentat\testing\no_spend_acceptance.py'
+$Gate1OwnerScript = Join-Path $RootDir 'scripts\mentat\testing\gate1_owner_acceptance.py'
 $RuntimeHelpers = Join-Path $PSScriptRoot 'runtime.ps1'
 
 if (-not (Test-Path $RuntimeHelpers)) { throw "Mentat runtime helpers were not found: $RuntimeHelpers" }
@@ -300,8 +302,25 @@ function Command-Vast([string[]]$CommandArgs) {
 
 function Command-Test([string[]]$CommandArgs) {
     $testName = if ($CommandArgs.Count -gt 0) { $CommandArgs[0].ToLowerInvariant() } else { '' }
+    if ($testName -eq 'gate1-owner') {
+        if (-not (Test-Path $Gate1OwnerScript)) {
+            throw "Gate 1 owner acceptance script was not found: $Gate1OwnerScript"
+        }
+        Remove-Item $Gate1OwnerReportPath -Force -ErrorAction SilentlyContinue
+        Write-Host 'Running fail-closed Gate 1 owner-PC checks against local fakes. No paid compute will be started.' -ForegroundColor Cyan
+        Invoke-Python @($Gate1OwnerScript, '--report', $Gate1OwnerReportPath)
+        if (-not (Test-Path $Gate1OwnerReportPath)) {
+            throw 'The Gate 1 owner acceptance report was not created.'
+        }
+        $report = Get-Content -LiteralPath $Gate1OwnerReportPath -Raw | ConvertFrom-Json
+        if (-not $report.passed) { throw 'Gate 1 owner acceptance failed. Review the JSON report.' }
+        if ($report.paid_compute_used) { throw 'Safety violation: Gate 1 report claims paid compute was used.' }
+        Write-Host 'Gate 1 owner-PC acceptance passed.' -ForegroundColor Green
+        Write-Host "Report: $Gate1OwnerReportPath"
+        return
+    }
     if ($testName -ne 'no-spend') {
-        throw 'Usage: mentat test no-spend'
+        throw 'Usage: mentat test [no-spend|gate1-owner]'
     }
     if (-not (Test-Path $NoSpendScript)) {
         throw "No-spend acceptance script was not found: $NoSpendScript"
@@ -402,6 +421,7 @@ Usage:
 First run:
   mentat doctor
   mentat test no-spend
+  mentat test gate1-owner
   mentat setup [vast|ollama-cloud]
   mentat start
   mentat chat
