@@ -57,8 +57,8 @@ jobs:
 
           knip = Path("config/knip.config.ts")
           text = knip.read_text(encoding="utf-8")
-          marker = '  "apps/android/scripts/build-release-artifacts.ts!",\n'
-          replacement = "\n".join(
+          entry_marker = '  "apps/android/scripts/build-release-artifacts.ts!",\n'
+          entry_replacement = "\n".join(
               [
                   '  "apps/android/scripts/build-release-artifacts.ts!",',
                   "  // Electron, installer, and no-spend wrappers load these by package metadata",
@@ -70,10 +70,25 @@ jobs:
                   "",
               ]
           )
-          if marker not in text:
+          if entry_marker not in text:
               raise SystemExit("Knip repository entry marker is missing")
           if "apps/mentat-desktop/src/main-production.cjs!" not in text:
-              text = text.replace(marker, replacement, 1)
+              text = text.replace(entry_marker, entry_replacement, 1)
+
+          dependency_marker = '        "cross-spawn",\n'
+          dependency_replacement = "\n".join(
+              [
+                  '        "cross-spawn",',
+                  "        // Root Knip scans apps/**, but Mentat Desktop is a standalone package",
+                  "        // whose package.json owns the Electron development dependency.",
+                  '        "electron",',
+                  "",
+              ]
+          )
+          if dependency_marker not in text:
+              raise SystemExit("Knip dependency-ownership marker is missing")
+          if '        "electron",' not in text:
+              text = text.replace(dependency_marker, dependency_replacement, 1)
           knip.write_text(text, encoding="utf-8")
 
           generator = Path("scripts/generate-npm-shrinkwrap.mjs")
