@@ -110,6 +110,109 @@ jobs:
                   raise SystemExit("Shrinkwrap command-timeout marker is missing")
               text = text.replace(command_timeout, package_timeout, 1)
 
+          normalize_start = text.index("function normalizeShrinkwrapOverrides(")
+          normalize_end = text.index("function normalizeNpmVersionDrift(", normalize_start)
+          normalize_replacement = '''function removeViolationPackagePaths(lockfile, violations) {
+            const packages = lockfile?.packages;
+            if (!packages || typeof packages !== "object") {
+              return;
+            }
+            for (const violation of violations) {
+              delete packages[violation.path];
+              const subtreePrefix = `${violation.path}/node_modules/`;
+              for (const lockPath of Object.keys(packages)) {
+                if (lockPath.startsWith(subtreePrefix)) {
+                  delete packages[lockPath];
+                }
+              }
+            }
+          }
+
+          function scopedOverridesForViolations(shrinkwrapOverrides, violations) {
+            const scoped = {};
+            for (const violation of violations) {
+              const parent = violation.packagePath.at(-2);
+              if (!parent) {
+                continue;
+              }
+              const rootSpec = shrinkwrapOverrides[parent.name];
+              const rootVersion =
+                typeof rootSpec === "string"
+                  ? rootSpec
+                  : isPlainObject(rootSpec) && typeof rootSpec["."] === "string"
+                    ? rootSpec["."]
+                    : null;
+              if (!rootVersion || exactVersionFromOverrideSpec(rootVersion) === null) {
+                continue;
+              }
+              const current = scoped[parent.name];
+              const nested = isPlainObject(current) ? current : { ".": rootVersion };
+              const existing = nested[violation.packageName];
+              if (existing !== undefined && existing !== violation.expectedVersion) {
+                throw new Error(
+                  `conflicting scoped override repair for ${parent.name}>${violation.packageName}`,
+                );
+              }
+              nested[violation.packageName] = violation.expectedVersion;
+              scoped[parent.name] = nested;
+            }
+            return scoped;
+          }
+
+          function normalizeShrinkwrapOverrides(tempDir, shrinkwrapOverrides, npmInstallArgs) {
+            const shrinkwrapPath = path.join(tempDir, "npm-shrinkwrap.json");
+            const overrideRules = exactOverrideRulesFromOverrides(shrinkwrapOverrides);
+            if (Object.keys(overrideRules).length === 0) {
+              return;
+            }
+
+            const shrinkwrap = JSON.parse(readFileSync(shrinkwrapPath, "utf8"));
+            const violations = collectOverrideViolations(shrinkwrap, overrideRules);
+            if (violations.length === 0) {
+              return;
+            }
+
+            const disabled = disableShrinkwrappedOverrideConflictSources(shrinkwrap, overrideRules);
+            if (disabled.length === 0) {
+              const scopedOverrides = scopedOverridesForViolations(shrinkwrapOverrides, violations);
+              if (Object.keys(scopedOverrides).length === 0) {
+                throw new Error(
+                  `generated npm-shrinkwrap.json violates workspace overrides: ${describeOverrideViolations(violations)}`,
+                );
+              }
+              const packageJsonPath = path.join(tempDir, "package.json");
+              const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+              packageJson.overrides = mergeOverrides(
+                packageJson.overrides,
+                scopedOverrides,
+                {},
+              );
+              writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+              removeViolationPackagePaths(shrinkwrap, violations);
+            }
+
+            // Root overrides can be ignored inside dependency-owned shrinkwraps. Disable
+            // explicitly marked embedded shrinkwraps, or derive the narrow parent-scoped
+            // override needed for an unmarked conflicting subtree, then let npm rebuild it.
+            writeFileSync(shrinkwrapPath, `${JSON.stringify(shrinkwrap, null, 2)}\n`);
+            runNpm(npmInstallArgs, tempDir);
+
+            const normalized = JSON.parse(readFileSync(shrinkwrapPath, "utf8"));
+            const remaining = collectOverrideViolations(normalized, overrideRules);
+            if (remaining.length > 0) {
+              const repairLabel =
+                disabled.length > 0
+                  ? `after disabling ${disabled.join(", ")}`
+                  : "after applying scoped override repair";
+              throw new Error(
+                `generated npm-shrinkwrap.json violates workspace overrides ${repairLabel}: ${describeOverrideViolations(remaining)}`,
+              );
+            }
+          }
+
+          '''
+          text = text[:normalize_start] + normalize_replacement + text[normalize_end:]
+
           start = text.index("function updateOrCheckPackage(")
           end = text.index(
               "/** @internal Directly tested script implementation detail. */\nexport function resolveShrinkwrapJobs",
@@ -284,12 +387,13 @@ jobs:
           pnpm install --frozen-lockfile
           timeout --signal=TERM --kill-after=30s 30m \
             node scripts/generate-npm-shrinkwrap.mjs \
-              --jobs 6 \
+              --jobs 7 \
               --package-dir . \
               --package-dir extensions/acpx \
               --package-dir extensions/diagnostics-otel \
               --package-dir extensions/feishu \
               --package-dir extensions/lobster \
+              --package-dir extensions/msteams \
               --package-dir extensions/slack
 
       - name: Prove repository contracts
