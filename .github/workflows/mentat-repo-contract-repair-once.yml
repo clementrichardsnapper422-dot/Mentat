@@ -227,6 +227,7 @@ jobs:
         run: |
           set -euo pipefail
           ./node_modules/.bin/oxfmt \
+            .github/workflows/mentat-repo-contract-repair-once.yml \
             docs/mentat/threat-model.md \
             docs/mentat/work-items.md \
             scripts/generate-npm-shrinkwrap.mjs \
