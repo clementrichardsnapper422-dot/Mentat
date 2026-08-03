@@ -39,23 +39,20 @@ jobs:
           corepack prepare "$(node -p "require('./package.json').packageManager")" --activate
           pnpm install --frozen-lockfile
 
-      - name: Align repository contracts
+      - name: Align repository contracts and repair shrinkwrap generator
         shell: python
         run: |
           from pathlib import Path
 
           workspace = Path("pnpm-workspace.yaml")
           text = workspace.read_text(encoding="utf-8")
-          marker = "  axios: 1.18.1\n"
-          replacement = (
-              "  axios: 1.18.1\n"
-              '  "axios>agent-base": 7.1.4\n'
-              '  "axios>https-proxy-agent": 7.0.6\n'
-          )
-          if marker not in text:
-              raise SystemExit("Axios override marker is missing")
-          if "axios>agent-base" not in text:
-              text = text.replace(marker, replacement, 1)
+          for stale_rule in (
+              '  "axios>agent-base": 7.1.4\n',
+              '  "axios>https-proxy-agent": 7.0.6\n',
+          ):
+              text = text.replace(stale_rule, "")
+          if "  axios: 1.18.1\n" not in text:
+              raise SystemExit("Axios workspace authority is missing")
           workspace.write_text(text, encoding="utf-8")
 
           knip = Path("config/knip.config.ts")
@@ -79,6 +76,152 @@ jobs:
               text = text.replace(marker, replacement, 1)
           knip.write_text(text, encoding="utf-8")
 
+          generator = Path("scripts/generate-npm-shrinkwrap.mjs")
+          text = generator.read_text(encoding="utf-8")
+
+          command_timeout = (
+              "const NPM_SHRINKWRAP_COMMAND_TIMEOUT_MS = 10 * 60 * 1000;\n"
+          )
+          package_timeout = (
+              command_timeout
+              + "const NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS = 15 * 60 * 1000;\n"
+          )
+          if "NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS" not in text:
+              if command_timeout not in text:
+                  raise SystemExit("Shrinkwrap command-timeout marker is missing")
+              text = text.replace(command_timeout, package_timeout, 1)
+
+          start = text.index("function updateOrCheckPackage(")
+          end = text.index(
+              "/** @internal Directly tested script implementation detail. */\nexport function resolveShrinkwrapJobs",
+              start,
+          )
+          updated_package = '''function updateOrCheckPackage(packageDir, check, changedPaths = []) {
+            // Existing shrinkwrap topology is advisory, not authoritative: every retained
+            // version is filtered through the current pnpm lock before it is merged with
+            // workspace overrides. Reusing that validated topology prevents npm from
+            // rediscovering incompatible forks while still rejecting stale versions.
+            const generated = generateShrinkwrap(packageDir, {
+              useCurrentShrinkwrapOverrides: true,
+            });
+            const shrinkwrapPath = shrinkwrapPathForPackage(packageDir);
+            const label = packageLabel(packageDir);
+            if (!check) {
+              writeFileSync(shrinkwrapPath, generated);
+              return `${label}: npm-shrinkwrap.json updated.`;
+            }
+
+            let current;
+            try {
+              current = readFileSync(shrinkwrapPath, "utf8");
+            } catch {
+              throw new Error(
+                `${label}: npm-shrinkwrap.json is missing. Run \\`pnpm deps:shrinkwrap:generate\\`.`,
+              );
+            }
+            if (current !== generated) {
+              throw new Error(
+                `${label}: npm-shrinkwrap.json is stale. Run \\`pnpm deps:shrinkwrap:generate\\`.`,
+              );
+            }
+            return `${label}: npm-shrinkwrap.json is current.`;
+          }
+
+          '''
+          text = text[:start] + updated_package + text[end:]
+
+          start = text.index("async function runPackageWorker(")
+          end = text.index("async function main()", start)
+          worker_pipeline = '''async function runPackageWorker(packageDir, check, changedPaths) {
+            return await new Promise((resolve, reject) => {
+              const worker = new Worker(new URL(import.meta.url), {
+                workerData: {
+                  changedPaths,
+                  check,
+                  kind: SHRINKWRAP_WORKER_KIND,
+                  packageDir,
+                },
+              });
+              const timeoutMs = readPositiveIntEnv(
+                "OPENCLAW_NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS",
+                NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS,
+              );
+              let settled = false;
+              const settle = (callback, value) => {
+                if (settled) {
+                  return;
+                }
+                settled = true;
+                clearTimeout(timer);
+                callback(value);
+              };
+              const timer = setTimeout(() => {
+                settle(
+                  reject,
+                  new Error(
+                    `${packageLabel(packageDir)}: shrinkwrap generation exceeded ${timeoutMs}ms`,
+                  ),
+                );
+                void worker.terminate();
+              }, timeoutMs);
+
+              worker.once("message", (message) => {
+                if (message.error) {
+                  settle(reject, new Error(message.error));
+                } else {
+                  settle(resolve, message.output);
+                }
+              });
+              worker.once("error", (error) => settle(reject, error));
+              worker.once("exit", (code) => {
+                if (!settled) {
+                  settle(
+                    reject,
+                    new Error(
+                      code === 0
+                        ? `${packageLabel(packageDir)}: shrinkwrap worker exited without a result`
+                        : `${packageLabel(packageDir)}: shrinkwrap worker exited ${code}`,
+                    ),
+                  );
+                }
+              });
+            });
+          }
+
+          async function updateOrCheckPackages({ check, changedPaths, jobs, packageDirs }) {
+            const outcomes = await pMap(
+              packageDirs,
+              async (packageDir) => {
+                try {
+                  return { output: await runPackageWorker(packageDir, check, changedPaths) };
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  const label = packageLabel(packageDir);
+                  return {
+                    error: message.startsWith(`${label}:`) ? message : `${label}: ${message}`,
+                  };
+                }
+              },
+              { concurrency: jobs, stopOnError: false },
+            );
+
+            const errors = [];
+            for (const outcome of outcomes) {
+              if (outcome.error) {
+                errors.push(outcome.error);
+              } else {
+                process.stdout.write(`${outcome.output}\\n`);
+              }
+            }
+            if (errors.length > 0) {
+              throw new Error(errors.join("\\n"));
+            }
+          }
+
+          '''
+          text = text[:start] + worker_pipeline + text[end:]
+          generator.write_text(text, encoding="utf-8")
+
       - name: Apply canonical formatting
         shell: bash
         run: |
@@ -86,12 +229,32 @@ jobs:
           ./node_modules/.bin/oxfmt \
             docs/mentat/threat-model.md \
             docs/mentat/work-items.md \
+            scripts/generate-npm-shrinkwrap.mjs \
             scripts/mentat/package-windows-runtime.mjs \
             scripts/mentat/package-windows-runtime.test.mjs \
             scripts/mentat/runtime-package-layout.mjs \
             services/model-broker/pyproject.toml \
             services/vast-compute-manager/pyproject.toml \
             config/knip.config.ts
+          node --check scripts/generate-npm-shrinkwrap.mjs
+
+      - name: Prove shrinkwrap package watchdog
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          OPENCLAW_NPM_SHRINKWRAP_PACKAGE_TIMEOUT_MS=50 \
+            node scripts/generate-npm-shrinkwrap.mjs --package-dir . --check --jobs 1 \
+            >"$RUNNER_TEMP/shrinkwrap-watchdog.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/shrinkwrap-watchdog.log"
+          if [ "$status" -eq 0 ]; then
+            echo "Shrinkwrap watchdog test unexpectedly succeeded." >&2
+            exit 1
+          fi
+          grep -F "shrinkwrap generation exceeded 50ms" \
+            "$RUNNER_TEMP/shrinkwrap-watchdog.log"
 
       - name: Regenerate lock and stale shrinkwrap authorities
         shell: bash
@@ -99,14 +262,15 @@ jobs:
           set -euo pipefail
           pnpm install --lockfile-only --no-frozen-lockfile
           pnpm install --frozen-lockfile
-          node scripts/generate-npm-shrinkwrap.mjs \
-            --jobs 6 \
-            --package-dir . \
-            --package-dir extensions/acpx \
-            --package-dir extensions/diagnostics-otel \
-            --package-dir extensions/feishu \
-            --package-dir extensions/lobster \
-            --package-dir extensions/slack
+          timeout --signal=TERM --kill-after=30s 30m \
+            node scripts/generate-npm-shrinkwrap.mjs \
+              --jobs 6 \
+              --package-dir . \
+              --package-dir extensions/acpx \
+              --package-dir extensions/diagnostics-otel \
+              --package-dir extensions/feishu \
+              --package-dir extensions/lobster \
+              --package-dir extensions/slack
 
       - name: Prove repository contracts
         shell: bash
@@ -117,7 +281,7 @@ jobs:
           pnpm deadcode:dependencies
           pnpm deadcode:unused-files
           pnpm deadcode:exports
-          pnpm deps:shrinkwrap:check
+          timeout --signal=TERM --kill-after=30s 20m pnpm deps:shrinkwrap:check
           node scripts/pre-commit/pnpm-audit-prod.mjs --audit-level=high
           pnpm --dir apps/mentat-desktop check
           pnpm --dir apps/mentat-desktop test
